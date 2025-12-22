@@ -19,7 +19,7 @@ export default function CategoriesPage() {
   const [open, setOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<Doc<'categories'> | undefined>(undefined)
 
-  const categories = useQuery(api.categories.get)
+  const categories = useQuery(api.categories.get, {})
   const deleteCategory = useMutation(api.categories.deleteCategory)
 
   const handleCreate = () => {

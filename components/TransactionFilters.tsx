@@ -35,7 +35,7 @@ export default function TransactionFilters({
   filters,
   onFilterChange,
 }: TransactionFiltersProps) {
-  const accounts = useQuery(api.accounts.get)
+  const accounts = useQuery(api.accounts.get, {})
   const categories = useQuery(api.categories.get, {});
 
   const handleTypeChange = (type: string) => {

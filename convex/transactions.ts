@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Doc, Id } from "./_generated/dataModel";
+import { Id } from "./_generated/dataModel";
 
 export const get = query({
   args: {
@@ -42,7 +42,7 @@ export const get = query({
 
     const transactions = await query.order("desc").collect();
     
-    // Join with account names and labels
+    // Join with account names, labels, and categories
     const transactionsWithDetails = await Promise.all(
       transactions.map(async (transaction) => {
         const fromAccount = await ctx.db.get(transaction.accountId);
@@ -54,11 +54,28 @@ export const get = query({
           ? await ctx.db.get(transaction.labelId)
           : null;
 
+        const category = transaction.categoryId
+          ? await ctx.db.get(transaction.categoryId)
+          : null;
+
+        // Join category names for splits if they exist
+        const splitsWithDetails = transaction.splits 
+          ? await Promise.all(transaction.splits.map(async (split) => {
+              const splitCategory = await ctx.db.get(split.categoryId);
+              return {
+                ...split,
+                categoryName: splitCategory?.name,
+              };
+            }))
+          : undefined;
+
         return {
           ...transaction,
           fromAccountName: fromAccount?.name,
           toAccountName: toAccount?.name,
+          categoryName: category?.name,
           label: label,
+          splits: splitsWithDetails,
         };
       })
     );
@@ -80,8 +97,14 @@ export const create = mutation({
     splits: v.optional(v.array(v.object({
       categoryId: v.id("categories"),
       amount: v.string(),
+      description: v.optional(v.string()),
+      labelId: v.optional(v.id("labels")),
     }))),
     labelId: v.optional(v.id("labels")),
+    assetDetails: v.optional(v.object({
+      quantity: v.string(),
+      unitPrice: v.optional(v.number()),
+    })),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -103,11 +126,94 @@ export const create = mutation({
         throw new Error('One or both accounts not found');
       }
 
-      const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
-      const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
+      // --- Asset Transaction Logic ---
+      const isFromAsset = fromAccount.type === 'ASSET';
+      const isToAsset = toAccount.type === 'ASSET';
 
-      await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
-      await ctx.db.patch(toAccount._id, { balance: (toBalance + amount).toString() });
+      if (isFromAsset || isToAsset) {
+        // Validation for Asset Transfer
+        const quantity = parseFloat(args.assetDetails?.quantity || '0');
+        if (quantity <= 0) throw new Error('Quantity is required for asset transactions');
+
+        // Case A: Buying Asset (Cash -> Asset)
+        if (!isFromAsset && isToAsset) {
+          // Debit Cash Account
+          const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
+          await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
+
+          // Credit Asset Account (Logic: Buy)
+          const currentQty = toAccount.quantity ?? parseFloat(toAccount.initialQuantity || '0');
+          const currentCostBasis = toAccount.totalCostBasis ?? 0;
+          
+          const newQty = currentQty + quantity;
+          const newCostBasis = currentCostBasis + amount;
+          const impliedPrice = quantity > 0 ? amount / quantity : 0;
+          
+          // Balance for Asset Account = Current Estimated Value (New Qty * Last Price)
+          // "Current Estimated Value: $1,600... Last Known Price was $80/g"
+          const newEstimatedValue = newQty * impliedPrice;
+
+          await ctx.db.patch(toAccount._id, {
+            quantity: newQty,
+            totalCostBasis: newCostBasis,
+            balance: newEstimatedValue.toString(),
+          });
+        }
+        // Case B: Selling Asset (Asset -> Cash)
+        else if (isFromAsset && !isToAsset) {
+          // Credit Cash Account (Logic: Receive Cash)
+          const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
+          await ctx.db.patch(toAccount._id, { balance: (toBalance + amount).toString() });
+
+          // Debit Asset Account (Logic: Sell/Profit Taking)
+          const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
+          const currentCostBasis = fromAccount.totalCostBasis ?? 0;
+          const currentRealizedProfit = fromAccount.totalRealizedProfit ?? 0;
+
+          if (currentQty < quantity) throw new Error('Insufficient asset quantity');
+
+          // "Average Cost: Total spent / Total quantity"
+          // We use the PRE-SALE average cost to determine cost basis of sold items.
+          const avgCost = currentQty > 0 ? currentCostBasis / currentQty : 0;
+          
+          const sellPrice = quantity > 0 ? amount / quantity : 0; // Implied Price
+          const costOfSoldGoods = avgCost * quantity;
+          const profit = amount - costOfSoldGoods; // Realized Profit
+
+          const newQty = currentQty - quantity;
+          const newCostBasis = currentCostBasis - costOfSoldGoods; // Reduce cost basis proportionally
+          const newRealizedProfit = currentRealizedProfit + profit;
+          
+          // "Current Estimated Value: 19g * $120" (New Qty * Sell Price)
+          const newEstimatedValue = newQty * sellPrice;
+
+          await ctx.db.patch(fromAccount._id, {
+            quantity: newQty,
+            totalCostBasis: newCostBasis,
+            totalRealizedProfit: newRealizedProfit,
+            balance: newEstimatedValue.toString(),
+          });
+        }
+        // Case C: Asset to Asset (Not defined in PRD yet, block or treat as standard?)
+        // Treating as standard value transfer for now or throw error? 
+        // Let's assume standard value transfer if both are assets (rare case in current scope).
+        else {
+           // Fallback to standard logic if complex asset-to-asset logic isn't defined
+           const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
+           const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
+           await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
+           await ctx.db.patch(toAccount._id, { balance: (toBalance + amount).toString() });
+        }
+
+      } else {
+        // --- Standard Cash Transfer ---
+        const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
+        const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
+
+        await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
+        await ctx.db.patch(toAccount._id, { balance: (toBalance + amount).toString() });
+      }
+
     } else {
       const account = await ctx.db.get(args.accountId);
       if (!account) {
@@ -146,8 +252,14 @@ export const update = mutation({
     splits: v.optional(v.array(v.object({
       categoryId: v.id("categories"),
       amount: v.string(),
+      description: v.optional(v.string()),
+      labelId: v.optional(v.id("labels")),
     }))),
     labelId: v.optional(v.id("labels")),
+    assetDetails: v.optional(v.object({
+      quantity: v.string(),
+      unitPrice: v.optional(v.number()),
+    })),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

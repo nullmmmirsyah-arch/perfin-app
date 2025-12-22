@@ -1,169 +1,140 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
-import TransactionDrawer from '@/components/TransactionDrawer'
-import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { TransactionItem } from './transactions/page'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Wallet, PiggyBank, ArrowRight, ChevronDown } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Trash2, Edit, Plus } from 'lucide-react'
-import { Doc } from '../convex/_generated/dataModel'
-import TransactionFilters from '@/components/TransactionFilters'
-import { DateRange } from 'react-day-picker'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { useState } from 'react'
+import { cn } from '@/lib/utils'
 
-export default function Home() {
-  return <Content />
-}
-
-function Content() {
-  const [open, setOpen] = useState(false)
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<any>()
-
-  const [filters, setFilters] = useState<{
-    type: string | undefined
-    accountId: string | undefined
-    categoryId: string | undefined
-    dateRange: DateRange | undefined
-  }>({
-    type: undefined,
-    accountId: undefined,
-    categoryId: undefined,
-    dateRange: undefined,
-  })
-
-  const transactions = useQuery(api.transactions.get, {
-    type: filters.type,
-    accountId: filters.accountId,
-    categoryId: filters.categoryId,
-    dateRange: filters.dateRange
-      ? {
-          start: filters.dateRange.from?.toISOString(),
-          end: filters.dateRange.to?.toISOString(),
-        }
-      : undefined,
-  })
-  const deleteTransaction = useMutation(api.transactions.deleteTransaction)
-
-  const handleEdit = (transaction: any) => {
-    setSelectedTransaction(transaction)
-    setOpen(true)
-  }
-
-  const handleCreate = () => {
-    setSelectedTransaction(undefined)
-    setOpen(true)
-  }
+export default function Dashboard() {
+  const summary = useQuery(api.dashboard.getDashboardSummary)
+  const [isBudgetOpen, setIsBudgetOpen] = useState(false)
+  const [isCashOpen, setIsCashOpen] = useState(false)
 
   return (
-    <div>
-      <div className="md:hidden fixed bottom-4 right-8 z-50">
-        <Button
-          onClick={handleCreate}
-          size="icon"
-          className="rounded-full h-14 w-14 shadow-lg"
+    <div className="p-8">
+      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+
+      <div className="grid gap-6 md:grid-cols-2 mb-8">
+        <Collapsible
+          open={isCashOpen}
+          onOpenChange={setIsCashOpen}
+          className="w-full"
         >
-          <Plus className="h-6 w-6" />
-          <span className="sr-only">Create Transaction</span>
-        </Button>
-      </div>
-
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Transactions</h1>
-        <Button onClick={handleCreate} className="hidden md:flex">Create Transaction</Button>
-      </div>
-
-      <TransactionFilters filters={filters} onFilterChange={setFilters} />
-
-      <TransactionDrawer
-        open={open}
-        onOpenChange={setOpen}
-        transaction={selectedTransaction}
-      />
-
-      {transactions?.length === 0 && (
-        <div className="mt-8 p-4 border rounded-md bg-muted/50">
-          <p className="text-muted-foreground">
-            No transactions yet. Click "Create Transaction" to get started.
-          </p>
-        </div>
-      )}
-      <div className="mt-8 grid grid-cols-1 gap-4">
-        {transactions?.map(transaction => (
-          <div
-            key={transaction._id}
-            className="p-4 border rounded-md flex justify-between items-center"
-          >
-            <div>
-              <p className="font-medium">{transaction.description}</p>
-              {transaction.type === 'transfer' && (
-                <p className="text-sm font-bold text-muted-foreground">
-                  {(transaction as any).fromAccountName} → {(transaction as any).toAccountName}
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground">
-                {new Date(transaction.date).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p
-                  className={cn(
-                    'font-semibold',
-                    transaction.type === 'income'
-                      ? 'text-primary'
-                      : 'text-destructive'
-                  )}
-                >
-                  {transaction.type === 'income' ? '+' : '-'}
-                  {transaction.amount}
-                </p>
-                <Badge
-                  variant={
-                    transaction.type === 'income' ? 'default' : 'destructive'
-                  }
-                >
-                  {transaction.type}
-                </Badge>
-                {(transaction as any).label && (
-                  <Badge
-                    className="ml-2"
-                    style={{ backgroundColor: (transaction as any).label.color }}
-                  >
-                    {(transaction as any).label.name}
-                  </Badge>
-                )}
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-xl">
+                <CardTitle className="text-sm font-medium">Total Cash Balance</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isCashOpen && "rotate-180")} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {summary?.totalCash.toLocaleString() ?? '...'}
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleEdit(transaction)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => deleteTransaction({ id: transaction._id })}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <p className="text-xs text-muted-foreground mt-1">
+                Sum of all non-asset accounts
+              </p>
+
+              <CollapsibleContent className="mt-4 space-y-2 border-t pt-4 animate-in fade-in slide-in-from-top-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Balance per Account</p>
+                {summary?.accountBreakdown?.map((account, index) => (
+                  <div key={index} className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{account.name}</span>
+                    <span className="font-medium">
+                      {account.balance.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                {summary?.accountBreakdown?.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic">No cash accounts found.</p>
+                )}
+              </CollapsibleContent>
+            </CardContent>
+          </Card>
+        </Collapsible>
+
+        <Collapsible
+          open={isBudgetOpen}
+          onOpenChange={setIsBudgetOpen}
+          className="w-full"
+        >
+          <Card>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-xl">
+                <CardTitle className="text-sm font-medium">Remaining Budget</CardTitle>
+                <div className="flex items-center gap-2">
+                  <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isBudgetOpen && "rotate-180")} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {summary?.remainingBudget.toLocaleString() ?? '...'}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Monthly budget limit minus expenses
+              </p>
+              
+              <CollapsibleContent className="mt-4 space-y-2 border-t pt-4 animate-in fade-in slide-in-from-top-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Breakdown per Category</p>
+                {summary?.budgetBreakdown?.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">{item.categoryName}</span>
+                    <span className={cn(
+                      "font-medium",
+                      item.remaining === 0 && item.spent >= item.limit ? "text-destructive" : ""
+                    )}>
+                      {item.remaining.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                {summary?.budgetBreakdown?.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic">No budgets set.</p>
+                )}
+              </CollapsibleContent>
+            </CardContent>
+          </Card>
+        </Collapsible>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Recent Transactions</h2>
+          <Button variant="ghost" asChild>
+            <Link href="/transactions" className="flex items-center gap-2">
+              View All <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+
+        <div className="grid gap-2">
+          {summary?.recentTransactions?.map((transaction) => (
+            <TransactionItem
+              key={transaction._id}
+              transaction={transaction}
+              variant="slim"
+            />
+          ))}
+          {summary?.recentTransactions?.length === 0 && (
+            <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
+              <p className="text-muted-foreground">No transactions found.</p>
             </div>
-          </div>
-        ))}
+          )}
+        </div>
       </div>
     </div>
   )

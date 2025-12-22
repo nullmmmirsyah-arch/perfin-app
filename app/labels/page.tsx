@@ -18,7 +18,7 @@ export default function LabelsPage() {
   const [open, setOpen] = useState(false)
   const [selectedLabel, setSelectedLabel] = useState<Doc<'labels'> | undefined>(undefined)
 
-  const labels = useQuery(api.labels.get)
+  const labels = useQuery(api.labels.get, {})
   const deleteLabel = useMutation(api.labels.deleteLabel)
 
   const handleCreate = () => {

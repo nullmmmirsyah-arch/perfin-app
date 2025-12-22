@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { Doc, Id } from '../../convex/_generated/dataModel'
+import { Doc } from '../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -18,7 +18,7 @@ export default function AccountsPage() {
   const [open, setOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<Doc<'accounts'> | undefined>(undefined)
 
-  const accounts = useQuery(api.accounts.get)
+  const accounts = useQuery(api.accounts.get, {})
   const deleteAccount = useMutation(api.accounts.deleteAccount)
 
   const handleCreate = () => {
@@ -46,13 +46,36 @@ export default function AccountsPage() {
 
       <div className="mt-8">
         <div className="space-y-2">
-          {accounts?.map(account => (
+          {accounts?.map(account => {
+            const isAsset = account.type === 'ASSET';
+            const quantity = account.quantity ?? parseFloat(account.initialQuantity || '0');
+            const unit = account.unit || '';
+            const realizedProfit = account.totalRealizedProfit || 0;
+            
+            // Helper to format currency
+            const formatCurrency = (val: string | number) => {
+                const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : val;
+                return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(isNaN(num) ? 0 : num);
+            };
+
+            return (
             <div key={account._id} className="p-4 border rounded-md flex justify-between items-center">
               <div>
                 <p className="font-medium">{account.name}</p>
+                {isAsset && (
+                  <div className="text-sm text-muted-foreground flex gap-4 mt-1">
+                    <span>Qty: {quantity} {unit}</span>
+                    <span className={realizedProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      Profit: {formatCurrency(realizedProfit)}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className='flex items-center gap-4'>
-                <p className="font-semibold">{account.balance}</p>
+                <div className="text-right">
+                  <p className="font-semibold">{formatCurrency(account.balance)}</p>
+                  {isAsset && <p className="text-xs text-muted-foreground">Est. Value</p>}
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
@@ -75,7 +98,8 @@ export default function AccountsPage() {
                 </DropdownMenu>
               </div>
             </div>
-          ))}
+            );
+          })}
           {accounts?.length === 0 && (
             <div className="p-4 border rounded-md bg-muted/50">
               <p className="text-muted-foreground">No accounts yet. Create one to get started.</p>

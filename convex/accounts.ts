@@ -19,6 +19,9 @@ export const create = mutation({
   args: {
     name: v.string(),
     balance: v.string(),
+    type: v.optional(v.string()),
+    initialQuantity: v.optional(v.string()),
+    unit: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -38,6 +41,9 @@ export const update = mutation({
     id: v.id("accounts"),
     name: v.optional(v.string()),
     balance: v.optional(v.string()),
+    type: v.optional(v.string()),
+    initialQuantity: v.optional(v.string()),
+    unit: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

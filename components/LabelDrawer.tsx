@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { Check } from 'lucide-react';
 
 const LabelFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -39,9 +40,16 @@ type LabelDrawerProps = {
 };
 
 const predefinedColors = [
-  '#FF5733', '#33FF57', '#3357FF', '#FF33FF', '#33FFFF', '#FFFF33', // Brights
-  '#FF9933', '#99FF33', '#9933FF', '#FF3399', '#3399FF', '#33FF99', // Pastels/Middles
-  '#800000', '#008000', '#000080', // Darks
+  '#ef4444', // red-500
+  '#f97316', // orange-500
+  '#f59e0b', // amber-500
+  '#eab308', // yellow-500
+  '#22c55e', // green-500
+  '#06b6d4', // cyan-500
+  '#3b82f6', // blue-500
+  '#6366f1', // indigo-500
+  '#a855f7', // purple-500
+  '#ec4899', // pink-500
 ];
 
 const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
@@ -60,7 +68,7 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
     } else if (open && !isEditMode) {
       form.reset({
         name: '',
-        color: predefinedColors[0], // Default to first color
+        color: predefinedColors[0],
       });
     }
   }, [open, isEditMode, label, form]);
@@ -83,9 +91,9 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
         <DrawerHeader>
           <DrawerTitle>{isEditMode ? 'Edit Label' : 'Create a new Label'}</DrawerTitle>
         </DrawerHeader>
-        <div className="p-4">
+        <div className="p-4 pt-0">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="name"
@@ -103,20 +111,25 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
                 control={form.control}
                 name="color"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="space-y-3">
                     <FormLabel>Color</FormLabel>
                     <FormControl>
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="flex flex-wrap gap-2.5">
                         {predefinedColors.map((colorOption) => (
-                          <div
+                          <button
                             key={colorOption}
+                            type="button"
                             className={cn(
-                              "h-8 w-8 rounded-full cursor-pointer border-2 border-transparent",
-                              field.value === colorOption && "border-primary"
+                              "h-7 w-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95",
+                              field.value === colorOption ? "ring-2 ring-offset-2 ring-primary" : ""
                             )}
                             style={{ backgroundColor: colorOption }}
                             onClick={() => field.onChange(colorOption)}
-                          />
+                          >
+                            {field.value === colorOption && (
+                              <Check className="h-4 w-4 text-white" />
+                            )}
+                          </button>
                         ))}
                       </div>
                     </FormControl>
@@ -124,7 +137,7 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
                   </FormItem>
                 )}
               />
-              <DrawerFooter>
+              <DrawerFooter className="px-0 pt-2">
                 <Button type="submit">Save changes</Button>
                 <DrawerClose asChild>
                   <Button variant="outline">Cancel</Button>
