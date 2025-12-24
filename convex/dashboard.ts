@@ -1,31 +1,46 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
+// Helper for Auth Check
+async function ensureHouseholdAccess(ctx: any, householdId: Id<"households">, userId: string) {
+    const member = await ctx.db
+        .query("householdMembers")
+        .withIndex("by_householdId_userId", (q: any) =>
+            q.eq("householdId", householdId).eq("userId", userId)
+        )
+        .first();
+    return !!member;
+}
 
 export const getTotals = query({
   args: {
+    householdId: v.optional(v.id("households")),
     dateRange: v.optional(v.object({
       start: v.string(),
       end: v.string(),
     })),
   },
-  handler: async (ctx, { dateRange }) => {
+  handler: async (ctx, { householdId, dateRange }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
     let transactions;
-    if (dateRange) {
-      transactions = await ctx.db
-        .query("transactions")
-        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
-        .filter((q) => q.and(q.gte(q.field("date"), dateRange.start), q.lte(q.field("date"), dateRange.end)))
-        .collect();
+    if (householdId) {
+        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return { income: 0, expense: 0 };
+        let q = ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId));
+        if (dateRange) {
+             q = q.filter((q) => q.and(q.gte(q.field("date"), dateRange.start), q.lte(q.field("date"), dateRange.end)));
+        }
+        transactions = await q.collect();
     } else {
-      transactions = await ctx.db
-        .query("transactions")
-        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
-        .collect();
+        let q = ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", identity.subject));
+        if (dateRange) {
+            q = q.filter((q) => q.and(q.gte(q.field("date"), dateRange.start), q.lte(q.field("date"), dateRange.end)));
+        }
+        transactions = await q.collect();
     }
 
     const income = transactions
@@ -42,37 +57,42 @@ export const getTotals = query({
 
 export const getSpendingByCategory = query({
   args: {
+    householdId: v.optional(v.id("households")),
     dateRange: v.optional(v.object({
       start: v.string(),
       end: v.string(),
     })),
   },
-  handler: async (ctx, { dateRange }) => {
+  handler: async (ctx, { householdId, dateRange }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
     let transactions;
-    if (dateRange) {
-      transactions = await ctx.db
-        .query("transactions")
-        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
-        .filter((q) => q.and(q.gte(q.field("date"), dateRange.start), q.lte(q.field("date"), dateRange.end)))
-        .collect();
+    if (householdId) {
+        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return [];
+        let q = ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId));
+        if (dateRange) {
+             q = q.filter((q) => q.and(q.gte(q.field("date"), dateRange.start), q.lte(q.field("date"), dateRange.end)));
+        }
+        transactions = await q.collect();
     } else {
-      transactions = await ctx.db
-        .query("transactions")
-        .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
-        .collect();
+        let q = ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", identity.subject));
+        if (dateRange) {
+            q = q.filter((q) => q.and(q.gte(q.field("date"), dateRange.start), q.lte(q.field("date"), dateRange.end)));
+        }
+        transactions = await q.collect();
     }
 
     const expenseTransactions = transactions.filter((t) => t.type === "expense");
 
-    const categories = await ctx.db
-      .query("categories")
-      .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
-      .collect();
+    let categories;
+    if (householdId) {
+        categories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        categories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", identity.subject)).collect();
+    }
 
     const spendingByCategory = categories.map(category => {
       const categorySpending = expenseTransactions
@@ -86,19 +106,25 @@ export const getSpendingByCategory = query({
 });
 
 export const getDashboardSummary = query({
-  handler: async (ctx) => {
+  args: { householdId: v.optional(v.id("households")) },
+  handler: async (ctx, { householdId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
     const userId = identity.subject;
 
+    if (householdId && !(await ensureHouseholdAccess(ctx, householdId, userId))) {
+        return null;
+    }
+
     // 1. Total Account Cash Balance
-    // Assuming accounts with type !== 'ASSET' are cash/bank accounts
-    const accounts = await ctx.db
-      .query("accounts")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
+    let accounts;
+    if (householdId) {
+        accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        accounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
     
     const totalCash = accounts
       .filter(a => a.type !== 'ASSET')
@@ -113,18 +139,26 @@ export const getDashboardSummary = query({
 
     // 2. Remaining Budget
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const startOfMonth = new Date(currentYear, currentMonth, 1).toISOString();
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999).toISOString();
 
-    const budgets = await ctx.db
-      .query("budgets")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
+    let budgets;
+    if (householdId) {
+        budgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", currentYear).eq("month", currentMonth)).collect();
+    } else {
+        budgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => 
+            q.eq("userId", userId).eq("year", currentYear).eq("month", currentMonth)
+        ).collect();
+    }
 
-    const transactions = await ctx.db
-      .query("transactions")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
+    let transactions;
+    if (householdId) {
+        transactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        transactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
 
     const currentMonthExpenses = transactions.filter(t => 
       t.type === 'expense' && t.date >= startOfMonth && t.date <= endOfMonth
@@ -160,21 +194,76 @@ export const getDashboardSummary = query({
     const remainingBudget = Math.max(0, totalBudgetLimit - totalBudgetSpent);
 
     // 2.1 Budget Breakdown
-    const categories = await ctx.db
-      .query("categories")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
+    let categories;
+    if (householdId) {
+        categories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        categories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
     
     const categoryMap = new Map(categories.map(c => [c._id, c.name]));
+
+    // 2.2 Get Previous Month Data for Dashboard
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    if (prevMonth < 0) {
+      prevMonth = 11;
+      prevYear--;
+    }
+    const startOfPrevMonth = new Date(prevYear, prevMonth, 1).toISOString();
+    const endOfPrevMonth = new Date(prevYear, prevMonth + 1, 0, 23, 59, 59, 999).toISOString();
+
+    let prevBudgets;
+    if (householdId) {
+        prevBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", prevYear).eq("month", prevMonth)).collect();
+    } else {
+        prevBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => 
+            q.eq("userId", userId).eq("year", prevYear).eq("month", prevMonth)
+        ).collect();
+    }
+
+    const prevMonthExpenses = transactions.filter(t => 
+      t.type === 'expense' && t.date >= startOfPrevMonth && t.date <= endOfPrevMonth
+    );
+
+    const prevSpendingByCategory: Record<string, number> = {};
+    prevMonthExpenses.forEach((t) => {
+      if (t.isSplit && t.splits) {
+        t.splits.forEach((split) => {
+          if (split.categoryId && split.amount) {
+            const amount = parseFloat(split.amount.replace(/,/g, ''));
+            if (!isNaN(amount)) {
+              prevSpendingByCategory[split.categoryId] = (prevSpendingByCategory[split.categoryId] || 0) + amount;
+            }
+          }
+        });
+      } else if (t.categoryId && t.amount) {
+        const amount = parseFloat(t.amount.replace(/,/g, ''));
+        if (!isNaN(amount)) {
+          prevSpendingByCategory[t.categoryId] = (prevSpendingByCategory[t.categoryId] || 0) + amount;
+        }
+      }
+    });
+
+    const prevBudgetMap = new Map(prevBudgets.map(b => [b.categoryId, b]));
 
     const budgetBreakdown = budgets.map(b => {
       const limit = parseFloat(b.amount.replace(/,/g, '') || '0');
       const spent = spendingByCategory[b.categoryId] || 0;
+      
+      const prevBudget = prevBudgetMap.get(b.categoryId);
+      const prevSpent = prevSpendingByCategory[b.categoryId] || 0;
+      let lastMonthPerformance = null;
+      if (prevBudget) {
+          lastMonthPerformance = parseFloat(prevBudget.amount) - prevSpent;
+      }
+
       return {
         categoryName: categoryMap.get(b.categoryId) || 'Unknown',
         limit,
         spent,
-        remaining: Math.max(0, limit - spent)
+        remaining: Math.max(0, limit - spent),
+        lastMonthPerformance
       };
     });
 

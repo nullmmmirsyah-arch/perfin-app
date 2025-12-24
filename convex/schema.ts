@@ -2,8 +2,34 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  households: defineTable({
+    name: v.string(),
+    ownerId: v.string(),
+  }),
+  householdMembers: defineTable({
+    householdId: v.id("households"),
+    userId: v.string(),
+    role: v.union(v.literal("admin"), v.literal("member")),
+    email: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"])
+    .index("by_householdId_userId", ["householdId", "userId"]),
+  
+  householdInvites: defineTable({
+    householdId: v.id("households"),
+    email: v.optional(v.string()),
+    code: v.string(),
+    expiresAt: v.number(),
+    createdBy: v.string(),
+    status: v.string(), // "pending" | "accepted" | "expired"
+  })
+    .index("by_code", ["code"])
+    .index("by_householdId", ["householdId"]),
+
   transactions: defineTable({
     userId: v.string(),
+    householdId: v.optional(v.id("households")),
     type: v.string(),
     amount: v.string(),
     date: v.string(),
@@ -23,9 +49,14 @@ export default defineSchema({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
     })),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_householdId", ["householdId"])
+    .index("by_householdId_date", ["householdId", "date"]),
   accounts: defineTable({
     userId: v.string(),
+    householdId: v.optional(v.id("households")),
     name: v.string(),
     balance: v.string(),
     type: v.optional(v.string()),
@@ -34,22 +65,35 @@ export default defineSchema({
     quantity: v.optional(v.number()),
     totalCostBasis: v.optional(v.number()),
     totalRealizedProfit: v.optional(v.number()),
-  }).index("by_userId", ["userId"]),
-  categories: defineTable({
-    userId: v.string(),
-    name: v.string(),
-    type: v.string(),
-  }).index("by_userId", ["userId"]),
-  labels: defineTable({
-    userId: v.string(),
-    name: v.string(),
-    color: v.string(),
-  }).index("by_userId", ["userId"]),
-  budgets: defineTable({
-    userId: v.string(),
-    categoryId: v.id("categories"),
-    amount: v.string(),
   })
     .index("by_userId", ["userId"])
-    .index("by_userId_categoryId", ["userId", "categoryId"]),
+    .index("by_householdId", ["householdId"]),
+  categories: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    name: v.string(),
+    type: v.string(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"]),
+  labels: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    name: v.string(),
+    color: v.string(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"]),
+  budgets: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    categoryId: v.id("categories"),
+    amount: v.string(),
+    year: v.number(),
+    month: v.number(),
+  })
+    .index("by_userId_year_month", ["userId", "year", "month"])
+    .index("by_user_category_year_month", ["userId", "categoryId", "year", "month"])
+    .index("by_householdId_year_month", ["householdId", "year", "month"])
+    .index("by_householdId_category_year_month", ["householdId", "categoryId", "year", "month"]),
 });

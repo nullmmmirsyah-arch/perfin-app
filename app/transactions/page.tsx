@@ -6,6 +6,7 @@ import { api } from '../../convex/_generated/api'
 import TransactionDrawer from '@/components/TransactionDrawer'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,8 @@ import { MoreHorizontal, Trash2, Edit, ChevronDown } from 'lucide-react'
 import TransactionFilters from '@/components/TransactionFilters'
 import { DateRange } from 'react-day-picker'
 import { Doc, Id } from '../../convex/_generated/dataModel'
+import { toast } from 'sonner'
+import { useHousehold } from '@/components/HouseholdProvider'
 
 type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accountId' | 'categoryId' | 'toAccountId' | 'labelId'> & {
   accountId: Id<'accounts'>;
@@ -36,10 +39,22 @@ type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accountId' |
   }>;
 };
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
 export default function TransactionsPage() {
   const [open, setOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionWithDetails | undefined>(undefined)
+  const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithDetails | undefined>(undefined)
 
   const [filters, setFilters] = useState<{
     type: string | undefined
@@ -53,7 +68,9 @@ export default function TransactionsPage() {
     dateRange: undefined,
   })
 
+  const { householdId } = useHousehold()
   const transactions = useQuery(api.transactions.get, {
+    householdId: householdId ?? undefined,
     type: filters.type,
     accountId: filters.accountId,
     categoryId: filters.categoryId,
@@ -71,6 +88,14 @@ export default function TransactionsPage() {
     setOpen(true)
   }
 
+  const handleDeleteConfirm = async () => {
+    if (transactionToDelete) {
+        await deleteTransaction({ id: transactionToDelete._id });
+        toast.success("Transaction deleted");
+        setTransactionToDelete(undefined);
+    }
+  }
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-4">
@@ -84,6 +109,26 @@ export default function TransactionsPage() {
         onOpenChange={setOpen}
         transaction={selectedTransaction}
       />
+      
+      <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(undefined)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the transaction
+              {transactionToDelete?.description ? ` "${transactionToDelete.description}"` : ''} 
+              {transactionToDelete?.amount ? ` of ${transactionToDelete.amount}` : ''}
+              .
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {transactions?.length === 0 && (
         <div className="mt-8 p-4 border rounded-md bg-muted/50">
@@ -98,7 +143,7 @@ export default function TransactionsPage() {
             key={transaction._id}
             transaction={transaction}
             onEdit={() => handleEdit(transaction)}
-            onDelete={() => deleteTransaction({ id: transaction._id })}
+            onDelete={() => setTransactionToDelete(transaction)}
           />
         ))}
       </div>
@@ -121,7 +166,7 @@ export function TransactionItem({
   const isSlim = variant === 'slim'
 
   return (
-    <div className={cn("border rounded-md overflow-hidden bg-card", isSlim ? "shadow-none" : "shadow-sm")}>
+    <Card className={cn("overflow-hidden", isSlim ? "shadow-none" : "shadow-sm")}>
       <div className={cn(
         "flex justify-between items-center hover:bg-muted/30 transition-colors",
         isSlim ? "p-2 px-3" : "p-4"
@@ -266,6 +311,6 @@ export function TransactionItem({
           )}
         </div>
       )}
-    </div>
+    </Card>
   )
 }

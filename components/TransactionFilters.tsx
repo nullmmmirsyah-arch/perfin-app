@@ -2,6 +2,7 @@
 
 import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
+import { useHousehold } from '@/components/HouseholdProvider'
 import {
   Select,
   SelectContent,
@@ -35,8 +36,9 @@ export default function TransactionFilters({
   filters,
   onFilterChange,
 }: TransactionFiltersProps) {
-  const accounts = useQuery(api.accounts.get, {})
-  const categories = useQuery(api.categories.get, {});
+  const { householdId } = useHousehold()
+  const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined })
+  const categories = useQuery(api.categories.get, { householdId: householdId ?? undefined });
 
   const handleTypeChange = (type: string) => {
     onFilterChange({ ...filters, type: type === 'all' ? undefined : type })

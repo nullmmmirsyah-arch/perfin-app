@@ -4,6 +4,7 @@ import { Id } from "./_generated/dataModel";
 
 export const get = query({
   args: {
+    householdId: v.optional(v.id("households")),
     type: v.optional(v.string()),
     accountId: v.optional(v.string()),
     categoryId: v.optional(v.string()),
@@ -12,15 +13,33 @@ export const get = query({
       end: v.optional(v.string()),
     })),
   },
-  handler: async (ctx, { type, accountId, categoryId, dateRange }) => {
+  handler: async (ctx, { householdId, type, accountId, categoryId, dateRange }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
-    let query = ctx.db
-      .query("transactions")
-      .withIndex("by_userId", (q) => q.eq("userId", identity.subject));
+    let query;
+    if (householdId) {
+      const member = await ctx.db
+        .query("householdMembers")
+        .withIndex("by_householdId_userId", (q) =>
+          q.eq("householdId", householdId).eq("userId", identity.subject)
+        )
+        .first();
+
+      if (!member) {
+        return [];
+      }
+
+      query = ctx.db
+        .query("transactions")
+        .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId));
+    } else {
+      query = ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) => q.eq("userId", identity.subject));
+    }
 
     if (type) {
       query = query.filter((q) => q.eq(q.field("type"), type));
@@ -86,6 +105,7 @@ export const get = query({
 
 export const create = mutation({
   args: {
+    householdId: v.optional(v.id("households")),
     type: v.string(),
     amount: v.string(),
     date: v.string(),
@@ -110,6 +130,18 @@ export const create = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
+    }
+
+    if (args.householdId) {
+      const member = await ctx.db
+        .query("householdMembers")
+        .withIndex("by_householdId_userId", (q) =>
+          q.eq("householdId", args.householdId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!member) {
+        throw new Error("Not a member of this household");
+      }
     }
 
     const amount = parseFloat(args.amount.replace(/,/g, ''));
@@ -233,6 +265,7 @@ export const create = mutation({
     const transaction = await ctx.db.insert("transactions", {
       ...args,
       userId: identity.subject,
+      householdId: args.householdId,
     });
     return transaction;
   },
@@ -271,6 +304,22 @@ export const update = mutation({
     const originalTransaction = await ctx.db.get(id);
     if (!originalTransaction) {
       throw new Error("Original transaction not found");
+    }
+
+    if (originalTransaction.householdId) {
+      const member = await ctx.db
+        .query("householdMembers")
+        .withIndex("by_householdId_userId", (q) =>
+          q.eq("householdId", originalTransaction.householdId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!member) {
+        throw new Error("Unauthorized");
+      }
+    } else {
+      if (originalTransaction.userId !== identity.subject) {
+        throw new Error("Unauthorized");
+      }
     }
 
     const updatedTxData = { ...originalTransaction, ...rest };
@@ -348,6 +397,22 @@ export const deleteTransaction = mutation({
     const transaction = await ctx.db.get(args.id);
     if (!transaction) {
       throw new Error("Transaction not found");
+    }
+
+    if (transaction.householdId) {
+      const member = await ctx.db
+        .query("householdMembers")
+        .withIndex("by_householdId_userId", (q) =>
+          q.eq("householdId", transaction.householdId!).eq("userId", identity.subject)
+        )
+        .first();
+      if (!member) {
+        throw new Error("Unauthorized");
+      }
+    } else {
+      if (transaction.userId !== identity.subject) {
+        throw new Error("Unauthorized");
+      }
     }
 
     const amount = parseFloat(transaction.amount.replace(/,/g, ''));

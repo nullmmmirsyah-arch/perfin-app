@@ -14,9 +14,13 @@ import {
 } from "@/components/ui/collapsible"
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useHousehold } from '@/components/HouseholdProvider'
 
 export default function Dashboard() {
-  const summary = useQuery(api.dashboard.getDashboardSummary)
+  const { householdId } = useHousehold()
+  const summary = useQuery(api.dashboard.getDashboardSummary, {
+    householdId: householdId ?? undefined
+  })
   const [isBudgetOpen, setIsBudgetOpen] = useState(false)
   const [isCashOpen, setIsCashOpen] = useState(false)
 
@@ -92,14 +96,26 @@ export default function Dashboard() {
               <CollapsibleContent className="mt-4 space-y-2 border-t pt-4 animate-in fade-in slide-in-from-top-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Breakdown per Category</p>
                 {summary?.budgetBreakdown?.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{item.categoryName}</span>
-                    <span className={cn(
-                      "font-medium",
-                      item.remaining === 0 && item.spent >= item.limit ? "text-destructive" : ""
-                    )}>
-                      {item.remaining.toLocaleString()}
-                    </span>
+                  <div key={index} className="flex flex-col gap-1 py-1 border-b last:border-0 border-muted/30">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">{item.categoryName}</span>
+                      <span className={cn(
+                        "font-medium",
+                        item.remaining === 0 && item.spent >= item.limit ? "text-destructive" : ""
+                      )}>
+                        {item.remaining.toLocaleString()}
+                      </span>
+                    </div>
+                    {item.lastMonthPerformance !== null && item.lastMonthPerformance !== undefined && (
+                      <div className={cn(
+                        "text-[10px] flex items-center gap-1",
+                        item.lastMonthPerformance >= 0 ? "text-success" : "text-destructive"
+                      )}>
+                        {item.lastMonthPerformance >= 0 
+                          ? `Saved ${Math.abs(item.lastMonthPerformance).toLocaleString()} last month` 
+                          : `Over ${Math.abs(item.lastMonthPerformance).toLocaleString()} last month`}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {summary?.budgetBreakdown?.length === 0 && (

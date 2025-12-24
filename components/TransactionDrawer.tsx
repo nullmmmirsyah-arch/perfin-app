@@ -41,6 +41,8 @@ import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Doc, Id } from '../convex/_generated/dataModel';
+import { toast } from 'sonner';
+import { useHousehold } from '@/components/HouseholdProvider';
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -157,10 +159,11 @@ const formatNumber = (value: string | undefined) => {
 };
 
 const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawerProps) => {
+  const { householdId } = useHousehold();
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
 
-  const accounts = useQuery(api.accounts.get, {});
+  const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
 
   const isEditMode = !!transaction;
 
@@ -176,9 +179,9 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
   });
   const categories = useQuery(
     api.categories.get,
-    transactionType === 'transfer' ? 'skip' : { type: transactionType }
+    transactionType === 'transfer' ? 'skip' : { type: transactionType, householdId: householdId ?? undefined }
   );
-  const labels = useQuery(api.labels.get, {});
+  const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
 
   useEffect(() => {
     if (open && isEditMode && transaction) {
@@ -226,52 +229,60 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     name: 'splits',
   });
 
-  const onSubmit = (data: TransactionFormValues) => {
+  const onSubmit = async (data: TransactionFormValues) => {
     const assetDetails = data.assetDetails?.quantity 
       ? { quantity: data.assetDetails.quantity, unitPrice: data.assetDetails.unitPrice }
       : undefined;
 
-    if (isEditMode && transaction) {
-      updateTransaction({
-        id: transaction._id,
-        type: data.type,
-        amount: data.amount,
-        date: data.date.toISOString(),
-        description: data.description,
-        accountId: data.accountId as Id<'accounts'>,
-        categoryId: data.categoryId as Id<'categories'> | undefined,
-        toAccountId: data.toAccountId as Id<'accounts'> | undefined,
-        isSplit: data.isSplit,
-        splits: data.splits?.map(s => ({
-          categoryId: s.categoryId as Id<'categories'>,
-          amount: s.amount,
-          description: s.description,
-          labelId: s.labelId as Id<'labels'> | undefined,
-        })),
-        labelId: data.labelId as Id<'labels'> | undefined,
-        assetDetails,
-      });
-    } else {
-      createTransaction({
-        type: data.type,
-        amount: data.amount,
-        date: data.date.toISOString(),
-        description: data.description,
-        accountId: data.accountId as Id<'accounts'>,
-        categoryId: data.categoryId as Id<'categories'> | undefined,
-        toAccountId: data.toAccountId as Id<'accounts'> | undefined,
-        isSplit: data.isSplit,
-        splits: data.splits?.map(s => ({
-          categoryId: s.categoryId as Id<'categories'>,
-          amount: s.amount,
-          description: s.description,
-          labelId: s.labelId as Id<'labels'> | undefined,
-        })),
-        labelId: data.labelId as Id<'labels'> | undefined,
-        assetDetails,
-      });
+    try {
+        if (isEditMode && transaction) {
+            await updateTransaction({
+              id: transaction._id,
+              type: data.type,
+              amount: data.amount,
+              date: data.date.toISOString(),
+              description: data.description,
+              accountId: data.accountId as Id<'accounts'>,
+              categoryId: data.categoryId as Id<'categories'> | undefined,
+              toAccountId: data.toAccountId as Id<'accounts'> | undefined,
+              isSplit: data.isSplit,
+              splits: data.splits?.map(s => ({
+                categoryId: s.categoryId as Id<'categories'>,
+                amount: s.amount,
+                description: s.description,
+                labelId: s.labelId as Id<'labels'> | undefined,
+              })),
+              labelId: data.labelId as Id<'labels'> | undefined,
+              assetDetails,
+            });
+            toast.success("Transaction updated");
+          } else {
+            await createTransaction({
+              householdId: householdId ?? undefined,
+              type: data.type,
+              amount: data.amount,
+              date: data.date.toISOString(),
+              description: data.description,
+              accountId: data.accountId as Id<'accounts'>,
+              categoryId: data.categoryId as Id<'categories'> | undefined,
+              toAccountId: data.toAccountId as Id<'accounts'> | undefined,
+              isSplit: data.isSplit,
+              splits: data.splits?.map(s => ({
+                categoryId: s.categoryId as Id<'categories'>,
+                amount: s.amount,
+                description: s.description,
+                labelId: s.labelId as Id<'labels'> | undefined,
+              })),
+              labelId: data.labelId as Id<'labels'> | undefined,
+              assetDetails,
+            });
+            toast.success("Transaction created");
+          }
+          onOpenChange(false);
+    } catch (error) {
+        console.error(error);
+        toast.error("Failed to save transaction");
     }
-    onOpenChange(false);
   };
 
   const isSplit = useWatch({

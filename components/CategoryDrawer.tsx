@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Doc } from '../convex/_generated/dataModel';
+import { useHousehold } from '@/components/HouseholdProvider';
 import {
   Drawer,
   DrawerContent,
@@ -45,6 +46,7 @@ type CategoryDrawerProps = {
 };
 
 const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) => {
+  const { householdId } = useHousehold();
   const createCategory = useMutation(api.categories.create);
   const updateCategory = useMutation(api.categories.update);
 
@@ -72,7 +74,10 @@ const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) =
         ...data,
       });
     } else {
-      createCategory(data);
+      createCategory({
+        ...data,
+        householdId: householdId ?? undefined,
+      });
     }
     onOpenChange(false);
   };

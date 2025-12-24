@@ -51,3 +51,5 @@ The backend is built with [Convex](https://www.convex.dev/). The Convex queries 
 ### Frontend
 
 The frontend is built with [Next.js](https://nextjs.org/) and [React](https://reactjs.org/). The main page of the application is `app/page.tsx`. The layout of the application is defined in `app/layout.tsx`.
+
+Make sure all the colors refer to `globals.css `

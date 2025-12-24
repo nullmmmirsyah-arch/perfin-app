@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Doc, Id } from '../convex/_generated/dataModel';
+import { useHousehold } from '@/components/HouseholdProvider';
 import {
   Drawer,
   DrawerContent,
@@ -56,6 +57,7 @@ type AccountDrawerProps = {
 };
 
 const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
+  const { householdId } = useHousehold();
   const createAccount = useMutation(api.accounts.create);
   const updateAccount = useMutation(api.accounts.update);
 
@@ -104,6 +106,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
       });
     } else {
       createAccount({
+        householdId: householdId ?? undefined,
         name: data.name,
         balance: data.balance,
         type: data.type,

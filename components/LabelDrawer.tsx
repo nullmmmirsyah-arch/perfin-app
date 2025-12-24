@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Doc } from '../convex/_generated/dataModel';
+import { useHousehold } from '@/components/HouseholdProvider';
 import {
   Drawer,
   DrawerContent,
@@ -53,6 +54,7 @@ const predefinedColors = [
 ];
 
 const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
+  const { householdId } = useHousehold();
   const createLabel = useMutation(api.labels.create);
   const updateLabel = useMutation(api.labels.update);
 
@@ -80,7 +82,10 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
         ...data,
       });
     } else {
-      createLabel(data);
+      createLabel({
+        ...data,
+        householdId: householdId ?? undefined,
+      });
     }
     onOpenChange(false);
   };
