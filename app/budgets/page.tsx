@@ -6,7 +6,7 @@ import { api } from '../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { MoreHorizontal, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, CheckCircle2, AlertCircle } from 'lucide-react'
+import { MoreHorizontal, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -1,11 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { mutation, query, QueryCtx } from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
 
-async function ensureHouseholdAccess(ctx: any, householdId: Id<"households">, userId: string) {
+async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
     const member = await ctx.db
         .query("householdMembers")
-        .withIndex("by_householdId_userId", (q: any) =>
+        .withIndex("by_householdId_userId", (q) =>
             q.eq("householdId", householdId).eq("userId", userId)
         )
         .first();
@@ -236,7 +236,7 @@ export const getBudgetAssistance = query({
 
     let prevMonthSpent = 0;
     
-    const addAmount = (t: any, amountStr: string, catId: string) => {
+    const addAmount = (t: Doc<"transactions">, amountStr: string, catId: string) => {
        if (catId === categoryId) {
          const val = parseFloat(amountStr.replace(/,/g, ''));
          if (!isNaN(val)) prevMonthSpent += val;

@@ -3,11 +3,11 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 
 interface HouseholdContextType {
   householdId: Id<"households"> | null;
-  households: any[];
+  households: Doc<"households">[];
   selectHousehold: (id: Id<"households">) => void;
   isLoading: boolean;
   createHousehold: (name: string) => Promise<void>;

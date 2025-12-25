@@ -1,12 +1,12 @@
-import { query } from "./_generated/server";
+import { query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
 // Helper for Auth Check
-async function ensureHouseholdAccess(ctx: any, householdId: Id<"households">, userId: string) {
+async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
     const member = await ctx.db
         .query("householdMembers")
-        .withIndex("by_householdId_userId", (q: any) =>
+        .withIndex("by_householdId_userId", (q) =>
             q.eq("householdId", householdId).eq("userId", userId)
         )
         .first();

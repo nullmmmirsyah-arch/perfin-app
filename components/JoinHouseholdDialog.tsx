@@ -26,8 +26,8 @@ export function JoinHouseholdDialog({ open, onOpenChange }: { open: boolean, onO
       selectHousehold(householdId)
       onOpenChange(false)
       setCode("")
-    } catch (e: any) {
-      toast.error(e.message || "Failed to join household")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to join household")
     } finally {
       setIsLoading(false)
     }

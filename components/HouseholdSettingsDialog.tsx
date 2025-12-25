@@ -32,7 +32,7 @@ export function HouseholdSettingsDialog({ householdId, open, onOpenChange }: { h
     try {
       await renameHousehold({ householdId, name })
       toast.success("Household renamed")
-    } catch (e) {
+    } catch {
       toast.error("Failed to rename")
     }
   }
@@ -42,7 +42,7 @@ export function HouseholdSettingsDialog({ householdId, open, onOpenChange }: { h
       const code = await createInvite({ householdId, email: inviteEmail || undefined })
       toast.success(`Invite created! Code: ${code}`)
       setInviteEmail("")
-    } catch (e) {
+    } catch {
       toast.error("Failed to create invite")
     }
   }
@@ -57,7 +57,7 @@ export function HouseholdSettingsDialog({ householdId, open, onOpenChange }: { h
       try {
           await removeMember({ householdId, userId })
           toast.success("Member removed")
-      } catch(e) {
+      } catch {
           toast.error("Failed to remove member")
       }
   }

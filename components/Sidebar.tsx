@@ -9,9 +9,7 @@ import {
   Wallet, 
   Tags, 
   PiggyBank, 
-  Hash,
-  ChevronUp,
-  User2
+  Hash
 } from 'lucide-react'
 
 import {
@@ -27,7 +25,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
 
 import { HouseholdSwitcher } from './HouseholdSwitcher'
 

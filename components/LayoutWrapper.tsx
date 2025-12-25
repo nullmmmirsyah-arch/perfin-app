@@ -1,7 +1,6 @@
 'use client'
 
 import { Authenticated, Unauthenticated } from 'convex/react'
-import { SignInButton } from '@clerk/nextjs'
 import Sidebar from './Sidebar'
 import { ReactNode } from 'react'
 import GlobalTransactionFAB from './GlobalTransactionFAB'

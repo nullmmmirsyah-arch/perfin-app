@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -62,7 +62,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
     },
   });
 
-  const categoryId = form.watch('categoryId');
+  const categoryId = useWatch({ control: form.control, name: 'categoryId' });
 
   // Fetch assistance data when category is selected
   const assistanceData = useQuery(api.budgets.getBudgetAssistance, 
@@ -89,7 +89,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
       });
       toast.success("Budget saved successfully");
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       // 1. Convert error to a searchable string representation
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorString = JSON.stringify(error); // Backup check for nested objects
