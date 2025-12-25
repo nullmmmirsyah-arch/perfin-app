@@ -204,8 +204,10 @@ export function TransactionItem({
                 {new Date(transaction.date).toLocaleDateString()}
               </p>
             )}
-            {isSlim && transaction.categoryName && (
-               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{transaction.categoryName}</p>
+            {isSlim && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {new Date(transaction.date).toLocaleDateString()}
+              </p>
             )}
           </div>
         </div>
@@ -275,6 +277,16 @@ export function TransactionItem({
       
       {isOpen && (
         <div className="border-t bg-muted/10 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Account</p>
+            <p className="text-sm">
+              {transaction.type === 'transfer' 
+                ? `${transaction.fromAccountName} → ${transaction.toAccountName}`
+                : transaction.fromAccountName
+              }
+            </p>
+          </div>
+
           {transaction.isSplit ? (
             <div className="space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Breakdown</p>

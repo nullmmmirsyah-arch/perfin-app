@@ -101,9 +101,12 @@ export default function Dashboard() {
                       <span className="text-muted-foreground">{item.categoryName}</span>
                       <span className={cn(
                         "font-medium",
-                        item.remaining === 0 && item.spent >= item.limit ? "text-destructive" : ""
+                        item.spent > item.limit ? "text-destructive" : ""
                       )}>
-                        {item.remaining.toLocaleString()}
+                        {item.spent > item.limit 
+                          ? `Over ${(item.spent - item.limit).toLocaleString()}` 
+                          : item.remaining.toLocaleString()
+                        }
                       </span>
                     </div>
                     {item.lastMonthPerformance !== null && item.lastMonthPerformance !== undefined && (
