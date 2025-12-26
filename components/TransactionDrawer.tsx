@@ -99,19 +99,37 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
       });
     }
 
-    // Asset Transaction Logic
+    // Asset / Saving Transaction Logic
     const sourceAccount = accounts.find(a => a._id === data.accountId);
     const destAccount = accounts.find(a => a._id === data.toAccountId);
-    const isAssetTransfer = sourceAccount?.type === 'ASSET' || destAccount?.type === 'ASSET';
+    
+    // Helper to determine liquidity
+    const isLiquid = (type?: string) => !type || type === 'CASH';
+    const sourceIsSpecial = !isLiquid(sourceAccount?.type);
+    const destIsSpecial = !isLiquid(destAccount?.type);
 
-    if (isAssetTransfer) {
-      if (!data.assetDetails?.quantity || parseFloat(data.assetDetails.quantity) <= 0) {
+    // Require category if ANY side involves a Special Account (Saving/Asset)
+    // This ensures we track both Inflow (Saving) and Outflow (Withdrawal) from goals.
+    const requiresCategory = sourceIsSpecial || destIsSpecial;
+
+    if (requiresCategory) {
+      if (!data.categoryId) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['assetDetails', 'quantity'],
-          message: 'Quantity/Weight is required for asset transfers',
+            code: z.ZodIssueCode.custom,
+            path: ['categoryId'],
+            message: 'Category is required to track this Saving/Asset movement',
         });
       }
+    }
+
+    if (sourceAccount?.type === 'ASSET' || destAccount?.type === 'ASSET') {
+        if (!data.assetDetails?.quantity || parseFloat(data.assetDetails.quantity) <= 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['assetDetails', 'quantity'],
+            message: 'Quantity/Weight is required for asset transfers',
+        });
+        }
     }
 
   } else {
@@ -179,7 +197,9 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
   });
   const categories = useQuery(
     api.categories.get,
-    transactionType === 'transfer' ? 'skip' : { type: transactionType, householdId: householdId ?? undefined }
+    transactionType === 'transfer' 
+        ? { type: 'saving', householdId: householdId ?? undefined } 
+        : { type: transactionType, householdId: householdId ?? undefined }
   );
   const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
 
@@ -336,7 +356,7 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
                   <TransactionFormFields form={form} categories={categories || []} accounts={accounts || []} labels={labels || []} />
                 </TabsContent>
                 <TabsContent value="transfer" className="space-y-4">
-                  <TransferFormFields form={form} accounts={accounts || []} labels={labels || []} />
+                  <TransferFormFields form={form} accounts={accounts || []} labels={labels || []} categories={categories || []} />
                 </TabsContent>
 
 
@@ -652,7 +672,7 @@ const TransactionFormFields = ({ form, categories, accounts, labels }: { form: U
   );
 };
 
-const TransferFormFields = ({ form, accounts, labels }: { form: UseFormReturn<TransactionFormValues>, accounts: Doc<'accounts'>[], labels: Doc<'labels'>[] }) => {
+const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseFormReturn<TransactionFormValues>, accounts: Doc<'accounts'>[], labels: Doc<'labels'>[], categories: Doc<'categories'>[] }) => {
   const fromAccountId = useWatch({ control: form.control, name: 'accountId' });
   const toAccountId = useWatch({ control: form.control, name: 'toAccountId' });
   const amount = useWatch({ control: form.control, name: 'amount' });
@@ -661,8 +681,15 @@ const TransferFormFields = ({ form, accounts, labels }: { form: UseFormReturn<Tr
   const fromAccount = accounts.find(a => a._id === fromAccountId);
   const toAccount = accounts.find(a => a._id === toAccountId);
   
-  // Check if either account is an ASSET type.
-  // Note: Ensure your accounts data includes the 'type' field.
+  // Helper to determine liquidity
+  const isLiquid = (type?: string) => !type || type === 'CASH';
+  const sourceIsSpecial = !isLiquid(fromAccount?.type);
+  const destIsSpecial = !isLiquid(toAccount?.type);
+
+  // Show category selector if ANY side involves a Special Account
+  // This allows tracking both Inflow (Saving) and Outflow (Withdrawal)
+  const showCategory = sourceIsSpecial || destIsSpecial;
+  
   const isAssetTransaction = fromAccount?.type === 'ASSET' || toAccount?.type === 'ASSET';
 
   let amountLabel = 'Amount';
@@ -759,6 +786,32 @@ const TransferFormFields = ({ form, accounts, labels }: { form: UseFormReturn<Tr
           </FormItem>
         )}
       />
+      
+      {showCategory && (
+        <FormField
+            control={form.control}
+            name="categoryId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category (Saving/Goal)</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a saving category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category._id} value={category._id}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+      )}
+
       <FormField
         control={form.control}
         name="amount"

@@ -37,7 +37,7 @@ const AccountFormSchema = z.object({
   balance: z.string().refine(val => !isNaN(parseFloat(val.replace(/,/g, ''))), {
     message: 'Balance must be a number',
   }),
-  type: z.enum(['CASH', 'ASSET']),
+  type: z.enum(['CASH', 'ASSET', 'SAVING']),
   initialQuantity: z.string().optional(),
   unit: z.string().optional(),
 });
@@ -45,7 +45,7 @@ const AccountFormSchema = z.object({
 type AccountFormValues = {
   name: string;
   balance: string;
-  type: 'CASH' | 'ASSET';
+  type: 'CASH' | 'ASSET' | 'SAVING';
   initialQuantity?: string;
   unit?: string;
 };
@@ -79,7 +79,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
       form.reset({
         name: account.name,
         balance: account.balance,
-        type: (account.type as 'CASH' | 'ASSET') || 'CASH',
+        type: (account.type as 'CASH' | 'ASSET' | 'SAVING') || 'CASH',
         initialQuantity: account.initialQuantity || '',
         unit: account.unit || '',
       });
@@ -159,6 +159,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                       <SelectContent>
                         <SelectItem value="CASH">Cash (Standard)</SelectItem>
                         <SelectItem value="ASSET">Asset (Gold, Stock, etc.)</SelectItem>
+                        <SelectItem value="SAVING">Saving / Goal</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

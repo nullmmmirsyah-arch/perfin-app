@@ -10,7 +10,7 @@ export default function GlobalTransactionFAB() {
 
   return (
     <>
-      <div className="fixed bottom-24 lg:bottom-8 right-6 lg:right-8 z-50">
+      <div className="fixed bottom-24 lg:bottom-8 right-6 lg:right-8 z-50 lg:hidden">
         <Button
           onClick={() => setOpen(true)}
           size="icon"

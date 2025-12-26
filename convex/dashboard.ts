@@ -1,6 +1,6 @@
 import { query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 
 // Helper for Auth Check
 async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
@@ -118,26 +118,49 @@ export const getDashboardSummary = query({
         return null;
     }
 
-    // 1. Total Account Cash Balance
+    // 0. Fetch Accounts (Needed for split balance and type checking)
     let accounts;
     if (householdId) {
         accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         accounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
-    
-    const totalCash = accounts
-      .filter(a => a.type !== 'ASSET')
-      .reduce((acc, a) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
 
-    const accountBreakdown = accounts
-      .filter(a => a.type !== 'ASSET')
-      .map(a => ({
+    // 1. Split Balances
+    const liquidCash = accounts
+      .filter((a: Doc<"accounts">) => !a.type || a.type === 'CASH')
+      .reduce((acc: number, a: Doc<"accounts">) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
+
+    const totalSavingsOnly = accounts
+      .filter((a: Doc<"accounts">) => a.type === 'SAVING')
+      .reduce((acc: number, a: Doc<"accounts">) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
+
+    const totalAssetsOnly = accounts
+      .filter((a: Doc<"accounts">) => a.type === 'ASSET')
+      .reduce((acc: number, a: Doc<"accounts">) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
+
+    const cashAccounts = accounts
+      .filter((a: Doc<"accounts">) => !a.type || a.type === 'CASH')
+      .map((a: Doc<"accounts">) => ({
         name: a.name,
         balance: parseFloat(a.balance.replace(/,/g, '') || '0')
       }));
 
-    // 2. Remaining Budget
+    const savingAccounts = accounts
+      .filter((a: Doc<"accounts">) => a.type === 'SAVING')
+      .map((a: Doc<"accounts">) => ({
+        name: a.name,
+        balance: parseFloat(a.balance.replace(/,/g, '') || '0')
+      }));
+
+    const assetAccounts = accounts
+      .filter((a: Doc<"accounts">) => a.type === 'ASSET')
+      .map((a: Doc<"accounts">) => ({
+        name: a.name,
+        balance: parseFloat(a.balance.replace(/,/g, '') || '0')
+      }));
+
+    // 2. Remaining Budget Logic (Monthly)
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
@@ -153,16 +176,39 @@ export const getDashboardSummary = query({
         ).collect();
     }
 
-    let transactions;
+    let allTransactions;
     if (householdId) {
-        transactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
-        transactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
 
-    const currentMonthExpenses = transactions.filter(t => 
-      t.type === 'expense' && t.date >= startOfMonth && t.date <= endOfMonth
-    );
+    const currentMonthExpenses = allTransactions.filter(t => {
+      const isDateMatch = t.date >= startOfMonth && t.date <= endOfMonth;
+      if (!isDateMatch) return false;
+
+      // Expense & Saving types are always spending
+      if (t.type === 'expense' || t.type === 'saving') return true;
+
+      // Transfer logic: Only count as Spending if moving from Liquid (Cash) -> Non-Liquid (Saving/Asset)
+      if (t.type === 'transfer' && t.categoryId && t.accountId && t.toAccountId) {
+          const accountTypeMap = new Map(accounts.map(a => [a._id, a.type || 'CASH']));
+          const isSpecial = (id: string) => {
+              const type = accountTypeMap.get(id as Id<"accounts">);
+              return type === 'ASSET' || type === 'SAVING';
+          };
+
+          const sourceIsSpecial = isSpecial(t.accountId); // e.g. Gold
+          const destIsSpecial = isSpecial(t.toAccountId); // e.g. Cash (False)
+
+          // Only count Nabung (Cash -> Goal)
+          if (!sourceIsSpecial && destIsSpecial) {
+              return true;
+          }
+      }
+      
+      return false;
+    });
 
     const spendingByCategory: Record<string, number> = {};
     currentMonthExpenses.forEach((t) => {
@@ -183,6 +229,29 @@ export const getDashboardSummary = query({
       }
     });
 
+    // Calculate Accumulated (All Time) for Savings
+    const accumulatedMap = new Map<string, number>();
+    const accountTypeMap = new Map(accounts.map(a => [a._id, a.type || 'CASH']));
+    const isSpecial = (id: string) => {
+        const type = accountTypeMap.get(id as Id<"accounts">);
+        return type === 'ASSET' || type === 'SAVING';
+    };
+
+    allTransactions.forEach((t: Doc<"transactions">) => {
+        const val = Math.abs(parseFloat(t.amount.replace(/,/g, '') || '0'));
+        if ((t.type === 'expense' || t.type === 'saving') && t.categoryId) {
+            accumulatedMap.set(t.categoryId, (accumulatedMap.get(t.categoryId) || 0) + val);
+        }
+        if (t.type === 'transfer' && t.categoryId && t.accountId && t.toAccountId) {
+            if (!isSpecial(t.accountId) && isSpecial(t.toAccountId)) {
+                accumulatedMap.set(t.categoryId, (accumulatedMap.get(t.categoryId) || 0) + val);
+            }
+            if (isSpecial(t.accountId) && !isSpecial(t.toAccountId)) {
+                accumulatedMap.set(t.categoryId, (accumulatedMap.get(t.categoryId) || 0) - val);
+            }
+        }
+    });
+
     let totalBudgetLimit = 0;
     let totalBudgetSpent = 0;
 
@@ -193,83 +262,34 @@ export const getDashboardSummary = query({
 
     const remainingBudget = Math.max(0, totalBudgetLimit - totalBudgetSpent);
 
-    // 2.1 Budget Breakdown
+    // 2.1 Categories Info
     let categories;
     if (householdId) {
         categories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         categories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
-    
-    const categoryMap = new Map(categories.map(c => [c._id, c.name]));
-
-    // 2.2 Get Previous Month Data for Dashboard
-    let prevMonth = currentMonth - 1;
-    let prevYear = currentYear;
-    if (prevMonth < 0) {
-      prevMonth = 11;
-      prevYear--;
-    }
-    const startOfPrevMonth = new Date(prevYear, prevMonth, 1).toISOString();
-    const endOfPrevMonth = new Date(prevYear, prevMonth + 1, 0, 23, 59, 59, 999).toISOString();
-
-    let prevBudgets;
-    if (householdId) {
-        prevBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", prevYear).eq("month", prevMonth)).collect();
-    } else {
-        prevBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => 
-            q.eq("userId", userId).eq("year", prevYear).eq("month", prevMonth)
-        ).collect();
-    }
-
-    const prevMonthExpenses = transactions.filter(t => 
-      t.type === 'expense' && t.date >= startOfPrevMonth && t.date <= endOfPrevMonth
-    );
-
-    const prevSpendingByCategory: Record<string, number> = {};
-    prevMonthExpenses.forEach((t) => {
-      if (t.isSplit && t.splits) {
-        t.splits.forEach((split) => {
-          if (split.categoryId && split.amount) {
-            const amount = parseFloat(split.amount.replace(/,/g, ''));
-            if (!isNaN(amount)) {
-              prevSpendingByCategory[split.categoryId] = (prevSpendingByCategory[split.categoryId] || 0) + amount;
-            }
-          }
-        });
-      } else if (t.categoryId && t.amount) {
-        const amount = parseFloat(t.amount.replace(/,/g, ''));
-        if (!isNaN(amount)) {
-          prevSpendingByCategory[t.categoryId] = (prevSpendingByCategory[t.categoryId] || 0) + amount;
-        }
-      }
-    });
-
-    const prevBudgetMap = new Map(prevBudgets.map(b => [b.categoryId, b]));
+    const catDetailsMap = new Map(categories.map(c => [c._id, c]));
 
     const budgetBreakdown = budgets.map(b => {
+      const cat = catDetailsMap.get(b.categoryId);
       const limit = parseFloat(b.amount.replace(/,/g, '') || '0');
       const spent = spendingByCategory[b.categoryId] || 0;
+      const accumulated = accumulatedMap.get(b.categoryId) || 0;
       
-      const prevBudget = prevBudgetMap.get(b.categoryId);
-      const prevSpent = prevSpendingByCategory[b.categoryId] || 0;
-      let lastMonthPerformance = null;
-      if (prevBudget) {
-          lastMonthPerformance = parseFloat(prevBudget.amount) - prevSpent;
-      }
-
       return {
-        categoryName: categoryMap.get(b.categoryId) || 'Unknown',
+        categoryName: cat?.name || 'Unknown',
+        categoryType: cat?.type || 'expense',
+        targetAmount: cat?.targetAmount ? parseFloat(cat.targetAmount.replace(/,/g, '')) : undefined,
+        accumulated,
         limit,
         spent,
         remaining: Math.max(0, limit - spent),
-        lastMonthPerformance
       };
     });
 
-    // 3. Recent 7 Transactions
-    // Sorting by date desc in memory since no date index
-    const sortedTransactions = transactions
+    // 3. Recent Transactions
+    const sortedTransactions = allTransactions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 7);
 
@@ -280,31 +300,23 @@ export const getDashboardSummary = query({
             const category = t.categoryId ? await ctx.db.get(t.categoryId) : null;
             const label = t.labelId ? await ctx.db.get(t.labelId) : null;
 
-            // Join category names for splits if they exist
-            const splitsWithDetails = t.splits 
-              ? await Promise.all(t.splits.map(async (split) => {
-                  const splitCategory = await ctx.db.get(split.categoryId);
-                  return {
-                    ...split,
-                    categoryName: splitCategory?.name,
-                  };
-                }))
-              : undefined;
-
             return {
                 ...t,
                 fromAccountName: fromAccount?.name,
                 toAccountName: toAccount?.name,
                 categoryName: category?.name,
                 label,
-                splits: splitsWithDetails,
             };
         })
     );
 
     return {
-      totalCash,
-      accountBreakdown,
+      liquidCash,
+      totalSavingsOnly,
+      totalAssetsOnly,
+      cashAccounts,
+      savingAccounts,
+      assetAccounts,
       remainingBudget,
       budgetBreakdown,
       recentTransactions,

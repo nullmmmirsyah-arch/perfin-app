@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const BudgetFormSchema = z.object({
   categoryId: z.string().min(1, 'Category is required'),
@@ -161,7 +162,17 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monthly Limit</FormLabel>
+                        <div className="flex justify-between items-center">
+                            <FormLabel>Monthly Limit</FormLabel>
+                            {assistanceData && (
+                                <span className={cn(
+                                    "text-xs",
+                                    assistanceData.unassignedCash < 0 ? "text-destructive" : "text-muted-foreground"
+                                )}>
+                                    Available: {(assistanceData.unassignedCash + (currentAmount ? parseFloat(currentAmount) : 0)).toLocaleString()}
+                                </span>
+                            )}
+                        </div>
                         <FormControl>
                           <Input placeholder="e.g., 500.00" {...field} type="number" step="0.01" />
                         </FormControl>

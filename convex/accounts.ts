@@ -44,11 +44,47 @@ export const create = mutation({
         if (!await ensureHouseholdAccess(ctx, args.householdId, identity.subject)) throw new Error("Unauthorized");
     }
 
-    const account = await ctx.db.insert("accounts", {
+    const accountId = await ctx.db.insert("accounts", {
       ...args,
       userId: identity.subject,
     });
-    return account;
+
+    // Create Initial Balance Transaction if balance > 0
+    const initialBalance = parseFloat(args.balance.replace(/,/g, ''));
+    if (initialBalance > 0 && args.type !== 'ASSET') {
+        // 1. Find or Create "Initial Balance" Category
+        let categoryId;
+        const existingCategory = await ctx.db
+            .query("categories")
+            .withIndex("by_userId", q => q.eq("userId", identity.subject))
+            .filter(q => q.eq(q.field("name"), "Initial Balance"))
+            .first();
+        
+        if (existingCategory) {
+            categoryId = existingCategory._id;
+        } else {
+            categoryId = await ctx.db.insert("categories", {
+                userId: identity.subject,
+                householdId: args.householdId,
+                name: "Initial Balance",
+                type: "income"
+            });
+        }
+
+        // 2. Create Transaction
+        await ctx.db.insert("transactions", {
+            userId: identity.subject,
+            householdId: args.householdId,
+            accountId,
+            categoryId,
+            type: "income",
+            amount: args.balance,
+            date: new Date().toISOString(),
+            description: "Initial Balance",
+        });
+    }
+
+    return accountId;
   },
 });
 

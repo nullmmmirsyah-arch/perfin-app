@@ -73,6 +73,8 @@ export default defineSchema({
     householdId: v.optional(v.id("households")),
     name: v.string(),
     type: v.string(),
+    targetAmount: v.optional(v.string()),
+    targetDate: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),

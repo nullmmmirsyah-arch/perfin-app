@@ -24,12 +24,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar'
 
 import { HouseholdSwitcher } from './HouseholdSwitcher'
 
 const links = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { href: '/accounts', label: 'Accounts', icon: Wallet },
   { href: '/categories', label: 'Categories', icon: Tags },
@@ -39,6 +40,7 @@ const links = [
 
 export default function Sidebar({ className, hideLogo }: { className?: string, hideLogo?: boolean }) {
   const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useSidebar()
 
   return (
     <SidebarComponent className={className}>
@@ -60,7 +62,10 @@ export default function Sidebar({ className, hideLogo }: { className?: string, h
                     isActive={pathname === link.href}
                     tooltip={link.label}
                   >
-                    <Link href={link.href}>
+                    <Link 
+                      href={link.href}
+                      onClick={() => isMobile && setOpenMobile(false)}
+                    >
                       <link.icon />
                       <span>{link.label}</span>
                     </Link>

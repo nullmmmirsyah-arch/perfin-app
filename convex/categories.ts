@@ -42,6 +42,8 @@ export const create = mutation({
     householdId: v.optional(v.id("households")),
     name: v.string(),
     type: v.string(),
+    targetAmount: v.optional(v.string()),
+    targetDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -64,6 +66,8 @@ export const update = mutation({
     id: v.id("categories"),
     name: v.optional(v.string()),
     type: v.optional(v.string()),
+    targetAmount: v.optional(v.string()),
+    targetDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
