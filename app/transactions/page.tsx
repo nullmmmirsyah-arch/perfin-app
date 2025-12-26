@@ -246,11 +246,11 @@ export function TransactionItem({
               </div>
             )}
           </div>
-          {(onEdit || onDelete) && !isSlim && (
+          {(onEdit || onDelete) && (
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className={cn("h-8 w-8", isSlim && "h-6 w-6")}>
+                    <MoreHorizontal className={cn("h-4 w-4", isSlim && "h-3 w-3")} />
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

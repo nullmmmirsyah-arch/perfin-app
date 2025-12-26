@@ -1,6 +1,7 @@
 'use client'
 
-import { useQuery } from 'convex/react'
+import { useState } from 'react'
+import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { TransactionItem } from '../transactions/page'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,21 +13,109 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useHousehold } from '@/components/HouseholdProvider'
+import TransactionDrawer from '@/components/TransactionDrawer'
+import { toast } from 'sonner'
+import { Doc, Id } from '../../convex/_generated/dataModel'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accountId' | 'categoryId' | 'toAccountId' | 'labelId'> & {
+  accountId: Id<'accounts'>;
+  categoryId?: Id<'categories'>;
+  toAccountId?: Id<'accounts'>;
+  labelId?: Id<'labels'>;
+  fromAccountName?: string;
+  toAccountName?: string;
+  categoryName?: string;
+  label?: Doc<'labels'> | null;
+  splits?: Array<{
+    categoryId: Id<'categories'>;
+    amount: string;
+    description?: string;
+    labelId?: Id<'labels'>;
+    categoryName?: string;
+  }>;
+};
+
+type BudgetBreakdownItem = {
+  categoryName: string;
+  categoryType: string;
+  targetAmount?: number;
+  accumulated: number;
+  limit: number;
+  spent: number;
+  remaining: number;
+};
 
 export default function Dashboard() {
   const { householdId } = useHousehold()
   const summary = useQuery(api.dashboard.getDashboardSummary, {
     householdId: householdId ?? undefined
   })
+  
   const [isBudgetOpen, setIsBudgetOpen] = useState(false)
   const [isBalancesOpen, setIsBalancesOpen] = useState(false)
+
+  // Edit & Delete State
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithDetails | undefined>(undefined)
+  const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithDetails | undefined>(undefined)
+
+  const deleteTransaction = useMutation(api.transactions.deleteTransaction)
+
+  const handleEdit = (transaction: TransactionWithDetails) => {
+    setSelectedTransaction(transaction)
+    setEditDrawerOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (transactionToDelete) {
+        await deleteTransaction({ id: transactionToDelete._id });
+        toast.success("Transaction deleted");
+        setTransactionToDelete(undefined);
+    }
+  }
 
   return (
     <div className="p-8 pb-24">
       <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+
+      {/* Transaction Actions Components */}
+      <TransactionDrawer
+        open={editDrawerOpen}
+        onOpenChange={setEditDrawerOpen}
+        transaction={selectedTransaction}
+      />
+      
+      <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(undefined)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the transaction
+              {transactionToDelete?.description ? ` "${transactionToDelete.description}"` : ''} 
+              {transactionToDelete?.amount ? ` of ${transactionToDelete.amount}` : ''}
+              .
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="grid gap-6 md:grid-cols-2 mb-8">
         {/* Spendable Balances Card */}
@@ -53,7 +142,7 @@ export default function Dashboard() {
                 {/* Cash Group */}
                 <div className="space-y-1.5">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Liquid / Daily Accounts</p>
-                    {summary?.cashAccounts?.map((account, index) => (
+                    {summary?.cashAccounts?.map((account: { name: string, balance: number }, index: number) => (
                         <div key={index} className="flex justify-between items-center text-sm">
                             <span className="text-muted-foreground">{account.name}</span>
                             <span className="font-medium">{account.balance.toLocaleString()}</span>
@@ -68,7 +157,7 @@ export default function Dashboard() {
                             <p className="text-[10px] font-bold text-success uppercase tracking-wider">Reserved for Goals</p>
                             <span className="text-[10px] text-muted-foreground font-medium italic">Total: {summary?.totalSavingsOnly.toLocaleString()}</span>
                         </div>
-                        {summary?.savingAccounts?.map((account, index) => (
+                        {summary?.savingAccounts?.map((account: { name: string, balance: number }, index: number) => (
                             <div key={index} className="flex justify-between items-center text-sm">
                                 <span className="text-success/80">{account.name}</span>
                                 <span className="font-medium text-success/60">{account.balance.toLocaleString()}</span>
@@ -84,7 +173,7 @@ export default function Dashboard() {
                             <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Assets</p>
                             <span className="text-[10px] text-muted-foreground font-medium italic">Total: {summary?.totalAssetsOnly.toLocaleString()}</span>
                         </div>
-                        {summary?.assetAccounts?.map((account, index) => (
+                        {summary?.assetAccounts?.map((account: { name: string, balance: number }, index: number) => (
                             <div key={index} className="flex justify-between items-center text-sm">
                                 <span className="text-primary/80">{account.name}</span>
                                 <span className="font-medium text-primary/60">{account.balance.toLocaleString()}</span>
@@ -123,8 +212,8 @@ export default function Dashboard() {
                 <div className="space-y-3">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Daily Expenses</p>
                     {summary?.budgetBreakdown
-                        ?.filter(item => item.categoryType !== 'saving')
-                        .map((item, index) => {
+                        ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
+                        .map((item: BudgetBreakdownItem, index: number) => {
                             const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
                             const isOver = item.spent > item.limit;
                             
@@ -156,18 +245,18 @@ export default function Dashboard() {
                                 </div>
                             );
                         })}
-                    {summary?.budgetBreakdown?.filter(item => item.categoryType !== 'saving').length === 0 && (
+                    {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (
                         <p className="text-xs text-muted-foreground italic">No expense budgets.</p>
                     )}
                 </div>
 
                 {/* Saving Group */}
-                {(summary?.budgetBreakdown?.filter(item => item.categoryType === 'saving').length ?? 0) > 0 && (
+                {(summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving').length ?? 0) > 0 && (
                     <div className="space-y-3 pt-2">
                         <p className="text-[10px] font-bold text-success uppercase tracking-wider">Saving Goals Progress</p>
                         {summary?.budgetBreakdown
-                            ?.filter(item => item.categoryType === 'saving')
-                            .map((item, index) => {
+                            ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
+                            .map((item: BudgetBreakdownItem, index: number) => {
                                 const target = item.targetAmount || 0;
                                 const percentage = target > 0 ? (item.accumulated / target) * 100 : 0;
                                 
@@ -221,11 +310,13 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-2">
-          {summary?.recentTransactions?.map((transaction) => (
+          {summary?.recentTransactions?.map((transaction: TransactionWithDetails) => (
             <TransactionItem
               key={transaction._id}
               transaction={transaction}
               variant="slim"
+              onEdit={() => handleEdit(transaction)}
+              onDelete={() => setTransactionToDelete(transaction)}
             />
           ))}
           {summary?.recentTransactions?.length === 0 && (
