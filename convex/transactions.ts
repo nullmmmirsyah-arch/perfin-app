@@ -199,6 +199,7 @@ export const create = mutation({
           // Debit Asset Account (Logic: Sell/Profit Taking)
           const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
           const currentCostBasis = fromAccount.totalCostBasis ?? 0;
+          const currentRealizedProfit = fromAccount.totalRealizedProfit ?? 0;
 
           if (currentQty < quantity) throw new Error('Insufficient asset quantity');
 
@@ -443,6 +444,7 @@ export const update = mutation({
 
               const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
               const currentCostBasis = fromAccount.totalCostBasis ?? 0;
+              const currentRealizedProfit = fromAccount.totalRealizedProfit ?? 0;
 
               if (currentQty < quantity) throw new Error("Insufficient asset quantity");
 
@@ -571,6 +573,7 @@ export const deleteTransaction = mutation({
           // 2. Credit Asset Account (Return quantity)
           const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
           const currentCostBasis = fromAccount.totalCostBasis ?? 0;
+          const currentRealizedProfit = fromAccount.totalRealizedProfit ?? 0;
 
           // Re-calculate the profit that was realized in this transaction to un-realize it.
           // We need the cost basis OF THE SOLD ITEMS at the time of sale.
