@@ -43,7 +43,20 @@ export const getBudgetStatus = query({
     const userId = identity.subject;
 
     if (householdId) {
-        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return [];
+        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) {
+            return {
+                data: [],
+                unassignedCash: 0,
+                hasLeftoverBudget: false,
+                breakdown: {
+                    thisMonthIncome: 0,
+                    thisMonthBudgeted: 0,
+                    pastSurplus: 0,
+                    totalIncome: 0,
+                    totalBudgeted: 0
+                }
+            };
+        }
     }
 
     const now = new Date();
