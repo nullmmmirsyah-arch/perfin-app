@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { UserButton } from '@clerk/nextjs'
 import { 
   LayoutDashboard, 
   ArrowLeftRight, 
@@ -75,18 +74,10 @@ export default function Sidebar({ className, hideLogo }: { className?: string, h
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <div className="flex items-center gap-2 p-2">
-                <UserButton showName />
-            </div>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
-      <SidebarRail />
-    </SidebarComponent>
-  )
-}
+            </SidebarContent>
+      
+            <SidebarRail />
+          </SidebarComponent>
+        )
+      }
+      

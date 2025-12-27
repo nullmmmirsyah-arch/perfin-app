@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 export const get = query({
   args: {
@@ -266,6 +267,36 @@ export const create = mutation({
       userId: identity.subject,
       householdId: args.householdId,
     });
+
+    // --- TRIGGER NOTIFICATION ---
+    if (args.householdId) {
+      // 1. Get all household members
+      const members = await ctx.db
+        .query("householdMembers")
+        .withIndex("by_householdId", (q) => q.eq("householdId", args.householdId!))
+        .collect();
+
+      // 2. Identify the sender name (optional, ideally stored or fetched)
+      // For now we use generic "A member" or try to use identity info if available?
+      // Clerk identity usually has name, but identity object here is minimal wrapper.
+      // Let's assume generic message for now: "New transaction in [Household]"
+      
+      const household = await ctx.db.get(args.householdId);
+      const householdName = household?.name || "Household";
+      const txType = args.type === 'income' ? 'Income' : 'Expense';
+      
+      // 3. Loop through members and send to everyone EXCEPT sender
+      for (const member of members) {
+        if (member.userId !== identity.subject) {
+          await ctx.scheduler.runAfter(0, internal.push.sendNotification, {
+            userId: member.userId,
+            title: `New Transaction: ${householdName}`,
+            body: `${txType}: ${args.amount} - ${args.description || 'No description'}`,
+          });
+        }
+      }
+    }
+
     return transaction;
   },
 });

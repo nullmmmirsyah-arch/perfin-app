@@ -36,6 +36,17 @@ yarn-error.log*
 # vercel
 .vercel
 
+# PWA
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/it-sw.js
+public/it-sw.js.map
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# clerk configuration (can include secrets)
+/.clerk/

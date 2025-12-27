@@ -98,4 +98,16 @@ export default defineSchema({
     .index("by_user_category_year_month", ["userId", "categoryId", "year", "month"])
     .index("by_householdId_year_month", ["householdId", "year", "month"])
     .index("by_householdId_category_year_month", ["householdId", "categoryId", "year", "month"]),
+  
+  pushSubscriptions: defineTable({
+    userId: v.string(),
+    endpoint: v.string(),
+    expirationTime: v.optional(v.number()),
+    keys: v.object({
+      p256dh: v.string(),
+      auth: v.string(),
+    }),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
 });

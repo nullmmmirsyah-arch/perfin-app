@@ -14,6 +14,8 @@ import type * as categories from "../categories.js";
 import type * as dashboard from "../dashboard.js";
 import type * as households from "../households.js";
 import type * as labels from "../labels.js";
+import type * as notifications from "../notifications.js";
+import type * as push from "../push.js";
 import type * as transactions from "../transactions.js";
 
 import type {
@@ -29,6 +31,8 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   households: typeof households;
   labels: typeof labels;
+  notifications: typeof notifications;
+  push: typeof push;
   transactions: typeof transactions;
 }>;
 

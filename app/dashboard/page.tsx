@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { TransactionItem } from '../transactions/page'
+import { TransactionItem } from '@/components/TransactionItem'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Wallet, ArrowRight, ChevronDown } from 'lucide-react'
 import Link from 'next/link'

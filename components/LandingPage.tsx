@@ -5,17 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Logo } from '@/components/Logo'
 import { PieChart, TrendingUp, ShieldCheck } from 'lucide-react'
+import { ThemeToggle } from './ThemeToggle'
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
+      <header className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 z-50">
         <div className="flex items-center gap-2 font-bold text-xl text-primary">
           <Logo className="h-8 w-8" />
           <span>Perfin</span>
         </div>
-        <nav>
+        <nav className="flex items-center gap-2">
+          <ThemeToggle />
           <SignInButton mode="modal">
             <Button variant="ghost">Sign In</Button>
           </SignInButton>

@@ -7,8 +7,11 @@ import GlobalTransactionFAB from './GlobalTransactionFAB'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Bell } from 'lucide-react'
 import TransactionDrawer from './TransactionDrawer'
+import { UserButton } from '@clerk/nextjs'
+import { ThemeToggle } from './ThemeToggle'
+import { PushNotificationSettings } from './PushNotificationSettings'
 
 import LandingPage from './LandingPage'
 import { HouseholdProvider } from './HouseholdProvider'
@@ -23,11 +26,11 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
           <SidebarProvider>
             <Sidebar />
             <SidebarInset>
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 px-4">
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-[[collapsible=icon]]/sidebar-wrapper:h-12 px-4">
                <SidebarTrigger className="-ml-1" />
                <Separator orientation="vertical" className="mr-2 h-4" />
                <h1 className="text-shadow-xs font-medium text-primary">Perfin</h1>
-               <div className="ml-auto">
+               <div className="ml-auto flex items-center gap-4">
                  <Button 
                    onClick={() => setIsTransactionOpen(true)}
                    size="sm"
@@ -35,6 +38,16 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
                  >
                    <Plus className="h-4 w-4" /> Add Transaction
                  </Button>
+                 <ThemeToggle />
+                 <UserButton>
+                   <UserButton.UserProfilePage 
+                     label="Notifications" 
+                     labelIcon={<Bell className="h-4 w-4" />}
+                     url="notifications"
+                   >
+                     <PushNotificationSettings />
+                   </UserButton.UserProfilePage>
+                 </UserButton>
                </div>
             </header>
             <main className="flex-1 p-4 lg:p-8">
