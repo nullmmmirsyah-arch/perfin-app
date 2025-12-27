@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
+import { LabelsListSkeleton } from '@/components/skeletons'
 
 export default function LabelsPage() {
   const [open, setOpen] = useState(false)
@@ -86,44 +87,48 @@ export default function LabelsPage() {
       </AlertDialog>
 
       <div className="mt-8">
-        <div className="space-y-2">
-          {labels?.map(label => (
-            <Card key={label._id} className="p-4 flex flex-row justify-between items-center shadow-sm">
-              <div className="flex items-center gap-4">
-                <div
-                  className="h-6 w-6 rounded-full"
-                  style={{ backgroundColor: label.color }}
-                />
-                <p className="font-medium">{label.name}</p>
+        {labels === undefined ? (
+          <LabelsListSkeleton />
+        ) : (
+          <div className="space-y-2">
+            {labels.map(label => (
+              <Card key={label._id} className="p-4 flex flex-row justify-between items-center shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="h-6 w-6 rounded-full"
+                    style={{ backgroundColor: label.color }}
+                  />
+                  <p className="font-medium">{label.name}</p>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEdit(label)}>
+                      <EditIcon className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => setLabelToDelete(label)}
+                    >
+                      <TrashIcon className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </Card>
+            ))}
+            {labels.length === 0 && (
+              <div className="p-4 border rounded-md bg-muted/50 text-center">
+                <p className="text-muted-foreground">No labels yet. Create one to get started.</p>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreIcon className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleEdit(label)}>
-                    <EditIcon className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => setLabelToDelete(label)}
-                  >
-                    <TrashIcon className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Card>
-          ))}
-          {labels?.length === 0 && (
-            <div className="p-4 border rounded-md bg-muted/50 text-center">
-              <p className="text-muted-foreground">No labels yet. Create one to get started.</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

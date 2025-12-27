@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
+import { CategoriesListSkeleton } from '@/components/skeletons'
 
 export default function CategoriesPage() {
   const [open, setOpen] = useState(false)
@@ -87,47 +88,51 @@ export default function CategoriesPage() {
       </AlertDialog>
 
       <div className="mt-8">
-        <div className="space-y-2">
-          {categories?.map(category => (
-            <Card key={category._id} className="p-4 flex flex-row justify-between items-center shadow-sm">
-              <div className="flex items-center gap-4">
-                <p className="font-medium">{category.name}</p>
-                <Badge
-                  variant={
-                    category.type === 'income' ? 'default' : 'destructive'
-                  }
-                >
-                  {category.type}
-                </Badge>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleEdit(category)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => setCategoryToDelete(category)}
+        {categories === undefined ? (
+          <CategoriesListSkeleton />
+        ) : (
+          <div className="space-y-2">
+            {categories.map(category => (
+              <Card key={category._id} className="p-4 flex flex-row justify-between items-center shadow-sm">
+                <div className="flex items-center gap-4">
+                  <p className="font-medium">{category.name}</p>
+                  <Badge
+                    variant={
+                      category.type === 'income' ? 'default' : 'destructive'
+                    }
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </Card>
-          ))}
-          {categories?.length === 0 && (
-            <div className="p-4 border rounded-md bg-muted/50 text-center">
-              <p className="text-muted-foreground">No categories yet. Create one to get started.</p>
-            </div>
-          )}
-        </div>
+                    {category.type}
+                  </Badge>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEdit(category)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => setCategoryToDelete(category)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </Card>
+            ))}
+            {categories.length === 0 && (
+              <div className="p-4 border rounded-md bg-muted/50 text-center">
+                <p className="text-muted-foreground">No categories yet. Create one to get started.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -98,30 +98,24 @@ export function TransactionItem({
                 isSlim ? "text-sm" : "text-base",
                 transaction.type === 'expense'
                   ? 'text-destructive'
-                  : 'text-default'
+                  : transaction.type === 'income' ? 'text-green-600' : 'text-primary'
               )}
             >
-              {transaction.type === 'expense' && '-' }
+              {transaction.type === 'expense' ? '-' : transaction.type === 'income' ? '+' : '' }
               {transaction.amount}
             </p>
-            {!isSlim && (
-              <div className="flex gap-1 justify-end items-center mt-1">
+            {transaction.label && (
+              <div className="flex justify-end mt-1">
                 <Badge
-                  variant={
-                    transaction.type === 'expense' ? 'destructive' : 'default'
-                  }
-                  className="text-[10px] py-0 h-4"
+                  variant="outline"
+                  className="text-[10px] py-0 h-5 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
+                  style={transaction.label.color ? { 
+                      color: transaction.label.color,
+                      backgroundColor: `${transaction.label.color}15` // 10% opacity hex
+                  } : undefined}
                 >
-                  {transaction.type}
+                  #{transaction.label.name}
                 </Badge>
-                {transaction.label && (
-                  <Badge
-                    className="text-[10px] py-0 h-4"
-                    style={{ backgroundColor: transaction.label.color }}
-                  >
-                    {transaction.label.name}
-                  </Badge>
-                )}
               </div>
             )}
           </div>

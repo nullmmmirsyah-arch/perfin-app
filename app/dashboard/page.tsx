@@ -5,17 +5,22 @@ import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { TransactionItem } from '@/components/TransactionItem'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Wallet, ArrowRight, ChevronDown } from 'lucide-react'
+import { Wallet, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { cn } from '@/lib/utils'
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel"
+import { cn, groupTransactionsByDate } from '@/lib/utils'
 import { useHousehold } from '@/components/HouseholdProvider'
 import TransactionDrawer from '@/components/TransactionDrawer'
+import { 
+  DashboardCardSkeleton, 
+  RecentTransactionsSkeleton 
+} from '@/components/skeletons'
 import { toast } from 'sonner'
 import { Doc, Id } from '../../convex/_generated/dataModel'
 import {
@@ -63,9 +68,6 @@ export default function Dashboard() {
     householdId: householdId ?? undefined
   })
   
-  const [isBudgetOpen, setIsBudgetOpen] = useState(false)
-  const [isBalancesOpen, setIsBalancesOpen] = useState(false)
-
   // Edit & Delete State
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithDetails | undefined>(undefined)
@@ -86,9 +88,208 @@ export default function Dashboard() {
     }
   }
 
+  const DailyOperationsCard = () => (
+    <Card className="w-full h-full">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Daily Operations</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="budget" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="budget">Budget</TabsTrigger>
+            <TabsTrigger value="cash">Cash</TabsTrigger>
+          </TabsList>
+          
+          {/* BUDGET TAB */}
+          <TabsContent value="budget" className="space-y-4 animate-in fade-in-5">
+             <div>
+                <div className="text-2xl font-bold">
+                    {summary?.remainingBudget.toLocaleString() ?? '...'}
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                    Remaining Monthly Budget
+                </p>
+            </div>
+            <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
+                {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">No expense budgets set.</p>
+                )}
+                {summary?.budgetBreakdown
+                    ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
+                    .map((item: BudgetBreakdownItem, index: number) => {
+                        const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
+                        const isOver = item.spent > item.limit;
+                        
+                        return (
+                            <div key={index} className="flex flex-col gap-1.5 pb-2">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground font-medium">{item.categoryName}</span>
+                                    <span className={cn(
+                                        "font-bold text-xs",
+                                        isOver ? "text-destructive" : "text-primary"
+                                    )}>
+                                        {isOver 
+                                            ? `Over ${(item.spent - item.limit).toLocaleString()}` 
+                                            : `${item.remaining.toLocaleString()} left`
+                                        }
+                                    </span>
+                                </div>
+                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                        className={cn("h-full rounded-full transition-all duration-500", isOver ? "bg-destructive" : "bg-primary")} 
+                                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                                    />
+                                </div>
+                                <div className="flex justify-between text-[10px] text-muted-foreground">
+                                    <span>{Math.round(percentage)}%</span>
+                                    <span>{item.spent.toLocaleString()} / {item.limit.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+            </div>
+          </TabsContent>
+
+          {/* CASH TAB */}
+          <TabsContent value="cash" className="space-y-4 animate-in fade-in-5">
+            <div>
+                <div className="text-2xl font-bold">
+                    {summary?.liquidCash.toLocaleString() ?? '...'}
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                    Total Liquid Cash
+                </p>
+            </div>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
+                {summary?.cashAccounts?.length === 0 && <p className="text-xs text-muted-foreground italic">No cash accounts.</p>}
+                {summary?.cashAccounts?.map((account: { name: string, balance: number }, index: number) => (
+                    <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/20">
+                        <span className="font-medium">{account.name}</span>
+                        <span>{account.balance.toLocaleString()}</span>
+                    </div>
+                ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+
+  const WealthCard = () => (
+    <Card className="w-full h-full">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Wealth & Goals</CardTitle>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="goals" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="goals">Goals</TabsTrigger>
+            <TabsTrigger value="savings">Savings</TabsTrigger>
+            <TabsTrigger value="assets">Assets</TabsTrigger>
+          </TabsList>
+
+          {/* GOALS TAB */}
+          <TabsContent value="goals" className="space-y-4 animate-in fade-in-5">
+             <div>
+                <div className="text-2xl font-bold text-success">
+                    {summary?.budgetBreakdown
+                        ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
+                        .reduce((acc: number, item: BudgetBreakdownItem) => acc + item.accumulated, 0)
+                        .toLocaleString() ?? '0'}
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                    Accumulated Goal Progress
+                </p>
+            </div>
+            <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
+                {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving').length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">No saving goals set.</p>
+                )}
+                {summary?.budgetBreakdown
+                    ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
+                    .map((item: BudgetBreakdownItem, index: number) => {
+                        const target = item.targetAmount || 0;
+                        const percentage = target > 0 ? (item.accumulated / target) * 100 : 0;
+                        
+                        return (
+                            <div key={index} className="flex flex-col gap-1.5 pb-2">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground font-medium">{item.categoryName}</span>
+                                    <span className="font-bold text-xs text-success">
+                                        {item.accumulated.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="h-2 w-full bg-success/10 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-success rounded-full transition-all duration-500" 
+                                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                                    />
+                                </div>
+                                <div className="flex justify-between text-[10px] text-muted-foreground">
+                                    <span>{item.targetAmount ? `${Math.round(percentage)}%` : 'No Target'}</span>
+                                    <span>Goal: {item.targetAmount ? item.targetAmount.toLocaleString() : '∞'}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+            </div>
+          </TabsContent>
+
+          {/* SAVINGS TAB */}
+          <TabsContent value="savings" className="space-y-4 animate-in fade-in-5">
+            <div>
+                <div className="text-2xl font-bold text-success">
+                    {summary?.totalSavingsOnly.toLocaleString() ?? '...'}
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                    Total In Savings Accounts
+                </p>
+            </div>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
+                {(summary?.savingAccounts?.length ?? 0) === 0 && <p className="text-xs text-muted-foreground italic">No saving accounts.</p>}
+                {summary?.savingAccounts?.map((account: { name: string, balance: number }, index: number) => (
+                    <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-success/10 text-success-foreground">
+                        <span className="font-medium">{account.name}</span>
+                        <span>{account.balance.toLocaleString()}</span>
+                    </div>
+                ))}
+            </div>
+          </TabsContent>
+
+          {/* ASSETS TAB */}
+          <TabsContent value="assets" className="space-y-4 animate-in fade-in-5">
+            <div>
+                <div className="text-2xl font-bold text-primary">
+                    {summary?.totalAssetsOnly.toLocaleString() ?? '...'}
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                    Total Assets Value
+                </p>
+            </div>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
+                {(summary?.assetAccounts?.length ?? 0) === 0 && <p className="text-xs text-muted-foreground italic">No assets.</p>}
+                {summary?.assetAccounts?.map((account: { name: string, balance: number }, index: number) => (
+                    <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-primary/10 text-primary">
+                        <span className="font-medium">{account.name}</span>
+                        <span>{account.balance.toLocaleString()}</span>
+                    </div>
+                ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+
   return (
-    <div className="p-8 pb-24">
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
+    <div className="p-4 md:p-8 pb-24 md:pb-8">
+      <h1 className="text-2xl font-bold mb-6 md:mb-8">Dashboard</h1>
 
       {/* Transaction Actions Components */}
       <TransactionDrawer
@@ -117,186 +318,47 @@ export default function Dashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        {/* Spendable Balances Card */}
-        <Collapsible open={isBalancesOpen} onOpenChange={setIsBalancesOpen} className="w-full">
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-xl">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Available Spending Cash</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-muted-foreground" />
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isBalancesOpen && "rotate-180")} />
+      {/* Mobile: Swipeable Cards (Carousel) */}
+      <div className="block md:hidden mb-8 -mx-4 px-4">
+        {summary === undefined ? (
+            <div className="flex gap-4 overflow-hidden">
+                <div className="basis-[85%] shrink-0">
+                    <DashboardCardSkeleton />
                 </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {summary?.liquidCash.toLocaleString() ?? '...'}
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter font-semibold">
-                Money you can spend today
-              </p>
-
-              <CollapsibleContent className="mt-4 space-y-4 border-t pt-4 animate-in fade-in slide-in-from-top-1">
-                {/* Cash Group */}
-                <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Liquid / Daily Accounts</p>
-                    {summary?.cashAccounts?.map((account: { name: string, balance: number }, index: number) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">{account.name}</span>
-                            <span className="font-medium">{account.balance.toLocaleString()}</span>
-                        </div>
-                    ))}
+                <div className="basis-[85%] shrink-0">
+                    <DashboardCardSkeleton />
                 </div>
+            </div>
+        ) : (
+            <Carousel 
+                opts={{ align: "start", loop: false }}
+                className="w-full"
+            >
+                <CarouselContent className="-ml-4">
+                    <CarouselItem className="pl-4 basis-[85%]">
+                        <DailyOperationsCard />
+                    </CarouselItem>
+                    <CarouselItem className="pl-4 basis-[85%]">
+                        <WealthCard />
+                    </CarouselItem>
+                </CarouselContent>
+            </Carousel>
+        )}
+      </div>
 
-                {/* Savings Group */}
-                {(summary?.savingAccounts?.length ?? 0) > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-muted/20">
-                        <div className="flex justify-between items-center">
-                            <p className="text-[10px] font-bold text-success uppercase tracking-wider">Reserved for Goals</p>
-                            <span className="text-[10px] text-muted-foreground font-medium italic">Total: {summary?.totalSavingsOnly.toLocaleString()}</span>
-                        </div>
-                        {summary?.savingAccounts?.map((account: { name: string, balance: number }, index: number) => (
-                            <div key={index} className="flex justify-between items-center text-sm">
-                                <span className="text-success/80">{account.name}</span>
-                                <span className="font-medium text-success/60">{account.balance.toLocaleString()}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Assets Group */}
-                {(summary?.assetAccounts?.length ?? 0) > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-muted/20">
-                        <div className="flex justify-between items-center">
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Assets</p>
-                            <span className="text-[10px] text-muted-foreground font-medium italic">Total: {summary?.totalAssetsOnly.toLocaleString()}</span>
-                        </div>
-                        {summary?.assetAccounts?.map((account: { name: string, balance: number }, index: number) => (
-                            <div key={index} className="flex justify-between items-center text-sm">
-                                <span className="text-primary/80">{account.name}</span>
-                                <span className="font-medium text-primary/60">{account.balance.toLocaleString()}</span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-              </CollapsibleContent>
-            </CardContent>
-          </Card>
-        </Collapsible>
-
-        {/* Budget Status Card */}
-        <Collapsible open={isBudgetOpen} onOpenChange={setIsBudgetOpen} className="w-full">
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-xl">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Budget & Goals</CardTitle>
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isBudgetOpen && "rotate-180")} />
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {summary?.remainingBudget.toLocaleString() ?? '...'}
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter font-semibold">
-                Remaining spending limit
-              </p>
-              
-              <CollapsibleContent className="mt-4 space-y-4 border-t pt-4 animate-in fade-in slide-in-from-top-1">
-                
-                {/* Expense Group */}
-                <div className="space-y-3">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Daily Expenses</p>
-                    {summary?.budgetBreakdown
-                        ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
-                        .map((item: BudgetBreakdownItem, index: number) => {
-                            const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
-                            const isOver = item.spent > item.limit;
-                            
-                            return (
-                                <div key={index} className="flex flex-col gap-1.5 py-2 border-b last:border-0 border-muted/30">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">{item.categoryName}</span>
-                                        <span className={cn(
-                                            "font-medium",
-                                            isOver ? "text-destructive" : ""
-                                        )}>
-                                            {isOver 
-                                                ? `Over ${(item.spent - item.limit).toLocaleString()}` 
-                                                : `${item.remaining.toLocaleString()} left`
-                                            }
-                                        </span>
-                                    </div>
-                                    {/* Bar Chart */}
-                                    <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-                                        <div 
-                                            className={cn("h-full rounded-full transition-all duration-500", isOver ? "bg-destructive" : "bg-primary")} 
-                                            style={{ width: `${Math.min(percentage, 100)}%` }}
-                                        />
-                                    </div>
-                                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                                        <span>{Math.round(percentage)}% used</span>
-                                        <span>{item.spent.toLocaleString()} / {item.limit.toLocaleString()}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (
-                        <p className="text-xs text-muted-foreground italic">No expense budgets.</p>
-                    )}
-                </div>
-
-                {/* Saving Group */}
-                {(summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving').length ?? 0) > 0 && (
-                    <div className="space-y-3 pt-2">
-                        <p className="text-[10px] font-bold text-success uppercase tracking-wider">Saving Goals Progress</p>
-                        {summary?.budgetBreakdown
-                            ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
-                            .map((item: BudgetBreakdownItem, index: number) => {
-                                const target = item.targetAmount || 0;
-                                const percentage = target > 0 ? (item.accumulated / target) * 100 : 0;
-                                
-                                return (
-                                    <div key={index} className="flex flex-col gap-1.5 py-2 border-b last:border-0 border-muted/30">
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="text-muted-foreground">{item.categoryName}</span>
-                                            <div className="text-right flex flex-col items-end">
-                                                <span className="font-medium text-success">
-                                                    {item.accumulated.toLocaleString()}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {/* Bar Chart */}
-                                        <div className="h-1.5 w-full bg-success/10 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-success rounded-full transition-all duration-500" 
-                                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                                            />
-                                        </div>
-                                        <div className="flex justify-between text-[10px] text-muted-foreground">
-                                            <span>{item.targetAmount ? `${Math.round(percentage)}% of goal` : 'No target set'}</span>
-                                            <div className="flex gap-2">
-                                                {item.targetAmount && (
-                                                    <span>Goal: {item.targetAmount.toLocaleString()}</span>
-                                                )}
-                                                <span className="italic text-success/80">
-                                                    ({item.spent >= 0 ? '+' : ''}{item.spent.toLocaleString()} this month)
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                    </div>
-                )}
-              </CollapsibleContent>
-            </CardContent>
-          </Card>
-        </Collapsible>
+      {/* Desktop: Grid Layout */}
+      <div className="hidden md:grid gap-6 md:grid-cols-2 mb-8">
+        {summary === undefined ? (
+            <>
+                <DashboardCardSkeleton />
+                <DashboardCardSkeleton />
+            </>
+        ) : (
+            <>
+                <DailyOperationsCard />
+                <WealthCard />
+            </>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -309,22 +371,43 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        <div className="grid gap-2">
-          {summary?.recentTransactions?.map((transaction: TransactionWithDetails) => (
-            <TransactionItem
-              key={transaction._id}
-              transaction={transaction}
-              variant="slim"
-              onEdit={() => handleEdit(transaction)}
-              onDelete={() => setTransactionToDelete(transaction)}
-            />
-          ))}
-          {summary?.recentTransactions?.length === 0 && (
-            <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
-              <p className="text-muted-foreground">No transactions found.</p>
+        {summary === undefined ? (
+            <RecentTransactionsSkeleton />
+        ) : (
+            <div className="grid gap-4">
+              {(() => {
+                const groupedTransactions = groupTransactionsByDate(summary?.recentTransactions || []);
+                const sortedDates = Object.keys(groupedTransactions); 
+                
+                if (sortedDates.length === 0) {
+                    return (
+                        <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
+                            <p className="text-muted-foreground">No transactions found.</p>
+                        </div>
+                    );
+                }
+
+                return sortedDates.map((date) => (
+                  <div key={date} className="space-y-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
+                        {date}
+                    </h3>
+                    <div className="grid gap-2">
+                        {groupedTransactions[date].map((transaction: TransactionWithDetails) => (
+                        <TransactionItem
+                            key={transaction._id}
+                            transaction={transaction}
+                            variant="slim"
+                            onEdit={() => handleEdit(transaction)}
+                            onDelete={() => setTransactionToDelete(transaction)}
+                        />
+                        ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )

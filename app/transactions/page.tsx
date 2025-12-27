@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { usePaginatedQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import TransactionDrawer from '@/components/TransactionDrawer'
-import { cn } from '@/lib/utils'
+import { cn, groupTransactionsByDate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
@@ -21,6 +21,7 @@ import { Doc, Id } from '../../convex/_generated/dataModel'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { TransactionItem } from '@/components/TransactionItem'
+import { TransactionsListSkeleton } from '@/components/skeletons'
 
 type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accountId' | 'categoryId' | 'toAccountId' | 'labelId'> & {
   accountId: Id<'accounts'>;
@@ -70,7 +71,7 @@ export default function TransactionsPage() {
   })
 
   const { householdId } = useHousehold()
-  const transactions = useQuery(api.transactions.get, {
+  const { results: transactions, status, loadMore } = usePaginatedQuery(api.transactions.get, {
     householdId: householdId ?? undefined,
     type: filters.type,
     accountId: filters.accountId,
@@ -81,7 +82,8 @@ export default function TransactionsPage() {
           end: filters.dateRange.to?.toISOString(),
         }
       : undefined,
-  }) as TransactionWithDetails[] | undefined
+  }, { initialNumItems: 20 })
+  
   const deleteTransaction = useMutation(api.transactions.deleteTransaction)
 
   const handleEdit = (transaction: TransactionWithDetails) => {
@@ -131,23 +133,60 @@ export default function TransactionsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {transactions?.length === 0 && (
-        <div className="mt-8 p-4 border rounded-md bg-muted/50">
-          <p className="text-muted-foreground">
-            No transactions yet. Click &quot;Create Transaction&quot; to get started.
-          </p>
+      {transactions === undefined ? (
+        <TransactionsListSkeleton />
+      ) : (
+        <>
+          {transactions.length === 0 && (
+            <div className="mt-8 p-4 border rounded-md bg-muted/50">
+              <p className="text-muted-foreground">
+                No transactions yet. Click &quot;Create Transaction&quot; to get started.
+              </p>
+            </div>
+          )}
+          
+          <div className="mt-8 space-y-6">
+            {(() => {
+                const groupedTransactions = groupTransactionsByDate(transactions || []);
+                const sortedDates = Object.keys(groupedTransactions);
+
+                return sortedDates.map((date) => (
+                    <div key={date} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <div className="h-px flex-1 bg-border" />
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider bg-background px-2">
+                                {date}
+                            </span>
+                            <div className="h-px flex-1 bg-border" />
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                            {groupedTransactions[date].map((transaction: TransactionWithDetails) => (
+                                <TransactionItem
+                                    key={transaction._id}
+                                    transaction={transaction}
+                                    onEdit={() => handleEdit(transaction)}
+                                    onDelete={() => setTransactionToDelete(transaction)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                ));
+            })()}
+          </div>
+        </>
+      )}
+
+      {status === "CanLoadMore" && (
+        <div className="mt-8 flex justify-center">
+            <Button 
+                variant="outline" 
+                onClick={() => loadMore(20)}
+                className="w-full md:w-auto min-w-[200px]"
+            >
+                Load More
+            </Button>
         </div>
       )}
-      <div className="mt-8 grid grid-cols-1 gap-4">
-        {transactions?.map(transaction => (
-          <TransactionItem
-            key={transaction._id}
-            transaction={transaction}
-            onEdit={() => handleEdit(transaction)}
-            onDelete={() => setTransactionToDelete(transaction)}
-          />
-        ))}
-      </div>
     </div>
   )
 }

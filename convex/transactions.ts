@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
+import { paginationOptsValidator } from "convex/server";
+
 export const get = query({
   args: {
     householdId: v.optional(v.id("households")),
@@ -12,8 +14,10 @@ export const get = query({
       start: v.optional(v.string()),
       end: v.optional(v.string()),
     })),
+    paginationOpts: paginationOptsValidator,
   },
-  handler: async (ctx, { householdId, type, accountId, categoryId, dateRange }) => {
+  handler: async (ctx, args) => {
+    const { householdId, type, accountId, categoryId, dateRange, paginationOpts } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -29,7 +33,8 @@ export const get = query({
         .first();
 
       if (!member) {
-        return [];
+        // Return empty page structure if not member
+        return { page: [], isDone: true, continueCursor: "" };
       }
 
       query = ctx.db
@@ -59,11 +64,11 @@ export const get = query({
       query = query.filter((q) => q.lte(q.field("date"), end));
     }
 
-    const transactions = await query.order("desc").collect();
+    const results = await query.order("desc").paginate(paginationOpts);
     
     // Join with account names, labels, and categories
-    const transactionsWithDetails = await Promise.all(
-      transactions.map(async (transaction) => {
+    const pageWithDetails = await Promise.all(
+      results.page.map(async (transaction) => {
         const fromAccount = await ctx.db.get(transaction.accountId);
         const toAccount = transaction.toAccountId
           ? await ctx.db.get(transaction.toAccountId)
@@ -99,7 +104,10 @@ export const get = query({
       })
     );
 
-    return transactionsWithDetails;
+    return {
+        ...results,
+        page: pageWithDetails
+    };
   },
 });
 

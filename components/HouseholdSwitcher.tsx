@@ -22,7 +22,7 @@ import { Logo } from "./Logo"
 import { HouseholdSettingsDialog } from "./HouseholdSettingsDialog"
 import { JoinHouseholdDialog } from "./JoinHouseholdDialog"
 
-export function HouseholdSwitcher() {
+export function HouseholdSwitcher({ mode = 'sidebar' }: { mode?: 'sidebar' | 'mobile' }) {
   const { isMobile } = useSidebar()
   const { households, householdId, selectHousehold, createHousehold } = useHousehold()
   
@@ -30,6 +30,61 @@ export function HouseholdSwitcher() {
   const [showSettingsDialog, setShowSettingsDialog] = React.useState(false)
   
   const activeHousehold = households.find(h => h._id === householdId)
+
+  if (mode === 'mobile') {
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-3 focus:outline-none text-left group">
+             <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-active:scale-95">
+                <Logo className="size-4" />
+             </div>
+             <div className="flex flex-col leading-tight">
+                <span className="truncate max-w-[150px] font-bold text-lg text-primary leading-none mb-0.5">
+                    {activeHousehold?.name || "Perfin"}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-semibold tracking-[0.05em]">
+                    {activeHousehold ? "Household" : "Finance Tracker"}
+                </span>
+             </div>
+             <ChevronsUpDown className="size-4 text-muted-foreground ml-0.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[200px] mt-2">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Households</DropdownMenuLabel>
+            {households.map((household) => (
+              <DropdownMenuItem key={household._id} onClick={() => selectHousehold(household._id)}>
+                {household.name}
+                {household._id === householdId && <Check className="ml-auto h-4 w-4" />}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => {
+                const name = prompt("Enter new household name:");
+                if (name) createHousehold(name);
+            }}>
+              <Plus className="mr-2 h-4 w-4" /> Create Household
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowJoinDialog(true)}>
+              <UserPlus className="mr-2 h-4 w-4" /> Join Household
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
+              <Settings className="mr-2 h-4 w-4" /> Settings
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <JoinHouseholdDialog open={showJoinDialog} onOpenChange={setShowJoinDialog} />
+        {householdId && (
+            <HouseholdSettingsDialog 
+            householdId={householdId} 
+            open={showSettingsDialog} 
+            onOpenChange={setShowSettingsDialog} 
+            />
+        )}
+      </>
+    )
+  }
 
   return (
     <>

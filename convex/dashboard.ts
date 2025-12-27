@@ -291,7 +291,7 @@ export const getDashboardSummary = query({
     // 3. Recent Transactions
     const sortedTransactions = allTransactions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 7);
+        .slice(0, 10);
 
     const recentTransactions = await Promise.all(
         sortedTransactions.map(async (t) => {

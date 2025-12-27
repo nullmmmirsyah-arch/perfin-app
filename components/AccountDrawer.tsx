@@ -56,6 +56,13 @@ type AccountDrawerProps = {
   account?: Doc<'accounts'>;
 };
 
+const formatNumber = (value: string | undefined) => {
+  if (!value) return '';
+  const parsed = parseFloat(value.replace(/,/g, ''));
+  if (isNaN(parsed)) return '';
+  return new Intl.NumberFormat('en-US').format(parsed);
+};
+
 const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
   const { householdId } = useHousehold();
   const createAccount = useMutation(api.accounts.create);
@@ -205,7 +212,21 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                   <FormItem>
                     <FormLabel>{isEditMode ? 'Balance' : 'Initial Balance'}</FormLabel>
                     <FormControl>
-                      <Input placeholder="0" inputMode="numeric" {...field} />
+                      <Input 
+                        placeholder="0" 
+                        inputMode="numeric" 
+                        {...field} 
+                        value={field.value || ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(formatNumber(value));
+                        }}
+                        onBlur={(e) => {
+                          const value = e.target.value;
+                          field.onBlur();
+                          field.onChange(formatNumber(value));
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

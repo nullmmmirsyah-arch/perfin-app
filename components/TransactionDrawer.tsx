@@ -249,6 +249,11 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     name: 'splits',
   });
 
+  // Filter accounts for Expense/Income (Cash only)
+  const cashAccounts = useMemo(() => 
+    accounts?.filter(a => !a.type || a.type === 'CASH') || [], 
+  [accounts]);
+
   const onSubmit = async (data: TransactionFormValues) => {
     const assetDetails = data.assetDetails?.quantity 
       ? { quantity: data.assetDetails.quantity, unitPrice: data.assetDetails.unitPrice }
@@ -350,10 +355,10 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <TabsContent value="expense" className="space-y-4">
-                  <TransactionFormFields form={form} categories={categories || []} accounts={accounts || []} labels={labels || []} />
+                  <TransactionFormFields form={form} categories={categories || []} accounts={cashAccounts} labels={labels || []} />
                 </TabsContent>
                 <TabsContent value="income" className="space-y-4">
-                  <TransactionFormFields form={form} categories={categories || []} accounts={accounts || []} labels={labels || []} />
+                  <TransactionFormFields form={form} categories={categories || []} accounts={cashAccounts} labels={labels || []} />
                 </TabsContent>
                 <TabsContent value="transfer" className="space-y-4">
                   <TransferFormFields form={form} accounts={accounts || []} labels={labels || []} categories={categories || []} />

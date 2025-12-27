@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
+import { AccountsListSkeleton } from '@/components/skeletons'
 
 export default function AccountsPage() {
   const [open, setOpen] = useState(false)
@@ -86,66 +87,70 @@ export default function AccountsPage() {
       </AlertDialog>
 
       <div className="mt-8">
-        <div className="space-y-2">
-          {accounts?.map(account => {
-            const isAsset = account.type === 'ASSET';
-            const quantity = account.quantity ?? parseFloat(account.initialQuantity || '0');
-            const unit = account.unit || '';
-            const realizedProfit = account.totalRealizedProfit || 0;
-            
-            const formatCurrency = (val: string | number) => {
-                const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : val;
-                return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(isNaN(num) ? 0 : num);
-            };
+        {accounts === undefined ? (
+          <AccountsListSkeleton />
+        ) : (
+          <div className="space-y-2">
+            {accounts.map(account => {
+              const isAsset = account.type === 'ASSET';
+              const quantity = account.quantity ?? parseFloat(account.initialQuantity || '0');
+              const unit = account.unit || '';
+              const realizedProfit = account.totalRealizedProfit || 0;
+              
+              const formatCurrency = (val: string | number) => {
+                  const num = typeof val === 'string' ? parseFloat(val.replace(/,/g, '')) : val;
+                  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(isNaN(num) ? 0 : num);
+              };
 
-            return (
-            <Card key={account._id} className="p-4 flex flex-row justify-between items-center shadow-sm">
-              <div>
-                <p className="font-medium">{account.name}</p>
-                {isAsset && (
-                  <div className="text-sm text-muted-foreground flex gap-4 mt-1">
-                    <span>Qty: {quantity} {unit}</span>
-                    <span className={realizedProfit >= 0 ? 'text-success' : 'text-destructive'}>
-                      Profit: {formatCurrency(realizedProfit)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className='flex items-center gap-4'>
-                <div className="text-right">
-                  <p className="font-semibold">{formatCurrency(account.balance)}</p>
-                  {isAsset && <p className="text-xs text-muted-foreground">Est. Value</p>}
+              return (
+              <Card key={account._id} className="p-4 flex flex-row justify-between items-center shadow-sm">
+                <div>
+                  <p className="font-medium">{account.name}</p>
+                  {isAsset && (
+                    <div className="text-sm text-muted-foreground flex gap-4 mt-1">
+                      <span>Qty: {quantity} {unit}</span>
+                      <span className={realizedProfit >= 0 ? 'text-success' : 'text-destructive'}>
+                        Profit: {formatCurrency(realizedProfit)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(account)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => setAccountToDelete(account)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className='flex items-center gap-4'>
+                  <div className="text-right">
+                    <p className="font-semibold">{formatCurrency(account.balance)}</p>
+                    {isAsset && <p className="text-xs text-muted-foreground">Est. Value</p>}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEdit(account)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => setAccountToDelete(account)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </Card>
+              );
+            })}
+            {accounts.length === 0 && (
+              <div className="p-4 border rounded-md bg-muted/50 text-center">
+                <p className="text-muted-foreground">No accounts yet. Create one to get started.</p>
               </div>
-            </Card>
-            );
-          })}
-          {accounts?.length === 0 && (
-            <div className="p-4 border rounded-md bg-muted/50 text-center">
-              <p className="text-muted-foreground">No accounts yet. Create one to get started.</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

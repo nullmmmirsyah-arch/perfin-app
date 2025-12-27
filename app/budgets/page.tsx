@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { addMonths, subMonths, format } from 'date-fns'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
+import { BudgetListSkeleton } from '@/components/skeletons'
 
 import {
   AlertDialog,
@@ -203,147 +204,155 @@ export default function BudgetsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {budgetStatus?.map(({ category, budget, spent, accumulated }) => {
-          const isGoal = category.type === 'saving' && category.targetAmount;
-          
-          // Goal Logic
-          // Fix: Remove commas before parsing to ensure correct number (e.g. "40,000,000" -> 40000000)
-          const targetAmount = isGoal ? parseFloat(category.targetAmount!.replace(/,/g, '')) : 0;
-          const goalPercentage = isGoal && targetAmount > 0 ? (accumulated / targetAmount) * 100 : 0;
-          
-          // Monthly Budget Logic
-          const limit = budget ? parseFloat(budget.amount) : 0
-          const percentage = limit > 0 ? (spent / limit) * 100 : 0
-          const isOverBudget = spent > limit && limit > 0
-          
-          return (
-            <Card key={category._id} className="p-6 flex flex-col justify-between shadow-sm">
-              <div>
-                  <div className="flex justify-between items-start mb-4">
+      <div className="mt-8">
+        {budgetStatus === undefined ? (
+          <BudgetListSkeleton />
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {budgetStatus.map(({ category, budget, spent, accumulated }) => {
+                const isGoal = category.type === 'saving' && category.targetAmount;
+                
+                // Goal Logic
+                // Fix: Remove commas before parsing to ensure correct number (e.g. "40,000,000" -> 40000000)
+                const targetAmount = isGoal ? parseFloat(category.targetAmount!.replace(/,/g, '')) : 0;
+                const goalPercentage = isGoal && targetAmount > 0 ? (accumulated / targetAmount) * 100 : 0;
+                
+                // Monthly Budget Logic
+                const limit = budget ? parseFloat(budget.amount) : 0
+                const percentage = limit > 0 ? (spent / limit) * 100 : 0
+                const isOverBudget = spent > limit && limit > 0
+                
+                return (
+                  <Card key={category._id} className="p-6 flex flex-col justify-between shadow-sm">
                     <div>
-                      <h3 className="font-semibold text-lg">{category.name}</h3>
-                      <p className="text-sm text-muted-foreground capitalize">
-                          {isGoal ? 'Financial Goal' : category.type}
-                      </p>
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="font-semibold text-lg">{category.name}</h3>
+                            <p className="text-sm text-muted-foreground capitalize">
+                                {isGoal ? 'Financial Goal' : category.type}
+                            </p>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(category, budget?.amount)}>
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                {isGoal ? 'Set Monthly Contribution' : (budget ? 'Edit Budget' : 'Set Budget')}
+                              </DropdownMenuItem>
+                                                  {budget && (
+                                                    <DropdownMenuItem
+                                                      className="text-destructive"
+                                                      onClick={() => setBudgetToDelete({ id: budget._id, name: category.name })}
+                                                    >
+                                                      <Trash2 className="mr-2 h-4 w-4" />
+                                                      Remove Budget
+                                                    </DropdownMenuItem>
+                                                  )}                      </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Goal View */}
+                          {isGoal ? (
+                              <>
+                                  <div className="flex justify-between text-sm">
+                                      <span className="font-medium text-primary">
+                                          {accumulated.toLocaleString()} <span className="text-muted-foreground font-normal">saved</span>
+                                      </span>
+                                      <span className="text-muted-foreground">
+                                          of {targetAmount.toLocaleString()} goal
+                                      </span>
+                                  </div>
+                                  <Progress 
+                                      value={Math.min(goalPercentage, 100)} 
+                                      className="h-2 bg-muted [&>div]:bg-success"
+                                  />
+                                  <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                      <span>{Math.round(goalPercentage)}% Completed</span>
+                                      {category.targetDate && (
+                                          <span>Due: {format(new Date(category.targetDate), 'MMM yyyy')}</span>
+                                      )}
+                                  </div>
+                                  
+                                  {/* Monthly Contribution Context */}
+                                  <div className="pt-2 border-t mt-2">
+                                      <div className="flex justify-between text-xs">
+                                          <span>Monthly Contribution:</span>
+                                          <span className="font-medium">
+                                              {spent.toLocaleString()} / {budget ? limit.toLocaleString() : 'No Limit'}
+                                          </span>
+                                      </div>
+                                  </div>
+                              </>
+                          ) : (
+                              /* Standard Expense View */
+                              <>
+                                  <div className="flex justify-between text-sm">
+                                  <span className="font-medium">
+                                      {spent.toLocaleString()} <span className="text-muted-foreground font-normal">spent</span>
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                      {budget ? `${limit.toLocaleString()} limit` : 'No limit set'}
+                                  </span>
+                                  </div>
+
+                                  {budget && (
+                                  <>
+                                      <Progress 
+                                      value={Math.min(percentage, 100)} 
+                                      className={cn(
+                                          "h-2",
+                                          isOverBudget ? "bg-destructive/20 [&>div]:bg-destructive" : ""
+                                      )}
+                                      />
+                                      <div className="flex justify-between items-center">
+                                          <p className={cn(
+                                              "text-xs font-medium",
+                                              isOverBudget ? "text-destructive" : "text-muted-foreground"
+                                          )}>
+                                              {isOverBudget 
+                                                  ? `${(spent - limit).toLocaleString()} over budget` 
+                                                  : `${(limit - spent).toLocaleString()} remaining`
+                                              }
+                                          </p>
+                                          <span className="text-xs text-muted-foreground">
+                                              {Math.round(percentage)}%
+                                          </span>
+                                      </div>
+                                  </>
+                                  )}
+                                  
+                                  {!budget && (
+                                  <Button 
+                                      variant="outline" 
+                                      className="w-full border-dashed"
+                                      onClick={() => handleEdit(category)}
+                                  >
+                                      Set {format(selectedDate, 'MMM')} Limit
+                                  </Button>
+                                  )}
+                              </>
+                          )}
+                        </div>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(category, budget?.amount)}>
-                          <Edit2 className="mr-2 h-4 w-4" />
-                          {isGoal ? 'Set Monthly Contribution' : (budget ? 'Edit Budget' : 'Set Budget')}
-                        </DropdownMenuItem>
-                                            {budget && (
-                                              <DropdownMenuItem
-                                                className="text-destructive"
-                                                onClick={() => setBudgetToDelete({ id: budget._id, name: category.name })}
-                                              >
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                Remove Budget
-                                              </DropdownMenuItem>
-                                            )}                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  </Card>
+                )
+              })}
+            </div>
 
-                  <div className="space-y-4">
-                    {/* Goal View */}
-                    {isGoal ? (
-                        <>
-                            <div className="flex justify-between text-sm">
-                                <span className="font-medium text-primary">
-                                    {accumulated.toLocaleString()} <span className="text-muted-foreground font-normal">saved</span>
-                                </span>
-                                <span className="text-muted-foreground">
-                                    of {targetAmount.toLocaleString()} goal
-                                </span>
-                            </div>
-                            <Progress 
-                                value={Math.min(goalPercentage, 100)} 
-                                className="h-2 bg-muted [&>div]:bg-success"
-                            />
-                            <div className="flex justify-between items-center text-xs text-muted-foreground">
-                                <span>{Math.round(goalPercentage)}% Completed</span>
-                                {category.targetDate && (
-                                    <span>Due: {format(new Date(category.targetDate), 'MMM yyyy')}</span>
-                                )}
-                            </div>
-                            
-                            {/* Monthly Contribution Context */}
-                            <div className="pt-2 border-t mt-2">
-                                <div className="flex justify-between text-xs">
-                                    <span>Monthly Contribution:</span>
-                                    <span className="font-medium">
-                                        {spent.toLocaleString()} / {budget ? limit.toLocaleString() : 'No Limit'}
-                                    </span>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        /* Standard Expense View */
-                        <>
-                            <div className="flex justify-between text-sm">
-                            <span className="font-medium">
-                                {spent.toLocaleString()} <span className="text-muted-foreground font-normal">spent</span>
-                            </span>
-                            <span className="text-muted-foreground">
-                                {budget ? `${limit.toLocaleString()} limit` : 'No limit set'}
-                            </span>
-                            </div>
-
-                            {budget && (
-                            <>
-                                <Progress 
-                                value={Math.min(percentage, 100)} 
-                                className={cn(
-                                    "h-2",
-                                    isOverBudget ? "bg-destructive/20 [&>div]:bg-destructive" : ""
-                                )}
-                                />
-                                <div className="flex justify-between items-center">
-                                    <p className={cn(
-                                        "text-xs font-medium",
-                                        isOverBudget ? "text-destructive" : "text-muted-foreground"
-                                    )}>
-                                        {isOverBudget 
-                                            ? `${(spent - limit).toLocaleString()} over budget` 
-                                            : `${(limit - spent).toLocaleString()} remaining`
-                                        }
-                                    </p>
-                                    <span className="text-xs text-muted-foreground">
-                                        {Math.round(percentage)}%
-                                    </span>
-                                </div>
-                            </>
-                            )}
-                            
-                            {!budget && (
-                            <Button 
-                                variant="outline" 
-                                className="w-full border-dashed"
-                                onClick={() => handleEdit(category)}
-                            >
-                                Set {format(selectedDate, 'MMM')} Limit
-                            </Button>
-                            )}
-                        </>
-                    )}
-                  </div>
+            {budgetStatus.length === 0 && (
+              <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20">
+                <p className="text-muted-foreground">No expense categories found. Create some in Categories page first.</p>
               </div>
-            </Card>
-          )
-        })}
+            )}
+          </>
+        )}
       </div>
-
-      {budgetStatus?.length === 0 && (
-        <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20">
-          <p className="text-muted-foreground">No expense categories found. Create some in Categories page first.</p>
-        </div>
-      )}
     </div>
   )
 }

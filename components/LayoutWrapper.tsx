@@ -12,6 +12,8 @@ import TransactionDrawer from './TransactionDrawer'
 import { UserButton } from '@clerk/nextjs'
 import { ThemeToggle } from './ThemeToggle'
 import { PushNotificationSettings } from './PushNotificationSettings'
+import { BottomNav } from './BottomNav'
+import { HouseholdSwitcher } from './HouseholdSwitcher'
 
 import LandingPage from './LandingPage'
 import { HouseholdProvider } from './HouseholdProvider'
@@ -24,12 +26,22 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
       <Authenticated>
         <HouseholdProvider>
           <SidebarProvider>
-            <Sidebar />
-            <SidebarInset>
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-[[collapsible=icon]]/sidebar-wrapper:h-12 px-4">
-               <SidebarTrigger className="-ml-1" />
-               <Separator orientation="vertical" className="mr-2 h-4" />
-               <h1 className="text-shadow-xs font-medium text-primary">Perfin</h1>
+            <div className="hidden md:block h-full">
+                <Sidebar />
+            </div>
+            
+            <SidebarInset className="pb-20 md:pb-0">
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[[collapsible=icon]]/sidebar-wrapper:h-12 px-4">
+               <div className="hidden md:flex items-center gap-2">
+                   <SidebarTrigger className="-ml-1" />
+                   <Separator orientation="vertical" className="mr-2 h-4" />
+                   <h1 className="text-4x1 text-shadow-xs font-bold text-primary uppercase">Personal Finance</h1>
+               </div>
+               
+               <div className="md:hidden">
+                  <HouseholdSwitcher mode="mobile" />
+               </div>
+
                <div className="ml-auto flex items-center gap-4">
                  <Button 
                    onClick={() => setIsTransactionOpen(true)}
@@ -59,6 +71,7 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
           
             <GlobalTransactionFAB />
             <TransactionDrawer open={isTransactionOpen} onOpenChange={setIsTransactionOpen} />
+            <BottomNav />
           
           </SidebarProvider>
           
