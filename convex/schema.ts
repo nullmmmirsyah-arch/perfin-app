@@ -49,6 +49,7 @@ export default defineSchema({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
     })),
+    isGoalDisbursement: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"])
@@ -65,6 +66,7 @@ export default defineSchema({
     quantity: v.optional(v.number()),
     totalCostBasis: v.optional(v.number()),
     totalRealizedProfit: v.optional(v.number()),
+    isArchived: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
@@ -75,6 +77,8 @@ export default defineSchema({
     type: v.string(),
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
+    isArchived: v.optional(v.boolean()),
+    status: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
@@ -99,6 +103,19 @@ export default defineSchema({
     .index("by_householdId_year_month", ["householdId", "year", "month"])
     .index("by_householdId_category_year_month", ["householdId", "categoryId", "year", "month"]),
   
+  notifications: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    type: v.string(), // "goal_reached", "system"
+    title: v.string(),
+    message: v.string(),
+    data: v.optional(v.any()), // e.g., { categoryId: "..." }
+    isRead: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"]),
+
   pushSubscriptions: defineTable({
     userId: v.string(),
     endpoint: v.string(),

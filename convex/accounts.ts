@@ -13,17 +13,26 @@ async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households"
 }
 
 export const get = query({
-  args: { householdId: v.optional(v.id("households")) },
-  handler: async (ctx, { householdId }) => {
+  args: { 
+    householdId: v.optional(v.id("households")),
+    showArchived: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { householdId, showArchived }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
+    let accounts;
     if (householdId) {
         if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return [];
-        return await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
-        return await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
+        accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
     }
+
+    if (showArchived) {
+      return accounts;
+    }
+    return accounts.filter(a => !a.isArchived);
   },
 });
 
@@ -131,5 +140,30 @@ export const deleteAccount = mutation({
     }
 
     await ctx.db.delete(args.id);
+  },
+});
+
+export const archiveAccount = mutation({
+  args: { id: v.id("accounts") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const account = await ctx.db.get(args.id);
+    if (!account) throw new Error("Account not found");
+
+    if (account.householdId) {
+        if (!await ensureHouseholdAccess(ctx, account.householdId, identity.subject)) throw new Error("Unauthorized");
+    } else {
+        if (account.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    // Check Balance
+    const balance = parseFloat(account.balance.replace(/,/g, '') || '0');
+    if (Math.abs(balance) > 0) {
+        throw new Error("Cannot archive account with non-zero balance. Please transfer funds first.");
+    }
+
+    await ctx.db.patch(args.id, { isArchived: true });
   },
 });

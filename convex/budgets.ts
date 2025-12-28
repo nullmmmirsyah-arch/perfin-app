@@ -257,7 +257,7 @@ export const getBudgetStatus = query({
     });
 
     const data = categories
-        .filter(c => c.type === 'expense' || c.type === 'saving')
+        .filter(c => (c.type === 'expense' || c.type === 'saving') && c.status !== 'achieved' && c.status !== 'archived' && !c.isArchived)
         .map((category) => {
             const budget = budgetMap.get(category._id);
             const spent = spendingByCategory[category._id] || 0;

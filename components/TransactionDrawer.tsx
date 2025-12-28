@@ -43,6 +43,8 @@ import { format } from 'date-fns';
 import { Doc, Id } from '../convex/_generated/dataModel';
 import { toast } from 'sonner';
 import { useHousehold } from '@/components/HouseholdProvider';
+import { SplitEditorDrawer } from './SplitEditorDrawer';
+import { useState } from 'react';
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -180,6 +182,8 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
   const { householdId } = useHousehold();
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
+  
+  const [splitDrawerOpen, setSplitDrawerOpen] = useState(false);
 
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
 
@@ -339,162 +343,96 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     form.setValue('type', value as 'expense' | 'income' | 'transfer');
   };
 
+  const splitCount = splits?.length || 0;
+
+  const handleSplitToggle = (checked: boolean) => {
+      form.setValue('isSplit', checked);
+      if (checked) {
+          setSplitDrawerOpen(true);
+          // Auto-add first item if empty
+          if (!splits || splits.length === 0) {
+             form.setValue('splits', [{ categoryId: '', amount: '', description: '', labelId: '' }]);
+          }
+      }
+  };
+
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>{isEditMode ? 'Edit transaction' : 'Create a new transaction'}</DrawerTitle>
-        </DrawerHeader>
-        <div className="p-4">
-          <Tabs value={transactionType} className="w-full" onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="expense">Expense</TabsTrigger>
-              <TabsTrigger value="income">Income</TabsTrigger>
-              <TabsTrigger value="transfer">Transfer</TabsTrigger>
-            </TabsList>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <TabsContent value="expense" className="space-y-4">
-                  <TransactionFormFields form={form} categories={categories || []} accounts={cashAccounts} labels={labels || []} />
-                </TabsContent>
-                <TabsContent value="income" className="space-y-4">
-                  <TransactionFormFields form={form} categories={categories || []} accounts={cashAccounts} labels={labels || []} />
-                </TabsContent>
-                <TabsContent value="transfer" className="space-y-4">
-                  <TransferFormFields form={form} accounts={accounts || []} labels={labels || []} categories={categories || []} />
-                </TabsContent>
+    <Form {...form}>
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>{isEditMode ? 'Edit transaction' : 'Create a new transaction'}</DrawerTitle>
+          </DrawerHeader>
+          <div className="p-4">
+            <Tabs value={transactionType} className="w-full" onValueChange={handleTabChange}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="expense">Expense</TabsTrigger>
+                <TabsTrigger value="income">Income</TabsTrigger>
+                <TabsTrigger value="transfer">Transfer</TabsTrigger>
+              </TabsList>
+              
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <TabsContent value="expense" className="space-y-4">
+                    <TransactionFormFields 
+                      form={form} 
+                      categories={categories || []} 
+                      accounts={cashAccounts} 
+                      labels={labels || []} 
+                      onSplitToggle={handleSplitToggle}
+                      splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
+                      onEditSplit={() => setSplitDrawerOpen(true)}
+                    />
+                  </TabsContent>
+                  <TabsContent value="income" className="space-y-4">
+                    <TransactionFormFields 
+                      form={form} 
+                      categories={categories || []} 
+                      accounts={cashAccounts} 
+                      labels={labels || []} 
+                      onSplitToggle={handleSplitToggle}
+                      splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
+                      onEditSplit={() => setSplitDrawerOpen(true)}
+                    />
+                  </TabsContent>
+                  <TabsContent value="transfer" className="space-y-4">
+                    <TransferFormFields form={form} accounts={accounts || []} labels={labels || []} categories={categories || []} />
+                  </TabsContent>
 
+                  <DrawerFooter>
+                    <Button type="submit">Save changes</Button>
+                    <DrawerClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DrawerClose>
+                  </DrawerFooter>
+                </form>
+              
+            </Tabs>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
-                {isSplit && transactionType !== 'transfer' && (
-                  <div className="space-y-4">
-                    <Separator />
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-medium">Split Transaction</h3>
-                      <Button type="button" size="sm" onClick={() => append({ categoryId: '', amount: '', description: '', labelId: '' })}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Split
-                      </Button>
-                    </div>
-                    {fields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-start">
-                         <FormField
-                          control={form.control}
-                          name={`splits.${index}.categoryId`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Category" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {categories?.map(category => (
-                                    <SelectItem key={category._id} value={category._id}>{category.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name={`splits.${index}.amount`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  placeholder="Amount"
-                                  inputMode="numeric"
-                                  {...field}
-                                  value={field.value || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    field.onChange(formatNumber(value));
-                                  }}
-                                  onBlur={(e) => {
-                                    const value = e.target.value;
-                                    field.onBlur();
-                                    field.onChange(formatNumber(value));
-                                  }}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name={`splits.${index}.description`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  placeholder="Desc"
-                                  {...field}
-                                  value={field.value || ''}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`splits.${index}.labelId`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Label" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {labels?.map(label => (
-                                    <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </FormItem>
-                          )}
-                        />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <div className="flex justify-end gap-4 text-sm">
-                      <span className="text-muted-foreground">Total:</span>
-                      <span>{new Intl.NumberFormat().format(parseFloat(amount?.replace(/,/g, '') || '0'))}</span>
-                    </div>
-                    <div className="flex justify-end gap-4 text-sm">
-                      <span className="text-muted-foreground">Allocated:</span>
-                      <span>{new Intl.NumberFormat().format(allocated)}</span>
-                    </div>
-                    <div className="flex justify-end gap-4 text-sm">
-                      <span className={cn("font-medium", remaining !== 0 ? 'text-destructive' : 'text-primary')}>
-                        Remaining:
-                      </span>
-                      <span className={cn(remaining !== 0 ? 'text-destructive' : 'text-primary')}>
-                        {new Intl.NumberFormat().format(remaining)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                <DrawerFooter>
-                  <Button type="submit">Save changes</Button>
-                  <DrawerClose asChild>
-                    <Button variant="outline">Cancel</Button>
-                  </DrawerClose>
-                </DrawerFooter>
-              </form>
-            </Form>
-          </Tabs>
-        </div>
-      </DrawerContent>
-    </Drawer>
+      <SplitEditorDrawer 
+        open={splitDrawerOpen} 
+        onOpenChange={setSplitDrawerOpen}
+        form={form}
+        categories={categories || []}
+        labels={labels || []}
+      />
+    </Form>
   );
 };
 
-const TransactionFormFields = ({ form, categories, accounts, labels }: { form: UseFormReturn<TransactionFormValues>, categories: Doc<'categories'>[], accounts: Doc<'accounts'>[], labels: Doc<'labels'>[] }) => {
+const TransactionFormFields = ({ 
+    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit 
+}: { 
+    form: UseFormReturn<TransactionFormValues>, 
+    categories: Doc<'categories'>[], 
+    accounts: Doc<'accounts'>[], 
+    labels: Doc<'labels'>[],
+    onSplitToggle?: (checked: boolean) => void,
+    splitSummary?: { count: number, total: number },
+    onEditSplit?: () => void
+}) => {
   const isSplit = useWatch({
     control: form.control,
     name: 'isSplit',
@@ -589,28 +527,39 @@ const TransactionFormFields = ({ form, categories, accounts, labels }: { form: U
         )}
       />
       <FormItem className="space-y-2">
-        <div className="flex items-center gap-3">
-          <FormLabel className="mb-0">Category</FormLabel>
-          <FormField
-            control={form.control}
-            name="isSplit"
-            render={({ field }) => (
-              <div 
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border bg-muted/20 cursor-pointer hover:bg-muted/50 transition-colors select-none"
-                onClick={() => field.onChange(!field.value)}
-              >
-                <input 
-                  type="checkbox" 
-                  className="h-3 w-3 pointer-events-none" 
-                  checked={field.value} 
-                  readOnly
-                />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Split</span>
-              </div>
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+            <FormLabel className="mb-0">Category</FormLabel>
+            <FormField
+                control={form.control}
+                name="isSplit"
+                render={({ field }) => (
+                <div 
+                    className={cn(
+                        "flex items-center gap-1.5 px-2 py-0.5 rounded-md border cursor-pointer transition-colors select-none",
+                        field.value ? "bg-primary/10 border-primary text-primary" : "bg-muted/20 hover:bg-muted/50 text-muted-foreground"
+                    )}
+                    onClick={() => onSplitToggle?.(!field.value)}
+                >
+                    <input 
+                    type="checkbox" 
+                    className="h-3 w-3 pointer-events-none accent-primary" 
+                    checked={field.value} 
+                    readOnly
+                    />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Split</span>
+                </div>
+                )}
+            />
+            </div>
+            {isSplit && (
+                <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onEditSplit}>
+                    Edit Splits
+                </Button>
             )}
-          />
         </div>
-        {!isSplit && (
+
+        {!isSplit ? (
           <FormField
             control={form.control}
             name="categoryId"
@@ -632,6 +581,19 @@ const TransactionFormFields = ({ form, categories, accounts, labels }: { form: U
               </>
             )}
           />
+        ) : (
+            <div 
+                className="p-3 border rounded-md bg-muted/30 flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={onEditSplit}
+            >
+                <div className="space-y-1">
+                    <p className="text-sm font-medium">{splitSummary?.count || 0} Items</p>
+                    <p className="text-xs text-muted-foreground">Total: {new Intl.NumberFormat().format(splitSummary?.total || 0)}</p>
+                </div>
+                <div className="bg-background border rounded-full p-1">
+                    <PlusCircle className="h-4 w-4 text-muted-foreground" />
+                </div>
+            </div>
         )}
       </FormItem>
       {!isSplit && (

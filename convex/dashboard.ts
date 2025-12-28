@@ -119,12 +119,13 @@ export const getDashboardSummary = query({
     }
 
     // 0. Fetch Accounts (Needed for split balance and type checking)
-    let accounts;
+    let allAccounts;
     if (householdId) {
-        accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
-        accounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+        allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
+    const accounts = allAccounts.filter(a => !a.isArchived);
 
     // 1. Split Balances
     const liquidCash = accounts
@@ -271,21 +272,26 @@ export const getDashboardSummary = query({
     }
     const catDetailsMap = new Map(categories.map(c => [c._id, c]));
 
-    const budgetBreakdown = budgets.map(b => {
-      const cat = catDetailsMap.get(b.categoryId);
-      const limit = parseFloat(b.amount.replace(/,/g, '') || '0');
-      const spent = spendingByCategory[b.categoryId] || 0;
-      const accumulated = accumulatedMap.get(b.categoryId) || 0;
-      
-      return {
-        categoryName: cat?.name || 'Unknown',
-        categoryType: cat?.type || 'expense',
-        targetAmount: cat?.targetAmount ? parseFloat(cat.targetAmount.replace(/,/g, '')) : undefined,
-        accumulated,
-        limit,
-        spent,
-        remaining: Math.max(0, limit - spent),
-      };
+    const budgetBreakdown = budgets
+        .filter(b => {
+            const cat = catDetailsMap.get(b.categoryId);
+            return cat && cat.status !== 'achieved' && cat.status !== 'archived' && !cat.isArchived;
+        })
+        .map(b => {
+            const cat = catDetailsMap.get(b.categoryId);
+            const limit = parseFloat(b.amount.replace(/,/g, '') || '0');
+            const spent = spendingByCategory[b.categoryId] || 0;
+            const accumulated = accumulatedMap.get(b.categoryId) || 0;
+            
+            return {
+                categoryName: cat?.name || 'Unknown',
+                categoryType: cat?.type || 'expense',
+                targetAmount: cat?.targetAmount ? parseFloat(cat.targetAmount.replace(/,/g, '')) : undefined,
+                accumulated,
+                limit,
+                spent,
+                remaining: Math.max(0, limit - spent),
+            };
     });
 
     // 3. Recent Transactions

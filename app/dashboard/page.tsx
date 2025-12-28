@@ -254,7 +254,7 @@ export default function Dashboard() {
             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
                 {(summary?.savingAccounts?.length ?? 0) === 0 && <p className="text-xs text-muted-foreground italic">No saving accounts.</p>}
                 {summary?.savingAccounts?.map((account: { name: string, balance: number }, index: number) => (
-                    <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-success/10 text-success-foreground">
+                    <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-success/10 text-success">
                         <span className="font-medium">{account.name}</span>
                         <span>{account.balance.toLocaleString()}</span>
                     </div>

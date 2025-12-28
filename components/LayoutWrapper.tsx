@@ -17,6 +17,7 @@ import { HouseholdSwitcher } from './HouseholdSwitcher'
 
 import LandingPage from './LandingPage'
 import { HouseholdProvider } from './HouseholdProvider'
+import NotificationBell from './NotificationBell'
 
 export default function LayoutWrapper({ children }: { children: ReactNode }) {
   const [isTransactionOpen, setIsTransactionOpen] = useState(false)
@@ -50,12 +51,13 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
                  >
                    <Plus className="h-4 w-4" /> Add Transaction
                  </Button>
+                 <NotificationBell />
                  <ThemeToggle />
                  <UserButton>
                    <UserButton.UserProfilePage 
-                     label="Notifications" 
+                     label="Push Settings" 
                      labelIcon={<Bell className="h-4 w-4" />}
-                     url="notifications"
+                     url="push-settings"
                    >
                      <PushNotificationSettings />
                    </UserButton.UserProfilePage>

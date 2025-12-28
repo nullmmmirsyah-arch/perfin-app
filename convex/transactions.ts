@@ -133,6 +133,7 @@ export const create = mutation({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
     })),
+    isGoalDisbursement: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -303,6 +304,11 @@ export const create = mutation({
           });
         }
       }
+    }
+
+    // --- CHECK GOAL PROGRESS ---
+    if (args.categoryId) {
+        await checkGoalProgress(ctx, args.categoryId, args.householdId, identity.subject);
     }
 
     return transaction;
@@ -527,7 +533,12 @@ export const update = mutation({
     }
 
     // 3. Update Transaction Document
-    return await ctx.db.patch(id, rest);
+    await ctx.db.patch(id, rest);
+
+    // --- CHECK GOAL PROGRESS ---
+    if (newTx.categoryId) {
+        await checkGoalProgress(ctx, newTx.categoryId, newTx.householdId, newTx.userId);
+    }
   },
 });
 
@@ -703,3 +714,117 @@ export const deleteTransaction = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+
+// Helper to check goal progress
+import { Doc, Id } from "./_generated/dataModel";
+import { MutationCtx } from "./_generated/server";
+
+async function checkGoalProgress(ctx: MutationCtx, categoryId: Id<"categories">, householdId: Id<"households"> | undefined, userId: string) {
+    // 1. Get Category
+    const category = await ctx.db.get(categoryId);
+    // console.log(`[CheckGoal] Checking category: ${category?.name} (${categoryId})`);
+    
+    if (!category || category.type !== 'saving' || !category.targetAmount) {
+        // console.log(`[CheckGoal] Skipped: Not a saving goal or no target.`);
+        return;
+    }
+
+    // 2. Calculate Total Accumulated
+    let transactions;
+    if (householdId) {
+        transactions = await ctx.db.query("transactions")
+            .withIndex("by_householdId", q => q.eq("householdId", householdId))
+            .collect();
+    } else {
+        transactions = await ctx.db.query("transactions")
+            .withIndex("by_userId", q => q.eq("userId", userId))
+            .collect();
+    }
+
+    let accumulated = 0;
+    
+    // We need account types for transfer logic
+    let accounts;
+    if (householdId) {
+        accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+    }
+    const accountTypeMap = new Map(accounts.map(a => [a._id, a.type || 'CASH']));
+    const isSpecial = (type: string) => type === 'ASSET' || type === 'SAVING';
+
+    transactions.forEach(t => {
+        const val = Math.abs(parseFloat(t.amount.replace(/,/g, '') || '0'));
+
+        // Case 1: Standard Accumulation
+        if ((t.type === 'expense' || t.type === 'saving') && String(t.categoryId) === String(categoryId)) {
+             accumulated += val;
+        }
+        
+        // Case 2: Split Transactions
+        if (t.isSplit && t.splits) {
+            t.splits.forEach(s => {
+                if (String(s.categoryId) === String(categoryId)) {
+                    accumulated += Math.abs(parseFloat(s.amount.replace(/,/g, '') || '0'));
+                }
+            });
+        }
+
+        // Case 3: Transfer Logic
+        if (t.type === 'transfer' && String(t.categoryId) === String(categoryId) && t.accountId && t.toAccountId) {
+            const sourceType = accountTypeMap.get(t.accountId) || 'CASH';
+            const destType = accountTypeMap.get(t.toAccountId) || 'CASH';
+            const sourceIsSpecial = isSpecial(sourceType);
+            const destIsSpecial = isSpecial(destType);
+
+            // Inflow: Liquid -> Special (Count as +)
+            if (!sourceIsSpecial && destIsSpecial) {
+                accumulated += val;
+            }
+            // Outflow: Special -> Liquid (Count as -)
+            if (sourceIsSpecial && !destIsSpecial) {
+                accumulated -= val;
+            }
+        }
+    });
+
+    const target = parseFloat(category.targetAmount.replace(/,/g, ''));
+    // console.log(`[CheckGoal] Accumulated: ${accumulated}, Target: ${target}`);
+
+    // 3. Check if Goal Reached
+    // Use a small epsilon for float comparison safety, or just >=
+    if (accumulated >= target) {
+        // console.log(`[CheckGoal] Goal Reached!`);
+        
+        if (category.status === 'achieved') {
+             // console.log(`[CheckGoal] Already achieved status.`);
+             return;
+        }
+
+        // Check if notification exists
+        const existingNotif = await ctx.db.query("notifications")
+            .withIndex("by_userId", q => q.eq("userId", userId))
+            .filter(q => q.eq(q.field("type"), "goal_reached"))
+            .collect();
+        
+        // Filter in memory to match categoryId exactly
+        const hasNotified = existingNotif.some(n => String(n.data?.categoryId) === String(categoryId));
+        
+        if (!hasNotified) {
+             // console.log(`[CheckGoal] Creating notification...`);
+             await ctx.db.insert("notifications", {
+                userId,
+                householdId,
+                type: "goal_reached",
+                title: "Goal Achieved! 🎉",
+                message: `You've reached your target for ${category.name}. Click here to process your goal funds.`,
+                data: { categoryId: categoryId },
+                isRead: false,
+                createdAt: Date.now(),
+            });
+        } else {
+            // console.log(`[CheckGoal] Notification already exists.`);
+        }
+    }
+}

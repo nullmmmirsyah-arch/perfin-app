@@ -16,8 +16,9 @@ export const get = query({
   args: {
     householdId: v.optional(v.id("households")),
     type: v.optional(v.string()),
+    showArchived: v.optional(v.boolean()),
   },
-  handler: async (ctx, { householdId, type }) => {
+  handler: async (ctx, { householdId, type, showArchived }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -33,7 +34,13 @@ export const get = query({
       query = query.filter((q) => q.eq(q.field("type"), type));
     }
 
-    return await query.collect();
+    const categories = await query.collect();
+
+    if (showArchived) {
+        return categories;
+    }
+    // Backward compatibility: hide if isArchived is true OR status is 'archived'
+    return categories.filter(c => !c.isArchived && c.status !== 'archived');
   },
 });
 
@@ -56,6 +63,7 @@ export const create = mutation({
     const category = await ctx.db.insert("categories", {
       ...args,
       userId: identity.subject,
+      status: "active",
     });
     return category;
   },
@@ -104,5 +112,62 @@ export const deleteCategory = mutation({
     }
 
     await ctx.db.delete(args.id);
+  },
+});
+
+export const archiveCategory = mutation({
+  args: { id: v.id("categories") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const category = await ctx.db.get(args.id);
+    if (!category) throw new Error("Category not found");
+
+    if (category.householdId) {
+        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+    } else {
+        if (category.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, { isArchived: true, status: 'archived' });
+  },
+});
+
+export const unarchiveCategory = mutation({
+  args: { id: v.id("categories") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const category = await ctx.db.get(args.id);
+    if (!category) throw new Error("Category not found");
+
+    if (category.householdId) {
+        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+    } else {
+        if (category.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, { isArchived: false, status: 'active' });
+  },
+});
+
+export const markAsAchieved = mutation({
+  args: { id: v.id("categories") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const category = await ctx.db.get(args.id);
+    if (!category) throw new Error("Category not found");
+
+    if (category.householdId) {
+        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+    } else {
+        if (category.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, { status: 'achieved' });
   },
 });
