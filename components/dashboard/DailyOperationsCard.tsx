@@ -21,7 +21,7 @@ type SummaryData = {
 };
 
 type Props = {
-  summary: SummaryData | undefined;
+  summary: SummaryData | undefined | null;
 };
 
 export function DailyOperationsCard({ summary }: Props) {

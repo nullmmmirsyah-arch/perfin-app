@@ -12,7 +12,7 @@ type SummaryData = {
 };
 
 type Props = {
-  summary: SummaryData | undefined;
+  summary: SummaryData | undefined | null;
 };
 
 export function WealthCard({ summary }: Props) {
