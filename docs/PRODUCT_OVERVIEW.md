@@ -6,6 +6,9 @@
 
 ### 1. Transactions Management
 - **Types:** Expense, Income, Transfer.
+- **Asset Transactions (Buy/Sell):** Handled as Transfers between Liquid and Asset accounts. Backend automatically calculates:
+    - **Buy:** Decreases Cash, Increases Asset Quantity/Cost Basis.
+    - **Sell:** Increases Cash, Decreases Asset Quantity/Cost Basis, calculates Realized Profit.
 - **Split Transactions:** Ability to split a single transaction into multiple categories. Uses a dedicated **Nested Drawer** UI for better mobile experience.
 - **Filtering:** Filter by Date Range, Account, Category, and Type.
 

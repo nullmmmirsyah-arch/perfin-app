@@ -69,6 +69,7 @@ export default function ComponentName({ ... }: Props) {
 
 2.  **Clean Code:**
     - Extract sub-components if a file exceeds 300 lines.
+    - **Directory Structure:** If a feature requires multiple specific sub-components (e.g., Dashboard widgets), group them in a subdirectory: `components/dashboard/WidgetName.tsx`.
     - Keep "Presentation" separate from "Logic" where possible, or use Custom Hooks.
 
 3.  **Notifications:**

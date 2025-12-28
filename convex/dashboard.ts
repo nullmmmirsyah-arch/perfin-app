@@ -306,12 +306,23 @@ export const getDashboardSummary = query({
             const category = t.categoryId ? await ctx.db.get(t.categoryId) : null;
             const label = t.labelId ? await ctx.db.get(t.labelId) : null;
 
+            const splitsWithDetails = t.splits 
+                ? await Promise.all(t.splits.map(async (split) => {
+                    const splitCategory = await ctx.db.get(split.categoryId);
+                    return {
+                        ...split,
+                        categoryName: splitCategory?.name,
+                    };
+                }))
+                : undefined;
+
             return {
                 ...t,
                 fromAccountName: fromAccount?.name,
                 toAccountName: toAccount?.name,
                 categoryName: category?.name,
                 label,
+                splits: splitsWithDetails,
             };
         })
     );

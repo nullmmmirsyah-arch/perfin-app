@@ -38,8 +38,7 @@ export function usePushNotifications() {
 
   const subscribeUser = async () => {
     if (!VAPID_PUBLIC_KEY) {
-      console.error('VAPID Public Key is missing');
-      return;
+      throw new Error('VAPID Public Key is missing');
     }
 
     try {
@@ -51,19 +50,21 @@ export function usePushNotifications() {
 
       const subscriptionJSON = subscription.toJSON();
 
-      if (subscriptionJSON.endpoint && subscriptionJSON.keys) {
-        await saveSubscription({
-          endpoint: subscriptionJSON.endpoint,
-          keys: {
-            p256dh: subscriptionJSON.keys.p256dh,
-            auth: subscriptionJSON.keys.auth,
-          },
-          expirationTime: subscriptionJSON.expirationTime ? subscriptionJSON.expirationTime : undefined,
-        });
-        setIsSubscribed(true);
-        setPermission(Notification.permission);
-        console.log('User subscribed successfully');
+      if (!subscriptionJSON.endpoint || !subscriptionJSON.keys) {
+        throw new Error('Failed to generate subscription keys');
       }
+
+      await saveSubscription({
+        endpoint: subscriptionJSON.endpoint,
+        keys: {
+          p256dh: subscriptionJSON.keys.p256dh,
+          auth: subscriptionJSON.keys.auth,
+        },
+        expirationTime: subscriptionJSON.expirationTime ? subscriptionJSON.expirationTime : undefined,
+      });
+      setIsSubscribed(true);
+      setPermission(Notification.permission);
+      console.log('User subscribed successfully');
     } catch (error) {
       console.error('Failed to subscribe user:', error);
       throw error;

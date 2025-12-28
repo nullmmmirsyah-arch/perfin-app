@@ -59,13 +59,17 @@
 │   └── globals.css      # Tailwind imports
 ├── components/          # React Components
 │   ├── ui/              # shadcn/ui primitives (Button, Input, etc.)
-│   ├── [Feature].tsx    # Feature-specific components (TransactionDrawer, etc.)
+│   ├── dashboard/       # Dashboard-specific widgets
+│   ├── transactions/    # Transaction-specific components
+│   ├── [Feature].tsx    # Shared Feature components (TransactionDrawer, etc.)
 │   └── HouseholdProvider.tsx # Context for Household state
 ├── convex/              # Backend Logic
 │   ├── schema.ts        # Database Schema
 │   ├── transactions.ts  # Transaction logic
 │   ├── accounts.ts      # Account logic
 │   ├── budgets.ts       # Budget logic
+│   ├── push.ts          # Web Push Actions
+│   ├── notifications.ts # In-app notification logic
 │   └── _generated/      # Auto-generated Types
 ├── public/              # Static assets + SW
 └── docs/                # Project Documentation

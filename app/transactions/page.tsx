@@ -4,53 +4,15 @@ import { useState } from 'react'
 import { usePaginatedQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import TransactionDrawer from '@/components/TransactionDrawer'
-import { cn, groupTransactionsByDate } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Trash2, Edit, ChevronDown } from 'lucide-react'
 import TransactionFilters from '@/components/TransactionFilters'
 import { DateRange } from 'react-day-picker'
-import { Doc, Id } from '../../convex/_generated/dataModel'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
-import { TransactionItem } from '@/components/TransactionItem'
 import { TransactionsListSkeleton } from '@/components/skeletons'
-
-type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accountId' | 'categoryId' | 'toAccountId' | 'labelId'> & {
-  accountId: Id<'accounts'>;
-  categoryId?: Id<'categories'>;
-  toAccountId?: Id<'accounts'>;
-  labelId?: Id<'labels'>;
-  fromAccountName?: string;
-  toAccountName?: string;
-  categoryName?: string;
-  label?: Doc<'labels'> | null;
-  splits?: Array<{
-    categoryId: Id<'categories'>;
-    amount: string;
-    description?: string;
-    labelId?: Id<'labels'>;
-    categoryName?: string;
-  }>;
-};
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
+import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
+import { TransactionWithDetails } from '@/components/transactions/types'
 
 export default function TransactionsPage() {
   const [open, setOpen] = useState(false)
@@ -113,25 +75,12 @@ export default function TransactionsPage() {
         transaction={selectedTransaction}
       />
       
-      <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(undefined)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the transaction
-              {transactionToDelete?.description ? ` "${transactionToDelete.description}"` : ''} 
-              {transactionToDelete?.amount ? ` of ${transactionToDelete.amount}` : ''}
-              .
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteTransactionDialog 
+        open={!!transactionToDelete} 
+        onOpenChange={(open) => !open && setTransactionToDelete(undefined)}
+        transaction={transactionToDelete}
+        onConfirm={handleDeleteConfirm}
+      />
 
       {transactions === undefined ? (
         <TransactionsListSkeleton />
@@ -145,34 +94,12 @@ export default function TransactionsPage() {
             </div>
           )}
           
-          <div className="mt-8 space-y-6">
-            {(() => {
-                const groupedTransactions = groupTransactionsByDate(transactions || []);
-                const sortedDates = Object.keys(groupedTransactions);
-
-                return sortedDates.map((date) => (
-                    <div key={date} className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <div className="h-px flex-1 bg-border" />
-                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider bg-background px-2">
-                                {date}
-                            </span>
-                            <div className="h-px flex-1 bg-border" />
-                        </div>
-                        <div className="grid grid-cols-1 gap-3">
-                            {groupedTransactions[date].map((transaction: TransactionWithDetails) => (
-                                <TransactionItem
-                                    key={transaction._id}
-                                    transaction={transaction}
-                                    onEdit={() => handleEdit(transaction)}
-                                    onDelete={() => setTransactionToDelete(transaction)}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                ));
-            })()}
-          </div>
+          <TransactionListGrouped 
+            transactions={transactions as TransactionWithDetails[]}
+            onEdit={handleEdit}
+            onDelete={setTransactionToDelete}
+            variant="default"
+          />
         </>
       )}
 
@@ -190,4 +117,3 @@ export default function TransactionsPage() {
     </div>
   )
 }
-

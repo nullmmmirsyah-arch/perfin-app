@@ -11,24 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal, Trash2, Edit, ChevronDown } from 'lucide-react'
 import { Doc, Id } from '../convex/_generated/dataModel'
-
-type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accountId' | 'categoryId' | 'toAccountId' | 'labelId'> & {
-  accountId: Id<'accounts'>;
-  categoryId?: Id<'categories'>;
-  toAccountId?: Id<'accounts'>;
-  labelId?: Id<'labels'>;
-  fromAccountName?: string;
-  toAccountName?: string;
-  categoryName?: string;
-  label?: Doc<'labels'> | null;
-  splits?: Array<{
-    categoryId: Id<'categories'>;
-    amount: string;
-    description?: string;
-    labelId?: Id<'labels'>;
-    categoryName?: string;
-  }>;
-};
+import { TransactionWithDetails } from './transactions/types'
 
 export function TransactionItem({ 
   transaction, 
