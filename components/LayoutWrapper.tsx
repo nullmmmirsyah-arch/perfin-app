@@ -1,6 +1,6 @@
 'use client'
 
-import { Authenticated, Unauthenticated } from 'convex/react'
+import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react'
 import Sidebar from './Sidebar'
 import { ReactNode, useState } from 'react'
 import GlobalTransactionFAB from './GlobalTransactionFAB'
@@ -18,12 +18,16 @@ import { HouseholdSwitcher } from './HouseholdSwitcher'
 import LandingPage from './LandingPage'
 import { HouseholdProvider } from './HouseholdProvider'
 import NotificationBell from './NotificationBell'
+import { LoadingScreen } from './LoadingScreen'
 
 export default function LayoutWrapper({ children }: { children: ReactNode }) {
   const [isTransactionOpen, setIsTransactionOpen] = useState(false)
 
   return (
     <>
+      <AuthLoading>
+        <LoadingScreen />
+      </AuthLoading>
       <Authenticated>
         <HouseholdProvider>
           <SidebarProvider>
