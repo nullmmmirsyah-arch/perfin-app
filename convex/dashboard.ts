@@ -309,9 +309,12 @@ export const getDashboardSummary = query({
             const splitsWithDetails = t.splits 
                 ? await Promise.all(t.splits.map(async (split) => {
                     const splitCategory = await ctx.db.get(split.categoryId);
+                    const splitLabel = split.labelId ? await ctx.db.get(split.labelId) : null;
                     return {
                         ...split,
                         categoryName: splitCategory?.name,
+                        labelName: splitLabel?.name,
+                        labelColor: splitLabel?.color,
                     };
                 }))
                 : undefined;
