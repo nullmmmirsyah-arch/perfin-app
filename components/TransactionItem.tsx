@@ -17,12 +17,39 @@ export function TransactionItem({
   transaction, 
   onEdit, 
   onDelete,
+  highlightLabelId,
+  highlightCategoryId,
 }: { 
   transaction: TransactionWithDetails, 
   onEdit?: () => void, 
   onDelete?: () => void,
+  highlightLabelId?: string,
+  highlightCategoryId?: string,
 }) {
   const [isOpen, setIsOpen] = useState(false)
+
+  // Calculate effective amount based on filters
+  let displayAmountVal = parseFloat(transaction.amount.replace(/,/g, '') || '0');
+  const isFiltered = highlightLabelId || highlightCategoryId;
+  
+  if (isFiltered && transaction.isSplit && transaction.splits) {
+    const filteredSum = transaction.splits.reduce((acc, split) => {
+      const labelMatch = !highlightLabelId || String(split.labelId) === String(highlightLabelId);
+      const categoryMatch = !highlightCategoryId || String(split.categoryId) === String(highlightCategoryId);
+      
+      if (labelMatch && categoryMatch) {
+        return acc + parseFloat(split.amount.replace(/,/g, '') || '0');
+      }
+      return acc;
+    }, 0);
+    
+    if (filteredSum > 0) displayAmountVal = filteredSum;
+  }
+
+  const displayAmount = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(displayAmountVal);
 
   return (
     <Card className="overflow-hidden shadow-sm border-muted/60">
@@ -78,7 +105,7 @@ export function TransactionItem({
               )}
             >
               {transaction.type === 'expense' ? '-' : transaction.type === 'income' ? '+' : '' }
-              {transaction.amount}
+              {displayAmount}
             </p>
             {transaction.label && (
               <div className="flex justify-end mt-1">
@@ -139,31 +166,40 @@ export function TransactionItem({
           {transaction.isSplit ? (
             <div className="space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Breakdown</p>
-              {transaction.splits?.map((split, index) => (
-                <div key={index} className="flex justify-between items-start text-sm border-b border-muted last:border-0 pb-2 last:pb-0">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{split.description || 'No description'}</span>
-                    <span className="text-muted-foreground text-xs">{split.categoryName || 'Uncategorized'}</span> 
+              {transaction.splits?.map((split, index) => {
+                // Determine opacity based on highlight filters
+                const labelMatch = !highlightLabelId || String(split.labelId) === String(highlightLabelId);
+                const categoryMatch = !highlightCategoryId || String(split.categoryId) === String(highlightCategoryId);
+                const isMatch = labelMatch && categoryMatch;
+                
+                const opacityClass = isMatch ? "opacity-100" : "opacity-30 grayscale";
+                
+                return (
+                  <div key={index} className={cn("flex justify-between items-start text-sm border-b border-muted last:border-0 pb-2 last:pb-0 transition-opacity", opacityClass)}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{split.description || 'No description'}</span>
+                      <span className="text-muted-foreground text-xs">{split.categoryName || 'Uncategorized'}</span> 
+                    </div>
+                    <div className="text-right">
+                      <span className="font-semibold">{split.amount}</span>
+                      {split.labelName && (
+                        <div className="flex justify-end mt-1">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
+                            style={split.labelColor ? { 
+                                color: split.labelColor,
+                                backgroundColor: `${split.labelColor}15`
+                            } : undefined}
+                          >
+                            #{split.labelName}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-semibold">{split.amount}</span>
-                    {split.labelName && (
-                      <div className="flex justify-end mt-1">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
-                          style={split.labelColor ? { 
-                              color: split.labelColor,
-                              backgroundColor: `${split.labelColor}15`
-                          } : undefined}
-                        >
-                          #{split.labelName}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 text-sm">

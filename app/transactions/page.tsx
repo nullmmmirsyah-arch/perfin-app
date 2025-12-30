@@ -16,6 +16,8 @@ import { TransactionWithDetails } from '@/components/transactions/types'
 
 import { PageHeader } from '@/components/PageHeader'
 
+import { startOfMonth, endOfMonth } from 'date-fns'
+
 export default function TransactionsPage() {
   const [open, setOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] =
@@ -26,12 +28,17 @@ export default function TransactionsPage() {
     type: string | undefined
     accountId: string | undefined
     categoryId: string | undefined
+    labelId: string | undefined
     dateRange: DateRange | undefined
   }>({
     type: undefined,
     accountId: undefined,
     categoryId: undefined,
-    dateRange: undefined,
+    labelId: undefined,
+    dateRange: {
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    },
   })
 
   const { householdId } = useHousehold()
@@ -40,6 +47,7 @@ export default function TransactionsPage() {
     type: filters.type,
     accountId: filters.accountId,
     categoryId: filters.categoryId,
+    labelId: filters.labelId,
     dateRange: filters.dateRange
       ? {
           start: filters.dateRange.from?.toISOString(),
@@ -101,6 +109,8 @@ export default function TransactionsPage() {
             transactions={transactions as TransactionWithDetails[]}
             onEdit={handleEdit}
             onDelete={setTransactionToDelete}
+            highlightLabelId={filters.labelId}
+            highlightCategoryId={filters.categoryId}
           />
         </>
       )}

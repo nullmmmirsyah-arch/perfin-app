@@ -6,17 +6,36 @@ interface Props {
   transactions: TransactionWithDetails[];
   onEdit: (transaction: TransactionWithDetails) => void;
   onDelete: (transaction: TransactionWithDetails) => void;
-  variant?: 'default' | 'slim';
+  highlightLabelId?: string;
+  highlightCategoryId?: string;
 }
 
-export function TransactionListGrouped({ transactions, onEdit, onDelete, variant = 'default' }: Props) {
+export function TransactionListGrouped({ transactions, onEdit, onDelete, highlightLabelId, highlightCategoryId }: Props) {
   const groupedTransactions = groupTransactionsByDate(transactions || []);
   const sortedDates = Object.keys(groupedTransactions);
 
   const getDailyTotal = (transactions: TransactionWithDetails[]) => {
     let total = 0;
     transactions.forEach(t => {
-      const amount = parseFloat(t.amount.replace(/,/g, '') || '0');
+      let amount = 0;
+      const isFiltered = highlightLabelId || highlightCategoryId;
+      
+      if (isFiltered && t.isSplit && t.splits) {
+        // Sum only matching splits
+        amount = t.splits.reduce((acc, split) => {
+          const labelMatch = !highlightLabelId || String(split.labelId) === String(highlightLabelId);
+          const categoryMatch = !highlightCategoryId || String(split.categoryId) === String(highlightCategoryId);
+          
+          if (labelMatch && categoryMatch) {
+            return acc + parseFloat(split.amount.replace(/,/g, '') || '0');
+          }
+          return acc;
+        }, 0);
+      } else {
+        // Use full amount if not split or not filtered
+        amount = parseFloat(t.amount.replace(/,/g, '') || '0');
+      }
+
       if (t.type === 'expense') total -= amount;
       if (t.type === 'income') total += amount;
       // Transfers are neutral for daily net flow
@@ -32,15 +51,11 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, variant
   };
 
   if (sortedDates.length === 0) {
-    if (variant === 'slim') {
-        return (
-            <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
-                <p className="text-muted-foreground">No transactions found.</p>
-            </div>
-        );
-    }
-    // Default empty state handled by parent usually, but if not:
-    return null;
+    return (
+        <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
+            <p className="text-muted-foreground">No transactions found.</p>
+        </div>
+    );
   }
 
   return (
@@ -68,6 +83,8 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, variant
                   transaction={transaction}
                   onEdit={() => onEdit(transaction)}
                   onDelete={() => onDelete(transaction)}
+                  highlightLabelId={highlightLabelId}
+                  highlightCategoryId={highlightCategoryId}
                 />
               ))}
             </div>

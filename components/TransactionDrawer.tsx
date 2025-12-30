@@ -279,9 +279,9 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
                 categoryId: s.categoryId as Id<'categories'>,
                 amount: s.amount,
                 description: s.description,
-                labelId: s.labelId as Id<'labels'> | undefined,
+                labelId: s.labelId ? s.labelId as Id<'labels'> : undefined,
               })),
-              labelId: data.labelId as Id<'labels'> | undefined,
+              labelId: data.labelId ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
             });
             toast.success("Transaction updated");
@@ -300,9 +300,9 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
                 categoryId: s.categoryId as Id<'categories'>,
                 amount: s.amount,
                 description: s.description,
-                labelId: s.labelId as Id<'labels'> | undefined,
+                labelId: s.labelId ? s.labelId as Id<'labels'> : undefined,
               })),
-              labelId: data.labelId as Id<'labels'> | undefined,
+              labelId: data.labelId ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
             });
             toast.success("Transaction created");

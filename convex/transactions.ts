@@ -10,6 +10,7 @@ export const get = query({
     type: v.optional(v.string()),
     accountId: v.optional(v.string()),
     categoryId: v.optional(v.string()),
+    labelId: v.optional(v.string()),
     dateRange: v.optional(v.object({
       start: v.optional(v.string()),
       end: v.optional(v.string()),
@@ -17,7 +18,7 @@ export const get = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const { householdId, type, accountId, categoryId, dateRange, paginationOpts } = args;
+    const { householdId, type, accountId, categoryId, labelId, dateRange, paginationOpts } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -46,15 +47,13 @@ export const get = query({
         .withIndex("by_userId_date", (q) => q.eq("userId", identity.subject));
     }
 
-    if (type) {
-      query = query.filter((q) => q.eq(q.field("type"), type));
-    }
     if (accountId) {
       query = query.filter((q) => q.eq(q.field("accountId"), accountId));
     }
-    if (categoryId) {
-      query = query.filter((q) => q.eq(q.field("categoryId"), categoryId));
-    }
+    // categoryId filter removed to allow manual split filtering below
+    
+    // labelId filter removed to allow manual split filtering below
+    
     if (dateRange?.start) {
       const start = dateRange.start;
       query = query.filter((q) => q.gte(q.field("date"), start));
@@ -64,11 +63,45 @@ export const get = query({
       query = query.filter((q) => q.lte(q.field("date"), end));
     }
 
-    const results = await query.order("desc").paginate(paginationOpts);
+    // Manual Pagination & Filtering Logic to support Split Labels
+    // 1. Fetch ALL transactions matching basic criteria (Date, Account, Type)
+    const allCandidates = await query.order("desc").collect();
+
+    // 2. Filter in memory for Label AND Category (including splits)
+    let filteredResults = allCandidates;
+    
+    if (labelId || categoryId) {
+        // console.log(`[Filter] Manual filtering active. Label: ${labelId}, Cat: ${categoryId}`);
+        filteredResults = allCandidates.filter(t => {
+            // Check if Main Transaction matches ALL active filters
+            const mainMatchesLabel = !labelId || String(t.labelId) === String(labelId);
+            const mainMatchesCat = !categoryId || String(t.categoryId) === String(categoryId);
+            const isMainMatch = mainMatchesLabel && mainMatchesCat;
+
+            // Check if ANY split item matches ALL active filters
+            const hasMatchingSplit = t.splits?.some((s: any) => {
+                const splitMatchesLabel = !labelId || String(s.labelId) === String(labelId);
+                const splitMatchesCat = !categoryId || String(s.categoryId) === String(categoryId);
+                return splitMatchesLabel && splitMatchesCat;
+            });
+
+            // Return true if main matches OR any split matches
+            return isMainMatch || hasMatchingSplit;
+        });
+        // console.log(`[Filter] Found ${filteredResults.length} matches`);
+    }
+
+    // 3. Implement Manual Pagination Slicing
+    const cursor = paginationOpts.cursor ? parseInt(paginationOpts.cursor) : 0;
+    const limit = paginationOpts.numItems;
+    
+    const pageResults = filteredResults.slice(cursor, cursor + limit);
+    const isDone = cursor + limit >= filteredResults.length;
+    const continueCursor = isDone ? "" : (cursor + limit).toString();
     
     // Join with account names, labels, and categories
     const pageWithDetails = await Promise.all(
-      results.page.map(async (transaction) => {
+      pageResults.map(async (transaction) => {
         const fromAccount = await ctx.db.get(transaction.accountId);
         const toAccount = transaction.toAccountId
           ? await ctx.db.get(transaction.toAccountId)
@@ -109,8 +142,9 @@ export const get = query({
     );
 
     return {
-        ...results,
-        page: pageWithDetails
+        page: pageWithDetails,
+        isDone,
+        continueCursor
     };
   },
 });

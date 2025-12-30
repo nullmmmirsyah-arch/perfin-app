@@ -31,6 +31,7 @@ type TransactionFiltersProps = {
     type: string | undefined
     accountId: string | undefined
     categoryId: string | undefined
+    labelId: string | undefined
     dateRange: DateRange | undefined
   }
   onFilterChange: (filters: TransactionFiltersProps['filters']) => void
@@ -43,6 +44,7 @@ export default function TransactionFilters({
   const { householdId } = useHousehold()
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined })
   const categories = useQuery(api.categories.get, { householdId: householdId ?? undefined });
+  const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
   const [open, setOpen] = useState(false);
 
   const handleTypeChange = (type: string) => {
@@ -57,6 +59,10 @@ export default function TransactionFilters({
     onFilterChange({ ...filters, categoryId: categoryId === 'all' ? undefined : categoryId })
   }
 
+  const handleLabelChange = (labelId: string) => {
+    onFilterChange({ ...filters, labelId: labelId === 'all' ? undefined : labelId })
+  }
+
   const handleDateChange = (dateRange: DateRange | undefined) => {
     onFilterChange({ ...filters, dateRange })
   }
@@ -69,10 +75,12 @@ export default function TransactionFilters({
     filters.type,
     filters.accountId,
     filters.categoryId,
+    filters.labelId,
   ].filter(Boolean).length;
 
   const getAccountName = (id: string) => accounts?.find(a => a._id === id)?.name || id;
   const getCategoryName = (id: string) => categories?.find(c => c._id === id)?.name || id;
+  const getLabelName = (id: string) => labels?.find(l => l._id === id)?.name || id;
 
   return (
     <div className="space-y-4 mb-6">
@@ -145,7 +153,7 @@ export default function TransactionFilters({
                     variant="ghost" 
                     size="sm" 
                     className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, dateRange: filters.dateRange })}
+                    onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, dateRange: filters.dateRange })}
                   >
                     Reset
                   </Button>
@@ -201,6 +209,23 @@ export default function TransactionFilters({
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Label</Label>
+                  <Select onValueChange={handleLabelChange} value={filters.labelId || 'all'}>
+                    <SelectTrigger className={cn("h-8 transition-colors", filters.labelId && "bg-primary/10 border-primary/20 text-primary font-medium")}>
+                      <SelectValue placeholder="All Labels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Labels</SelectItem>
+                      {labels?.map(label => (
+                        <SelectItem key={label._id} value={label._id}>
+                          {label.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </PopoverContent>
@@ -208,7 +233,7 @@ export default function TransactionFilters({
       </div>
 
       {/* Active Filter Badges */}
-      {(filters.type || filters.accountId || filters.categoryId || filters.dateRange) && (
+      {(filters.type || filters.accountId || filters.categoryId || filters.labelId || filters.dateRange) && (
         <div className="flex flex-wrap gap-2">
           {filters.dateRange && (
              <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
@@ -236,11 +261,17 @@ export default function TransactionFilters({
               <button onClick={() => clearFilter('categoryId')} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
           )}
+          {filters.labelId && (
+            <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
+              Label: {getLabelName(filters.labelId)}
+              <button onClick={() => clearFilter('labelId')} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+            </Badge>
+          )}
           <Button 
             variant="ghost" 
             size="sm" 
             className="h-6 text-xs text-muted-foreground hover:text-destructive"
-            onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, dateRange: undefined })}
+            onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, dateRange: undefined })}
           >
             Clear all
           </Button>
