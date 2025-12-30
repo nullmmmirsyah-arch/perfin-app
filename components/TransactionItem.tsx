@@ -147,7 +147,20 @@ export function TransactionItem({
                   </div>
                   <div className="text-right">
                     <span className="font-semibold">{split.amount}</span>
-                    {split.labelId && <p className="text-[10px] text-muted-foreground">Has Label</p>}
+                    {split.labelName && (
+                      <div className="flex justify-end mt-1">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
+                          style={split.labelColor ? { 
+                              color: split.labelColor,
+                              backgroundColor: `${split.labelColor}15`
+                          } : undefined}
+                        >
+                          #{split.labelName}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

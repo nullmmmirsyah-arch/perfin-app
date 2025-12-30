@@ -86,9 +86,13 @@ export const get = query({
         const splitsWithDetails = transaction.splits 
           ? await Promise.all(transaction.splits.map(async (split) => {
               const splitCategory = await ctx.db.get(split.categoryId);
+              const splitLabel = split.labelId ? await ctx.db.get(split.labelId) : null;
+              
               return {
                 ...split,
                 categoryName: splitCategory?.name,
+                labelName: splitLabel?.name,
+                labelColor: splitLabel?.color,
               };
             }))
           : undefined;
