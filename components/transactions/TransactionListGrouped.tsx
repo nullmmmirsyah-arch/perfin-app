@@ -13,6 +13,24 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, variant
   const groupedTransactions = groupTransactionsByDate(transactions || []);
   const sortedDates = Object.keys(groupedTransactions);
 
+  const getDailyTotal = (transactions: TransactionWithDetails[]) => {
+    let total = 0;
+    transactions.forEach(t => {
+      const amount = parseFloat(t.amount.replace(/,/g, '') || '0');
+      if (t.type === 'expense') total -= amount;
+      if (t.type === 'income') total += amount;
+      // Transfers are neutral for daily net flow
+    });
+    return total;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.abs(amount));
+  };
+
   if (sortedDates.length === 0) {
     if (variant === 'slim') {
         return (
@@ -26,36 +44,36 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, variant
   }
 
   return (
-    <div className={variant === 'default' ? "mt-8 space-y-6" : "grid gap-4"}>
-      {sortedDates.map((date) => (
-        <div key={date} className="space-y-2">
-           {variant === 'default' ? (
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider bg-background px-2">
-                        {date}
-                    </span>
-                    <div className="h-px flex-1 bg-border" />
-                </div>
-           ) : (
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
-                    {date}
-                </h3>
-           )}
-          
-          <div className={variant === 'default' ? "grid grid-cols-1 gap-3" : "grid gap-2"}>
-            {groupedTransactions[date].map((transaction: TransactionWithDetails) => (
-              <TransactionItem
-                key={transaction._id}
-                transaction={transaction}
-                variant={variant}
-                onEdit={() => onEdit(transaction)}
-                onDelete={() => onDelete(transaction)}
-              />
-            ))}
+    <div className="space-y-6">
+      {sortedDates.map((date) => {
+        const dailyTotal = getDailyTotal(groupedTransactions[date]);
+        
+        return (
+          <div key={date} className="space-y-3">
+            <div className="sticky top-0 bg-background/95 backdrop-blur-md py-2 z-10 flex justify-between items-center border-b border-border/40 mb-2">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                  {date}
+              </h3>
+              {dailyTotal !== 0 && (
+                <span className={`text-xs font-bold ${dailyTotal > 0 ? 'text-success' : 'text-destructive'}`}>
+                  {dailyTotal > 0 ? '+' : '-'}{formatCurrency(dailyTotal)}
+                </span>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 gap-3">
+              {groupedTransactions[date].map((transaction: TransactionWithDetails) => (
+                <TransactionItem
+                  key={transaction._id}
+                  transaction={transaction}
+                  onEdit={() => onEdit(transaction)}
+                  onDelete={() => onDelete(transaction)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   );
 }

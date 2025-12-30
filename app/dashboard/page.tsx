@@ -128,7 +128,6 @@ export default function Dashboard() {
                 transactions={summary?.recentTransactions as TransactionWithDetails[] || []}
                 onEdit={handleEdit}
                 onDelete={setTransactionToDelete}
-                variant="slim"
             />
         )}
       </div>

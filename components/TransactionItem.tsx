@@ -17,71 +17,64 @@ export function TransactionItem({
   transaction, 
   onEdit, 
   onDelete,
-  variant = 'default'
 }: { 
   transaction: TransactionWithDetails, 
   onEdit?: () => void, 
   onDelete?: () => void,
-  variant?: 'default' | 'slim'
 }) {
   const [isOpen, setIsOpen] = useState(false)
-  const isSlim = variant === 'slim'
 
   return (
-    <Card className={cn("overflow-hidden", isSlim ? "shadow-none" : "shadow-sm")}>
-      <div className={cn(
-        "flex justify-between items-center hover:bg-muted/30 transition-colors",
-        isSlim ? "p-2 px-3" : "p-4"
-      )}>
+    <Card className="overflow-hidden shadow-sm border-muted/60">
+      <div className="flex justify-between items-center hover:bg-muted/30 transition-colors p-3.5">
         <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
             size="sm" 
-            className={cn("p-0 h-6 w-6 shrink-0", isSlim && "h-4 w-4")}
+            className="p-0 h-6 w-6 shrink-0"
             onClick={() => setIsOpen(!isOpen)}
           >
-            <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isSlim && "h-3 w-3", isOpen && "rotate-180")} />
+            <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
             <span className="sr-only">Toggle Details</span>
           </Button>
           <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
             {transaction.type === 'transfer' ? (
               <>
-                <p className={cn("font-medium", isSlim ? "text-sm" : "text-base")}>
-                  {transaction.fromAccountName} <span className="text-muted-foreground">→</span> {transaction.toAccountName}
+                <p className="font-semibold text-sm">
+                  {transaction.fromAccountName} <span className="text-muted-foreground font-normal mx-1">→</span> {transaction.toAccountName}
                 </p>
-                {transaction.description && !isSlim && (
-                  <p className="text-sm text-muted-foreground">
+                {transaction.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-1">
                     {transaction.description}
                   </p>
                 )}
               </>
             ) : (
-              <p className={cn("font-medium", isSlim ? "text-sm" : "text-base")}>
-                {!isSlim && <span className="text-muted-foreground font-normal mr-1">{transaction.fromAccountName}:</span>}
-                {transaction.isSplit ? 'Split transaction' : (transaction.description || 'No description')}
-              </p>
-            )}
-            {!isSlim && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {new Date(transaction.date).toLocaleDateString()}
-              </p>
-            )}
-            {isSlim && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {new Date(transaction.date).toLocaleDateString()}
-              </p>
+              <div>
+                <p className="font-semibold text-sm">
+                  {transaction.isSplit ? 'Split transaction' : (transaction.description || 'No description')}
+                </p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  <span className="font-medium text-muted-foreground/80">{transaction.fromAccountName}</span>
+                  {transaction.categoryName && (
+                    <>
+                      <span className="text-[10px] opacity-30">•</span>
+                      <span>{transaction.categoryName}</span>
+                    </>
+                  )}
+                </p>
+              </div>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="text-right">
             <p
               className={cn(
-                'font-semibold',
-                isSlim ? "text-sm" : "text-base",
+                'font-bold text-sm',
                 transaction.type === 'expense'
                   ? 'text-destructive'
-                  : transaction.type === 'income' ? 'text-green-600' : 'text-primary'
+                  : transaction.type === 'income' ? 'text-success' : 'text-primary'
               )}
             >
               {transaction.type === 'expense' ? '-' : transaction.type === 'income' ? '+' : '' }
@@ -91,7 +84,7 @@ export function TransactionItem({
               <div className="flex justify-end mt-1">
                 <Badge
                   variant="outline"
-                  className="text-[10px] py-0 h-5 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
+                  className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
                   style={transaction.label.color ? { 
                       color: transaction.label.color,
                       backgroundColor: `${transaction.label.color}15` // 10% opacity hex
@@ -105,8 +98,8 @@ export function TransactionItem({
           {(onEdit || onDelete) && (
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className={cn("h-8 w-8", isSlim && "h-6 w-6")}>
-                    <MoreHorizontal className={cn("h-4 w-4", isSlim && "h-3 w-3")} />
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

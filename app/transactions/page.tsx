@@ -98,7 +98,6 @@ export default function TransactionsPage() {
             transactions={transactions as TransactionWithDetails[]}
             onEdit={handleEdit}
             onDelete={setTransactionToDelete}
-            variant="default"
           />
         </>
       )}
