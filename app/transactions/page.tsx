@@ -14,6 +14,8 @@ import { TransactionListGrouped } from '@/components/transactions/TransactionLis
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
 
+import { PageHeader } from '@/components/PageHeader'
+
 export default function TransactionsPage() {
   const [open, setOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] =
@@ -63,9 +65,10 @@ export default function TransactionsPage() {
 
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Transactions</h1>
-      </div>
+      <PageHeader 
+        title="Transactions" 
+        description="View and manage your financial history." 
+      />
 
       <TransactionFilters filters={filters} onFilterChange={setFilters} />
 

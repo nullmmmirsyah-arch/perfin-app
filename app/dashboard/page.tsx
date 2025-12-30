@@ -24,6 +24,8 @@ import { TransactionListGrouped } from '@/components/transactions/TransactionLis
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
 
+import { PageHeader } from '@/components/PageHeader'
+
 export default function Dashboard() {
   const { householdId } = useHousehold()
   const summary = useQuery(api.dashboard.getDashboardSummary, {
@@ -52,7 +54,10 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-8 pb-24 md:pb-8">
-      <h1 className="text-2xl font-bold mb-6 md:mb-8">Dashboard</h1>
+      <PageHeader 
+        title="Dashboard" 
+        description="Overview of your daily operations and wealth." 
+      />
 
       {/* Transaction Actions Components */}
       <TransactionDrawer
@@ -113,7 +118,7 @@ export default function Dashboard() {
 
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">Recent Transactions</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Recent Transactions</h2>
           <Button variant="ghost" asChild>
             <Link href="/transactions" className="flex items-center gap-2">
               View All <ArrowRight className="h-4 w-4" />

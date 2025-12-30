@@ -32,6 +32,8 @@ import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronDown, ChevronRight } from "lucide-react"
 
+import { PageHeader } from '@/components/PageHeader'
+
 export default function AccountsPage() {
   const [open, setOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<Doc<'accounts'> | undefined>(undefined)
@@ -169,13 +171,11 @@ export default function AccountsPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-            <h1 className="text-2xl font-bold tracking-tight">Accounts</h1>
-            <p className="text-muted-foreground">Manage your liquid cash, savings, and assets.</p>
-        </div>
-        <Button onClick={handleCreate}>Create Account</Button>
-      </div>
+      <PageHeader 
+        title="Accounts" 
+        description="Manage your liquid cash, savings, and assets."
+        action={<Button onClick={handleCreate}>Create Account</Button>}
+      />
 
       <AccountDrawer
         open={open}
@@ -230,9 +230,31 @@ export default function AccountsPage() {
       {/* SECTION 1: SPENDING & CASH */}
       <div className="space-y-4">
         <div className="flex items-end justify-between border-b pb-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
+            <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
                 💳 Spending & Cash
                 <span className="text-sm font-normal text-muted-foreground">({liquidAccounts.length})</span>
+            </h2>
+            <div className="text-right">
+                <span className="text-sm text-muted-foreground block">Total Available</span>
+                <span className="text-xl font-bold">{formatCurrency(liquidTotal)}</span>
+            </div>
+        </div>
+        
+        <div className="space-y-2">
+            {liquidAccounts.length > 0 ? (
+                liquidAccounts.map(account => <AccountCard key={account._id} account={account} />)
+            ) : (
+                <p className="text-sm text-muted-foreground italic py-4">No cash accounts found.</p>
+            )}
+        </div>
+      </div>
+
+      {/* SECTION 2: SAVINGS & ASSETS */}
+      <div className="space-y-4">
+        <div className="flex items-end justify-between border-b pb-2">
+            <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+                💰 Savings & Assets
+                <span className="text-sm font-normal text-muted-foreground">({specialAccounts.length})</span>
             </h2>
             <div className="text-right">
                 <span className="text-sm text-muted-foreground block">Total Available</span>
