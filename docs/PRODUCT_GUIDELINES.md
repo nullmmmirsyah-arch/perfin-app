@@ -6,13 +6,16 @@ This document outlines the design philosophy and user experience patterns used i
 1.  **Mobile-First:** All features must work flawlessly on mobile devices.
 2.  **Zero-Latency Feel:** UI should feel instant. We use Convex's optimistic updates and reactive queries.
 3.  **Focus & Context:** Avoid clutter. Use drawers to drill down into complex tasks.
+4.  **Swipe Navigation:** Prioritize gestures (Swipe Left/Right) for switching contexts (e.g., List vs Analytics, Expenses vs Savings).
 
 ## UX Patterns
 
 ### 1. Navigation
 - **Mobile:** Bottom Navigation Bar (`BottomNav.tsx`).
 - **Desktop:** Sidebar (`Sidebar.tsx`).
-- **Responsive:** Logic handled via `use-mobile.ts` hooks and CSS media queries.
+- **Tabs/Sections:** Use **Swipeable Tabs** (Carousel) for major view switches within a page.
+    - *Example:* Transactions Page (List <-> Analytics).
+    - *Example:* Budgets Page (Expenses <-> Savings).
 
 ### 2. Forms & Data Entry
 - **Drawers (Sheet) over Modals:** Use `Drawer` (from `vaul`/shadcn) for almost all forms (Add Transaction, Edit Account, etc.).
@@ -23,12 +26,14 @@ This document outlines the design philosophy and user experience patterns used i
 - **Toasts:** Use `sonner` for all success/error feedback.
 - **Skeletons:** Always show Skeleton loaders (`components/skeletons.tsx`) while data is fetching. Never show a blank screen.
 - **Empty States:** Provide clear "No data" states with a Call to Action (e.g., "No accounts found. Create one?").
+- **Over-Budget Warnings:** Use Red/Destructive colors immediately when a budget is exceeded (Negative Remaining).
 
 ### 4. Categorization & Grouping
 - **Separation of Concerns:**
   - **Accounts Page:** Separated into "Spending & Cash" vs "Savings & Assets".
+  - **Budgets Page:** Separated into "Monthly Expenses" (Limits) vs "Savings & Goals" (Targets) via Carousel.
   - **Categories Page:** Separated into "Goals", "Expenses", "Income", and "Archived".
-  - **Closed Items:** Always hide archived/closed items inside a `Collapsible` section at the bottom.
+- **Closed Items:** Always hide archived/closed items inside a `Collapsible` section or filter them out by default.
 
 ### 5. Goal Achievement UX
 - **Passive Trigger:** Don't force the user to check progress. Send a **Notification** (Bell Icon).
@@ -37,8 +42,9 @@ This document outlines the design philosophy and user experience patterns used i
 ## Visual Style
 - **Components:** shadcn/ui (Radix UI + Tailwind).
 - **Theme:** Support Dark/Light mode (via `next-themes`).
+- **Charts:** Use `shadcn/ui` charts with consistent CSS variables (`--chart-1`, `--chart-2`, etc.) for data visualization.
 - **Colors:**
   - **Primary:** Blue/Zinc based.
-  - **Success:** Green (Income/Goal Reached).
-  - **Destructive:** Red (Expense/Over Budget).
+  - **Success:** Green (Income/Goal Reached/Positive Cashflow).
+  - **Destructive:** Red (Expense/Over Budget/Negative Cashflow).
   - **Asset/Gold:** Amber/Yellow.

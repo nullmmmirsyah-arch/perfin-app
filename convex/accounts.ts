@@ -1,16 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-
-async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
-    const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-            q.eq("householdId", householdId).eq("userId", userId)
-        )
-        .first();
-    return !!member;
-}
+import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
+import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES } from "./lib/constants";
 
 export const get = query({
   args: { 
@@ -23,7 +15,7 @@ export const get = query({
 
     let accounts;
     if (householdId) {
-        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return [];
+        if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) return [];
         accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
@@ -50,7 +42,7 @@ export const create = mutation({
     if (!identity) throw new Error("Not authenticated");
     
     if (args.householdId) {
-        if (!await ensureHouseholdAccess(ctx, args.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
     }
 
     const accountId = await ctx.db.insert("accounts", {
@@ -60,7 +52,7 @@ export const create = mutation({
 
     // Create Initial Balance Transaction if balance > 0
     const initialBalance = parseFloat(args.balance.replace(/,/g, ''));
-    if (initialBalance > 0 && args.type !== 'ASSET') {
+    if (initialBalance > 0 && args.type !== ACCOUNT_TYPES.ASSET) {
         // 1. Find or Create "Initial Balance" Category
         let categoryId;
         const existingCategory = await ctx.db
@@ -76,7 +68,7 @@ export const create = mutation({
                 userId: identity.subject,
                 householdId: args.householdId,
                 name: "Initial Balance",
-                type: "income"
+                type: CATEGORY_TYPES.INCOME
             });
         }
 
@@ -86,7 +78,7 @@ export const create = mutation({
             householdId: args.householdId,
             accountId,
             categoryId,
-            type: "income",
+            type: TRANSACTION_TYPES.INCOME,
             amount: args.balance,
             date: new Date().toISOString(),
             description: "Initial Balance",
@@ -115,7 +107,7 @@ export const update = mutation({
     if (!account) throw new Error("Account not found");
 
     if (account.householdId) {
-        if (!await ensureHouseholdAccess(ctx, account.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, account.householdId, identity.subject);
     } else {
         if (account.userId !== identity.subject) throw new Error("Unauthorized");
     }
@@ -134,7 +126,7 @@ export const deleteAccount = mutation({
     if (!account) throw new Error("Account not found");
 
     if (account.householdId) {
-        if (!await ensureHouseholdAccess(ctx, account.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, account.householdId, identity.subject);
     } else {
         if (account.userId !== identity.subject) throw new Error("Unauthorized");
     }
@@ -153,7 +145,7 @@ export const archiveAccount = mutation({
     if (!account) throw new Error("Account not found");
 
     if (account.householdId) {
-        if (!await ensureHouseholdAccess(ctx, account.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, account.householdId, identity.subject);
     } else {
         if (account.userId !== identity.subject) throw new Error("Unauthorized");
     }

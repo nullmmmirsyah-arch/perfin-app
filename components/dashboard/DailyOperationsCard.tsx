@@ -15,6 +15,7 @@ export type BudgetBreakdownItem = {
 
 type SummaryData = {
   remainingBudget: number;
+  unassignedCash: number;
   liquidCash: number;
   budgetBreakdown: BudgetBreakdownItem[];
   cashAccounts: { name: string; balance: number }[];
@@ -42,13 +43,26 @@ export function DailyOperationsCard({ summary }: Props) {
 
           {/* BUDGET TAB */}
           <TabsContent value="budget" className="space-y-4 animate-in fade-in-5">
-            <div>
-              <div className="text-2xl font-bold">
-                {summary?.remainingBudget.toLocaleString() ?? '...'}
-              </div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
-                Remaining Monthly Budget
-              </p>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <div className="text-xl font-bold">
+                        {summary?.remainingBudget.toLocaleString() ?? '...'}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                        Monthly Budget Left
+                    </p>
+                </div>
+                <div className="border-l pl-4">
+                    <div className={cn(
+                        "text-xl font-bold",
+                        (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-primary"
+                    )}>
+                        {summary?.unassignedCash.toLocaleString() ?? '...'}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                        Unassigned Budget
+                    </p>
+                </div>
             </div>
             <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
               {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (

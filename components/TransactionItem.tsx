@@ -47,8 +47,8 @@ export function TransactionItem({
   }
 
   const displayAmount = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(displayAmountVal);
 
   return (

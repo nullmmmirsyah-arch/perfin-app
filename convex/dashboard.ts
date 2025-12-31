@@ -1,6 +1,12 @@
 import { query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
+import { 
+  calculateSpendingByCategory, 
+  calculateUnassignedCash, 
+  AccountMap,
+  isLiquidAccount
+} from "./lib/finance";
 
 // Helper for Auth Check
 async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
@@ -118,7 +124,7 @@ export const getDashboardSummary = query({
         return null;
     }
 
-    // 0. Fetch Accounts (Needed for split balance and type checking)
+    // 0. Fetch Accounts
     let allAccounts;
     if (householdId) {
         allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
@@ -126,10 +132,11 @@ export const getDashboardSummary = query({
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
     const accounts = allAccounts.filter(a => !a.isArchived);
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
 
     // 1. Split Balances
     const liquidCash = accounts
-      .filter((a: Doc<"accounts">) => !a.type || a.type === 'CASH')
+      .filter((a: Doc<"accounts">) => isLiquidAccount(a))
       .reduce((acc: number, a: Doc<"accounts">) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
 
     const totalSavingsOnly = accounts
@@ -141,7 +148,7 @@ export const getDashboardSummary = query({
       .reduce((acc: number, a: Doc<"accounts">) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
 
     const cashAccounts = accounts
-      .filter((a: Doc<"accounts">) => !a.type || a.type === 'CASH')
+      .filter((a: Doc<"accounts">) => isLiquidAccount(a))
       .map((a: Doc<"accounts">) => ({
         name: a.name,
         balance: parseFloat(a.balance.replace(/,/g, '') || '0')
@@ -184,84 +191,13 @@ export const getDashboardSummary = query({
         allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
 
-    const currentMonthExpenses = allTransactions.filter(t => {
+    const currentMonthTransactions = allTransactions.filter(t => {
       const isDateMatch = t.date >= startOfMonth && t.date <= endOfMonth;
-      if (!isDateMatch) return false;
-
-      // Expense & Saving types are always spending
-      if (t.type === 'expense' || t.type === 'saving') return true;
-
-      // Transfer logic: Only count as Spending if moving from Liquid (Cash) -> Non-Liquid (Saving/Asset)
-      if (t.type === 'transfer' && t.categoryId && t.accountId && t.toAccountId) {
-          const accountTypeMap = new Map(accounts.map(a => [a._id, a.type || 'CASH']));
-          const isSpecial = (id: string) => {
-              const type = accountTypeMap.get(id as Id<"accounts">);
-              return type === 'ASSET' || type === 'SAVING';
-          };
-
-          const sourceIsSpecial = isSpecial(t.accountId); // e.g. Gold
-          const destIsSpecial = isSpecial(t.toAccountId); // e.g. Cash (False)
-
-          // Only count Nabung (Cash -> Goal)
-          if (!sourceIsSpecial && destIsSpecial) {
-              return true;
-          }
-      }
-      
-      return false;
+      return isDateMatch;
     });
 
-    const spendingByCategory: Record<string, number> = {};
-    currentMonthExpenses.forEach((t) => {
-      if (t.isSplit && t.splits) {
-        t.splits.forEach((split) => {
-          if (split.categoryId && split.amount) {
-            const amount = parseFloat(split.amount.replace(/,/g, ''));
-            if (!isNaN(amount)) {
-              spendingByCategory[split.categoryId] = (spendingByCategory[split.categoryId] || 0) + amount;
-            }
-          }
-        });
-      } else if (t.categoryId && t.amount) {
-        const amount = parseFloat(t.amount.replace(/,/g, ''));
-        if (!isNaN(amount)) {
-          spendingByCategory[t.categoryId] = (spendingByCategory[t.categoryId] || 0) + amount;
-        }
-      }
-    });
-
-    // Calculate Accumulated (All Time) for Savings
-    const accumulatedMap = new Map<string, number>();
-    const accountTypeMap = new Map(accounts.map(a => [a._id, a.type || 'CASH']));
-    const isSpecial = (id: string) => {
-        const type = accountTypeMap.get(id as Id<"accounts">);
-        return type === 'ASSET' || type === 'SAVING';
-    };
-
-    allTransactions.forEach((t: Doc<"transactions">) => {
-        const val = Math.abs(parseFloat(t.amount.replace(/,/g, '') || '0'));
-        if ((t.type === 'expense' || t.type === 'saving') && t.categoryId) {
-            accumulatedMap.set(t.categoryId, (accumulatedMap.get(t.categoryId) || 0) + val);
-        }
-        if (t.type === 'transfer' && t.categoryId && t.accountId && t.toAccountId) {
-            if (!isSpecial(t.accountId) && isSpecial(t.toAccountId)) {
-                accumulatedMap.set(t.categoryId, (accumulatedMap.get(t.categoryId) || 0) + val);
-            }
-            if (isSpecial(t.accountId) && !isSpecial(t.toAccountId)) {
-                accumulatedMap.set(t.categoryId, (accumulatedMap.get(t.categoryId) || 0) - val);
-            }
-        }
-    });
-
-    let totalBudgetLimit = 0;
-    let totalBudgetSpent = 0;
-
-    budgets.forEach(b => {
-      totalBudgetLimit += parseFloat(b.amount.replace(/,/g, '') || '0');
-      totalBudgetSpent += spendingByCategory[b.categoryId] || 0;
-    });
-
-    const remainingBudget = Math.max(0, totalBudgetLimit - totalBudgetSpent);
+    const spendingByCategory = calculateSpendingByCategory(currentMonthTransactions, accountsMap);
+    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap);
 
     // 2.1 Categories Info
     let categories;
@@ -281,7 +217,7 @@ export const getDashboardSummary = query({
             const cat = catDetailsMap.get(b.categoryId);
             const limit = parseFloat(b.amount.replace(/,/g, '') || '0');
             const spent = spendingByCategory[b.categoryId] || 0;
-            const accumulated = accumulatedMap.get(b.categoryId) || 0;
+            const accumulated = accumulatedMap[b.categoryId] || 0;
             
             return {
                 categoryName: cat?.name || 'Unknown',
@@ -293,6 +229,27 @@ export const getDashboardSummary = query({
                 remaining: Math.max(0, limit - spent),
             };
     });
+
+    let totalRemainingBudget = 0;
+
+    budgetBreakdown.forEach(b => {
+      // Only count expense type for remaining budget logic to match "Spending Budget"
+      if (b.categoryType === 'expense') {
+          totalRemainingBudget += (b.limit - b.spent);
+      }
+    });
+
+    const remainingBudget = totalRemainingBudget;
+
+    // 2.2 Calculate Unassigned Cash (Using Helper)
+    let allBudgets;
+    if (householdId) {
+        allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
+    }
+    
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap);
 
     // 3. Recent Transactions
     const sortedTransactions = allTransactions
@@ -338,6 +295,7 @@ export const getDashboardSummary = query({
       savingAccounts,
       assetAccounts,
       remainingBudget,
+      unassignedCash,
       budgetBreakdown,
       recentTransactions,
     };

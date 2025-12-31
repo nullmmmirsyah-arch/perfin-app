@@ -1,0 +1,44 @@
+/**
+ * Centralized constants for the application to ensure consistency 
+ * and avoid typos in database queries and business logic.
+ */
+
+export const TRANSACTION_TYPES = {
+  EXPENSE: "expense",
+  INCOME: "income",
+  TRANSFER: "transfer",
+  SAVING: "saving", // Note: Saving is used for direct goal contributions
+} as const;
+
+export type TransactionType = typeof TRANSACTION_TYPES[keyof typeof TRANSACTION_TYPES];
+
+export const CATEGORY_TYPES = {
+  EXPENSE: "expense",
+  INCOME: "income",
+  SAVING: "saving", // Represents a Financial Goal
+} as const;
+
+export type CategoryType = typeof CATEGORY_TYPES[keyof typeof CATEGORY_TYPES];
+
+export const ACCOUNT_TYPES = {
+  CASH: "CASH",
+  ASSET: "ASSET",
+  SAVING: "SAVING",
+} as const;
+
+export type AccountType = typeof ACCOUNT_TYPES[keyof typeof ACCOUNT_TYPES];
+
+export const GOAL_STATUS = {
+  ACTIVE: "active",
+  ACHIEVED: "achieved",
+  ARCHIVED: "archived",
+} as const;
+
+export type GoalStatus = typeof GOAL_STATUS[keyof typeof GOAL_STATUS];
+
+export const NOTIFICATION_TYPES = {
+  GOAL_REACHED: "goal_reached",
+  SYSTEM: "system",
+} as const;
+
+export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];

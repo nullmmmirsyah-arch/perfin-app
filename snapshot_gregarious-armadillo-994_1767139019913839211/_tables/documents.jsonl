@@ -1,0 +1,10 @@
+{"name":"transactions","id":10001}
+{"name":"accounts","id":10002}
+{"name":"categories","id":10003}
+{"name":"labels","id":10004}
+{"name":"budgets","id":10005}
+{"name":"householdMembers","id":10006}
+{"name":"households","id":10007}
+{"name":"householdInvites","id":10008}
+{"name":"pushSubscriptions","id":10009}
+{"name":"notifications","id":10010}

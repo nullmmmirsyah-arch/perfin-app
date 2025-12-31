@@ -1,16 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
-
-async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
-    const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-            q.eq("householdId", householdId).eq("userId", userId)
-        )
-        .first();
-    return !!member;
-}
+import { mutation, query } from "./_generated/server";
+import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
+import { GOAL_STATUS } from "./lib/constants";
 
 export const get = query({
   args: {
@@ -24,7 +15,7 @@ export const get = query({
 
     let query;
     if (householdId) {
-        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return [];
+        if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) return [];
         query = ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId));
     } else {
         query = ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", identity.subject));
@@ -40,7 +31,7 @@ export const get = query({
         return categories;
     }
     // Backward compatibility: hide if isArchived is true OR status is 'archived'
-    return categories.filter(c => !c.isArchived && c.status !== 'archived');
+    return categories.filter(c => !c.isArchived && c.status !== GOAL_STATUS.ARCHIVED);
   },
 });
 
@@ -57,13 +48,13 @@ export const create = mutation({
     if (!identity) throw new Error("Not authenticated");
     
     if (args.householdId) {
-        if (!await ensureHouseholdAccess(ctx, args.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
     }
 
     const category = await ctx.db.insert("categories", {
       ...args,
       userId: identity.subject,
-      status: "active",
+      status: GOAL_STATUS.ACTIVE,
     });
     return category;
   },
@@ -86,7 +77,7 @@ export const update = mutation({
     if (!category) throw new Error("Category not found");
 
     if (category.householdId) {
-        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, category.householdId, identity.subject);
     } else {
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
@@ -106,7 +97,7 @@ export const deleteCategory = mutation({
     if (!category) throw new Error("Category not found");
 
     if (category.householdId) {
-        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, category.householdId, identity.subject);
     } else {
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
@@ -125,12 +116,12 @@ export const archiveCategory = mutation({
     if (!category) throw new Error("Category not found");
 
     if (category.householdId) {
-        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, category.householdId, identity.subject);
     } else {
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(args.id, { isArchived: true, status: 'archived' });
+    await ctx.db.patch(args.id, { isArchived: true, status: GOAL_STATUS.ARCHIVED });
   },
 });
 
@@ -144,12 +135,12 @@ export const unarchiveCategory = mutation({
     if (!category) throw new Error("Category not found");
 
     if (category.householdId) {
-        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, category.householdId, identity.subject);
     } else {
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(args.id, { isArchived: false, status: 'active' });
+    await ctx.db.patch(args.id, { isArchived: false, status: GOAL_STATUS.ACTIVE });
   },
 });
 
@@ -163,11 +154,11 @@ export const markAsAchieved = mutation({
     if (!category) throw new Error("Category not found");
 
     if (category.householdId) {
-        if (!await ensureHouseholdAccess(ctx, category.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, category.householdId, identity.subject);
     } else {
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(args.id, { status: 'achieved' });
+    await ctx.db.patch(args.id, { status: GOAL_STATUS.ACHIEVED });
   },
 });

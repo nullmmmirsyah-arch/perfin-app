@@ -11,6 +11,7 @@
 - **Convex Functions:** `camelCase` (e.g., `getBudgetStatus`, `archiveAccount`).
 - **Variables:** `camelCase`.
 - **Database Tables:** `camelCase` (plural) (e.g., `transactions`, `householdMembers`).
+- **Constants:** `UPPER_SNAKE_CASE` (e.g., `TRANSACTION_TYPES.EXPENSE`).
 
 ## Component Structure
 ```tsx
@@ -42,20 +43,31 @@ export default function ComponentName({ ... }: Props) {
 1.  **Validation is Mandatory:**
     Always use `args: { ... }` with `v.string()`, `v.number()`, etc. Never use `any` unless absolutely necessary for JSON blobs.
 
-2.  **Auth Guards:**
-    ```typescript
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    ```
+2.  **Centralized Logic (CRITICAL):**
+    - **Do NOT write manual calculation logic** for Spending, Unassigned Cash, or Budget Remaining in your queries.
+    - **ALWAYS import helpers** from `convex/lib/finance.ts`.
+        - `calculateSpendingByCategory`
+        - `calculateUnassignedCash`
+        - `isLiquidAccount`
+    - This ensures data consistency across the app.
 
-3.  **Household Security:**
-    Always verify that `identity.subject` is a member of `args.householdId` before returning data. Use the `ensureHouseholdAccess` helper pattern.
+3.  **Authorization:**
+    - **Do NOT write manual DB checks** for household membership.
+    - **ALWAYS import auth helpers** from `convex/lib/auth.ts`.
+        - `await ensureHouseholdAccess(ctx, householdId, userId)` (Throws Error)
+        - `await checkHouseholdAccess(ctx, householdId, userId)` (Returns Boolean)
 
-4.  **Date Handling:**
+4.  **Constants & Types:**
+    - **Do NOT use magic strings** like `'expense'`, `'saving'`, `'ASSET'`.
+    - **ALWAYS import constants** from `convex/lib/constants.ts`.
+        - `TRANSACTION_TYPES.EXPENSE`
+        - `ACCOUNT_TYPES.ASSET`
+
+5.  **Date Handling:**
     - Store dates as ISO Strings (`v.string()`) in the database (e.g., `2023-12-25T10:00:00Z`).
     - Manipulate dates in TS using `Date` object or `date-fns`.
 
-5.  **Number Handling:**
+6.  **Number Handling:**
     - We currently store Amounts as `v.string()` to prevent float precision issues in the DB (Legacy decision).
     - **Rule:** When performing calculations, always sanitize: `parseFloat(amount.replace(/,/g, '') || '0')`.
     - **Formatting:** Use `new Intl.NumberFormat('en-US').format(val)`.

@@ -11,6 +11,7 @@
     - **Sell:** Increases Cash, Decreases Asset Quantity/Cost Basis, calculates Realized Profit.
 - **Split Transactions:** Ability to split a single transaction into multiple categories. Uses a dedicated **Nested Drawer** UI for better mobile experience.
 - **Filtering:** Filter by Date Range, Account, Category, and Type.
+- **Analytics:** Integrated visual analytics (Donut Chart & Trend) directly within the transaction list via a swipeable tab interface.
 
 ### 2. Accounts (Funds Storage)
 - **Types:**
@@ -41,10 +42,13 @@ System automatically detects when `Accumulated Amount >= Target Amount` via back
     - **Step 3 (Cleanup):** Prompt to Close/Archive the now-empty Saving Account.
 3.  **Result:** Category status updated to `achieved`.
 
-### 5. Budgeting
+### 5. Budgeting (Zero-Based Budgeting)
 - **Monthly Budgets:** Set limits per category per month.
-- **Real-time Tracking:** Visual progress bars.
-- **Zero-Based Logic:** Tracks "Unassigned Cash" (Total Income - Total Budgeted).
+- **Swipeable Views:** Separate sections for "Monthly Expenses" and "Savings & Goals" navigable via swipe.
+- **Real-time Tracking:** Visual progress bars synced with Dashboard.
+- **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
+    - **Strict Rule:** Ideally, Unassigned Cash should be 0.
+    - **Auto-Create Zero Budget:** If a transaction is made to a category without a budget, the system automatically creates a budget with limit 0, instantly flagging it as "Over Budget" to alert the user.
 - **Sweep Feature:** Move leftover budget from previous month to current month/savings.
 
 ### 6. Household & Collaboration
@@ -53,9 +57,11 @@ System automatically detects when `Accumulated Amount >= Target Amount` via back
 - Member roles (Admin/Member).
 
 ### 7. Dashboard
-- **Daily Operations:** Cash flow & Budget status.
+- **Daily Operations:**
+    - **Remaining Monthly Budget:** Shows strict "Safe to Spend" amount (Limit - Spent) for Expenses only. Excludes Savings.
+    - **Unassigned Budget:** Displays available free cash flow side-by-side.
 - **Wealth & Goals:** Net worth tracking & Goal progress.
-- **Logic:** Automatically filters out Archived/Achieved items to keep the view relevant.
+- **Logic:** Centralized calculation logic ensures Dashboard numbers always match Budget Page numbers.
 
 ## Business Logic Rules
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is available but dangerous.
@@ -63,3 +69,4 @@ System automatically detects when `Accumulated Amount >= Target Amount` via back
     - Transfer between Liquid accounts = Neutral.
     - Transfer Liquid -> Saving = "Spending" (allocating to goal).
     - Transfer Saving -> Liquid = "Income" (releasing funds), unless flagged as Disbursement.
+    - **Buyback/Sell Asset:** Treated as Income (Capital + Profit) to Unassigned Cash (if recorded as split) or Net Reversal of Spending.

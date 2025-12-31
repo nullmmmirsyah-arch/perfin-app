@@ -21,7 +21,7 @@ export const sendNotification = internalAction({
   },
   handler: async (ctx, args) => {
     // 1. Ambil data langganan user dari database (menggunakan query internal)
-    const subscriptions = (await ctx.runQuery((internal as any).notifications.getSubscriptions, {
+    const subscriptions = (await ctx.runQuery(internal.notifications.getSubscriptions, {
       userId: args.userId,
     })) as Subscription[];
 

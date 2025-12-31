@@ -4,7 +4,7 @@ This is a [Next.js](https://nextjs.org/) project that uses [Convex](https://www.
 
 The application displays a list of messages for the currently authenticated user.
 
-Check documentation at `docs` folder, make sure to read it so you know about the app before making any changes.
+Check documentation at `docs` folder, make sure to read it so you know about the app, know the code style, and know tech stack and workflow of the app before making any changes.
 
 ## Building and Running
 

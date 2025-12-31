@@ -1,16 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query, internalQuery, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-
-async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
-    const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-            q.eq("householdId", householdId).eq("userId", userId)
-        )
-        .first();
-    return !!member;
-}
+import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
+import { NOTIFICATION_TYPES } from "./lib/constants";
 
 export const getSubscriptions = internalQuery({
   args: { userId: v.string() },
@@ -82,7 +74,7 @@ export const get = query({
 
     let notifications;
     if (householdId) {
-        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return [];
+        if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) return [];
         notifications = await ctx.db.query("notifications")
             .withIndex("by_householdId", q => q.eq("householdId", householdId))
             .order("desc")
@@ -109,7 +101,7 @@ export const getUnreadCount = query({
     let notifications;
     if (householdId) {
          // Note: optimize later if needed, but for <100 notifications this is fine
-        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return 0;
+        if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) return 0;
         notifications = await ctx.db.query("notifications")
             .withIndex("by_householdId", q => q.eq("householdId", householdId))
             .filter(q => q.eq(q.field("isRead"), false))
@@ -137,7 +129,7 @@ export const markAsRead = mutation({
 
     if (notif.householdId) {
          // Check household access
-         if (!await ensureHouseholdAccess(ctx, notif.householdId, identity.subject)) throw new Error("Unauthorized");
+         await ensureHouseholdAccess(ctx, notif.householdId, identity.subject);
     } else {
          if (notif.userId !== identity.subject) throw new Error("Unauthorized");
     }
@@ -154,7 +146,7 @@ export const markAllAsRead = mutation({
 
     let notifications;
     if (args.householdId) {
-        if (!await ensureHouseholdAccess(ctx, args.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
         notifications = await ctx.db.query("notifications")
             .withIndex("by_householdId", q => q.eq("householdId", args.householdId))
             .filter(q => q.eq(q.field("isRead"), false))

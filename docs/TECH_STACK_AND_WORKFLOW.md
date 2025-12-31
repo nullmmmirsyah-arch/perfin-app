@@ -7,9 +7,11 @@
 - **Language:** TypeScript.
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/).
 - **UI Library:** [shadcn/ui](https://ui.shadcn.com/) (based on Radix UI).
+- **Charts:** [Recharts](https://recharts.org/) (via shadcn/ui Charts).
 - **Icons:** [Lucide React](https://lucide.dev/).
 - **Forms:** `react-hook-form` + `zod`.
 - **Drawer/Dialog:** `vaul` (Drawer) for mobile-friendly sheets.
+- **Carousel:** `embla-carousel-react` (via shadcn/ui Carousel) for swipeable tabs.
 
 ### Backend (BaaS)
 - **Platform:** [Convex](https://convex.dev/).
@@ -46,9 +48,16 @@
         - If `householdId` is present -> Query by `by_householdId` index.
         - If `householdId` is missing -> Query by `by_userId` index (Personal).
 
-3.  **Triggers & Automation:**
+3.  **Centralized Logic (Important):**
+    - To maintain data consistency across Dashboard, Budget, and Transactions, core business logic is centralized in `convex/lib/`.
+    - **`convex/lib/finance.ts`:** Contains pure functions for calculating Spending, Unassigned Cash, and Transaction Analysis. **ALWAYS** use these helpers instead of re-writing logic in queries.
+    - **`convex/lib/auth.ts`:** Centralized authorization checks (`ensureHouseholdAccess`).
+    - **`convex/lib/constants.ts`:** Constants for Transaction Types, Category Types, Account Types, etc. **NEVER** use string literals (e.g., "expense") directly; import from constants.
+
+4.  **Triggers & Automation:**
     - We don't have DB triggers (like SQL). We use **Application-Level Triggers**.
     - *Example:* In `convex/transactions.ts`, inside the `create` and `update` mutation handler, we explicitly call `checkGoalProgress`.
+    - *Example:* "Auto-Create Zero Budget" logic runs inside transaction mutations to ensure every spending has a budget bucket.
 
 ## Directory Structure
 
@@ -68,6 +77,7 @@
 │   ├── transactions.ts  # Transaction logic
 │   ├── accounts.ts      # Account logic
 │   ├── budgets.ts       # Budget logic
+│   ├── lib/             # Shared Business Logic & Helpers (Finance, Auth, Constants)
 │   ├── push.ts          # Web Push Actions
 │   ├── notifications.ts # In-app notification logic
 │   └── _generated/      # Auto-generated Types

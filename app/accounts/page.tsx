@@ -252,28 +252,6 @@ export default function AccountsPage() {
       {/* SECTION 2: SAVINGS & ASSETS */}
       <div className="space-y-4">
         <div className="flex items-end justify-between border-b pb-2">
-            <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                💰 Savings & Assets
-                <span className="text-sm font-normal text-muted-foreground">({specialAccounts.length})</span>
-            </h2>
-            <div className="text-right">
-                <span className="text-sm text-muted-foreground block">Total Available</span>
-                <span className="text-xl font-bold">{formatCurrency(liquidTotal)}</span>
-            </div>
-        </div>
-        
-        <div className="space-y-2">
-            {liquidAccounts.length > 0 ? (
-                liquidAccounts.map(account => <AccountCard key={account._id} account={account} />)
-            ) : (
-                <p className="text-sm text-muted-foreground italic py-4">No cash accounts found.</p>
-            )}
-        </div>
-      </div>
-
-      {/* SECTION 2: SAVINGS & ASSETS */}
-      <div className="space-y-4">
-        <div className="flex items-end justify-between border-b pb-2">
             <h2 className="text-lg font-semibold flex items-center gap-2">
                 💰 Savings & Assets
                 <span className="text-sm font-normal text-muted-foreground">({specialAccounts.length})</span>

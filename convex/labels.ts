@@ -1,16 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-
-async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
-    const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-            q.eq("householdId", householdId).eq("userId", userId)
-        )
-        .first();
-    return !!member;
-}
+import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
 
 export const get = query({
   args: { householdId: v.optional(v.id("households")) },
@@ -19,7 +10,7 @@ export const get = query({
     if (!identity) throw new Error("Not authenticated");
     
     if (householdId) {
-        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) return [];
+        if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) return [];
         return await ctx.db.query("labels").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         return await ctx.db.query("labels").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
@@ -38,7 +29,7 @@ export const create = mutation({
     if (!identity) throw new Error("Not authenticated");
     
     if (args.householdId) {
-        if (!await ensureHouseholdAccess(ctx, args.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
     }
 
     const label = await ctx.db.insert("labels", {
@@ -64,7 +55,7 @@ export const update = mutation({
     if (!label) throw new Error("Label not found");
 
     if (label.householdId) {
-        if (!await ensureHouseholdAccess(ctx, label.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, label.householdId, identity.subject);
     } else {
         if (label.userId !== identity.subject) throw new Error("Unauthorized");
     }
@@ -84,7 +75,7 @@ export const deleteLabel = mutation({
     if (!label) throw new Error("Label not found");
 
     if (label.householdId) {
-        if (!await ensureHouseholdAccess(ctx, label.householdId, identity.subject)) throw new Error("Unauthorized");
+        await ensureHouseholdAccess(ctx, label.householdId, identity.subject);
     } else {
         if (label.userId !== identity.subject) throw new Error("Unauthorized");
     }

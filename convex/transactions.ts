@@ -1,8 +1,62 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
+import { calculateSpendingByCategory, AccountMap } from "./lib/finance";
+import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
+import { 
+  TRANSACTION_TYPES, 
+  CATEGORY_TYPES, 
+  ACCOUNT_TYPES, 
+  NOTIFICATION_TYPES,
+  GOAL_STATUS
+} from "./lib/constants";
 
 import { paginationOptsValidator } from "convex/server";
+
+// Helper: Ensure budget exists for a category in the transaction month
+async function ensureBudgetExists(
+    ctx: MutationCtx, 
+    categoryId: Id<"categories">, 
+    dateStr: string, 
+    userId: string, 
+    householdId?: Id<"households">
+) {
+    const date = new Date(dateStr);
+    const month = date.getMonth();
+    const year = date.getFullYear();
+
+    let existingBudget;
+    if (householdId) {
+        existingBudget = await ctx.db.query("budgets")
+            .withIndex("by_householdId_category_year_month", q => 
+                q.eq("householdId", householdId)
+                 .eq("categoryId", categoryId)
+                 .eq("year", year)
+                 .eq("month", month)
+            ).first();
+    } else {
+        existingBudget = await ctx.db.query("budgets")
+            .withIndex("by_user_category_year_month", q => 
+                q.eq("userId", userId)
+                 .eq("categoryId", categoryId)
+                 .eq("year", year)
+                 .eq("month", month)
+            ).first();
+    }
+
+    if (!existingBudget) {
+        // Auto-create Zero Budget
+        await ctx.db.insert("budgets", {
+            userId,
+            householdId,
+            categoryId,
+            amount: "0", // Zero budget to trigger overbudget status
+            year,
+            month,
+        });
+    }
+}
 
 export const get = query({
   args: {
@@ -18,7 +72,7 @@ export const get = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const { householdId, type, accountId, categoryId, labelId, dateRange, paginationOpts } = args;
+    const { householdId, accountId, categoryId, labelId, dateRange, paginationOpts } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -26,15 +80,7 @@ export const get = query({
 
     let query;
     if (householdId) {
-      const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-          q.eq("householdId", householdId).eq("userId", identity.subject)
-        )
-        .first();
-
-      if (!member) {
-        // Return empty page structure if not member
+      if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) {
         return { page: [], isDone: true, continueCursor: "" };
       }
 
@@ -50,9 +96,6 @@ export const get = query({
     if (accountId) {
       query = query.filter((q) => q.eq(q.field("accountId"), accountId));
     }
-    // categoryId filter removed to allow manual split filtering below
-    
-    // labelId filter removed to allow manual split filtering below
     
     if (dateRange?.start) {
       const start = dateRange.start;
@@ -64,34 +107,26 @@ export const get = query({
     }
 
     // Manual Pagination & Filtering Logic to support Split Labels
-    // 1. Fetch ALL transactions matching basic criteria (Date, Account, Type)
     const allCandidates = await query.order("desc").collect();
 
-    // 2. Filter in memory for Label AND Category (including splits)
     let filteredResults = allCandidates;
     
     if (labelId || categoryId) {
-        // console.log(`[Filter] Manual filtering active. Label: ${labelId}, Cat: ${categoryId}`);
         filteredResults = allCandidates.filter(t => {
-            // Check if Main Transaction matches ALL active filters
             const mainMatchesLabel = !labelId || String(t.labelId) === String(labelId);
             const mainMatchesCat = !categoryId || String(t.categoryId) === String(categoryId);
             const isMainMatch = mainMatchesLabel && mainMatchesCat;
 
-            // Check if ANY split item matches ALL active filters
-            const hasMatchingSplit = t.splits?.some((s: any) => {
+            const hasMatchingSplit = t.splits?.some(s => {
                 const splitMatchesLabel = !labelId || String(s.labelId) === String(labelId);
                 const splitMatchesCat = !categoryId || String(s.categoryId) === String(categoryId);
                 return splitMatchesLabel && splitMatchesCat;
             });
 
-            // Return true if main matches OR any split matches
             return isMainMatch || hasMatchingSplit;
         });
-        // console.log(`[Filter] Found ${filteredResults.length} matches`);
     }
 
-    // 3. Implement Manual Pagination Slicing
     const cursor = paginationOpts.cursor ? parseInt(paginationOpts.cursor) : 0;
     const limit = paginationOpts.numItems;
     
@@ -99,7 +134,6 @@ export const get = query({
     const isDone = cursor + limit >= filteredResults.length;
     const continueCursor = isDone ? "" : (cursor + limit).toString();
     
-    // Join with account names, labels, and categories
     const pageWithDetails = await Promise.all(
       pageResults.map(async (transaction) => {
         const fromAccount = await ctx.db.get(transaction.accountId);
@@ -115,7 +149,6 @@ export const get = query({
           ? await ctx.db.get(transaction.categoryId)
           : null;
 
-        // Join category names for splits if they exist
         const splitsWithDetails = transaction.splits 
           ? await Promise.all(transaction.splits.map(async (split) => {
               const splitCategory = await ctx.db.get(split.categoryId);
@@ -180,20 +213,12 @@ export const create = mutation({
     }
 
     if (args.householdId) {
-      const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-          q.eq("householdId", args.householdId!).eq("userId", identity.subject)
-        )
-        .first();
-      if (!member) {
-        throw new Error("Not a member of this household");
-      }
+      await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
     }
 
     const amount = parseFloat(args.amount.replace(/,/g, ''));
 
-    if (args.type === 'transfer') {
+    if (args.type === TRANSACTION_TYPES.TRANSFER) {
       if (!args.toAccountId) {
         throw new Error('To account is required for transfers');
       }
@@ -206,21 +231,17 @@ export const create = mutation({
       }
 
       // --- Asset Transaction Logic ---
-      const isFromAsset = fromAccount.type === 'ASSET';
-      const isToAsset = toAccount.type === 'ASSET';
+      const isFromAsset = fromAccount.type === ACCOUNT_TYPES.ASSET;
+      const isToAsset = toAccount.type === ACCOUNT_TYPES.ASSET;
 
       if (isFromAsset || isToAsset) {
-        // Validation for Asset Transfer
         const quantity = parseFloat(args.assetDetails?.quantity || '0');
         if (quantity <= 0) throw new Error('Quantity is required for asset transactions');
 
-        // Case A: Buying Asset (Cash -> Asset)
         if (!isFromAsset && isToAsset) {
-          // Debit Cash Account
           const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
           await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
 
-          // Credit Asset Account (Logic: Buy)
           const currentQty = toAccount.quantity ?? parseFloat(toAccount.initialQuantity || '0');
           const currentCostBasis = toAccount.totalCostBasis ?? 0;
           
@@ -228,8 +249,6 @@ export const create = mutation({
           const newCostBasis = currentCostBasis + amount;
           const impliedPrice = quantity > 0 ? amount / quantity : 0;
           
-          // Balance for Asset Account = Current Estimated Value (New Qty * Last Price)
-          // "Current Estimated Value: $1,600... Last Known Price was $80/g"
           const newEstimatedValue = newQty * impliedPrice;
 
           await ctx.db.patch(toAccount._id, {
@@ -238,32 +257,24 @@ export const create = mutation({
             balance: newEstimatedValue.toString(),
           });
         }
-        // Case B: Selling Asset (Asset -> Cash)
         else if (isFromAsset && !isToAsset) {
-          // Credit Cash Account (Logic: Receive Cash)
           const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
           await ctx.db.patch(toAccount._id, { balance: (toBalance + amount).toString() });
 
-          // Debit Asset Account (Logic: Sell/Profit Taking)
           const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
           const currentCostBasis = fromAccount.totalCostBasis ?? 0;
           const currentRealizedProfit = fromAccount.totalRealizedProfit ?? 0;
 
           if (currentQty < quantity) throw new Error('Insufficient asset quantity');
 
-          // "Average Cost: Total spent / Total quantity"
-          // We use the PRE-SALE average cost to determine cost basis of sold items.
           const avgCost = currentQty > 0 ? currentCostBasis / currentQty : 0;
-          
-          const sellPrice = quantity > 0 ? amount / quantity : 0; // Implied Price
+          const sellPrice = quantity > 0 ? amount / quantity : 0; 
           const costOfSoldGoods = avgCost * quantity;
-          const profit = amount - costOfSoldGoods; // Realized Profit
+          const profit = amount - costOfSoldGoods;
 
           const newQty = currentQty - quantity;
-          const newCostBasis = currentCostBasis - costOfSoldGoods; // Reduce cost basis proportionally
+          const newCostBasis = currentCostBasis - costOfSoldGoods; 
           const newRealizedProfit = currentRealizedProfit + profit;
-          
-          // "Current Estimated Value: 19g * $120" (New Qty * Sell Price)
           const newEstimatedValue = newQty * sellPrice;
 
           await ctx.db.patch(fromAccount._id, {
@@ -273,11 +284,7 @@ export const create = mutation({
             balance: newEstimatedValue.toString(),
           });
         }
-        // Case C: Asset to Asset (Not defined in PRD yet, block or treat as standard?)
-        // Treating as standard value transfer for now or throw error? 
-        // Let's assume standard value transfer if both are assets (rare case in current scope).
         else {
-           // Fallback to standard logic if complex asset-to-asset logic isn't defined
            const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
            const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
            await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
@@ -285,7 +292,6 @@ export const create = mutation({
         }
 
       } else {
-        // --- Standard Cash Transfer ---
         const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
         const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
 
@@ -301,9 +307,9 @@ export const create = mutation({
 
       const balance = parseFloat(account.balance.replace(/,/g, ''));
       let newBalance;
-      if (args.type === 'income') {
+      if (args.type === TRANSACTION_TYPES.INCOME) {
         newBalance = balance + amount;
-      } else { // expense
+      } else { 
         newBalance = balance - amount;
       }
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
@@ -315,24 +321,28 @@ export const create = mutation({
       householdId: args.householdId,
     });
 
-    // --- TRIGGER NOTIFICATION ---
+    if (args.isSplit && args.splits) {
+        for (const split of args.splits) {
+            await ensureBudgetExists(ctx, split.categoryId, args.date, identity.subject, args.householdId);
+        }
+    } 
+    else if ((args.type === TRANSACTION_TYPES.EXPENSE || args.type === TRANSACTION_TYPES.SAVING) && args.categoryId) {
+        await ensureBudgetExists(ctx, args.categoryId, args.date, identity.subject, args.householdId);
+    }
+    else if (args.type === TRANSACTION_TYPES.TRANSFER && args.categoryId) {
+         await ensureBudgetExists(ctx, args.categoryId, args.date, identity.subject, args.householdId);
+    }
+
     if (args.householdId) {
-      // 1. Get all household members
       const members = await ctx.db
         .query("householdMembers")
         .withIndex("by_householdId", (q) => q.eq("householdId", args.householdId!))
         .collect();
 
-      // 2. Identify the sender name (optional, ideally stored or fetched)
-      // For now we use generic "A member" or try to use identity info if available?
-      // Clerk identity usually has name, but identity object here is minimal wrapper.
-      // Let's assume generic message for now: "New transaction in [Household]"
-      
       const household = await ctx.db.get(args.householdId);
       const householdName = household?.name || "Household";
-      const txType = args.type === 'income' ? 'Income' : 'Expense';
+      const txType = args.type === TRANSACTION_TYPES.INCOME ? 'Income' : 'Expense';
       
-      // 3. Loop through members and send to everyone EXCEPT sender
       for (const member of members) {
         if (member.userId !== identity.subject) {
           await ctx.scheduler.runAfter(0, internal.push.sendNotification, {
@@ -344,7 +354,6 @@ export const create = mutation({
       }
     }
 
-    // --- CHECK GOAL PROGRESS ---
     if (args.categoryId) {
         await checkGoalProgress(ctx, args.categoryId, args.householdId, identity.subject);
     }
@@ -388,44 +397,31 @@ export const update = mutation({
       throw new Error("Original transaction not found");
     }
 
-    // Auth Check
     if (originalTransaction.householdId) {
-      const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-          q.eq("householdId", originalTransaction.householdId!).eq("userId", identity.subject)
-        )
-        .first();
-      if (!member) throw new Error("Unauthorized");
+      await ensureHouseholdAccess(ctx, originalTransaction.householdId, identity.subject);
     } else {
       if (originalTransaction.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
-    // ==========================================
-    // 1. REVERT ORIGINAL TRANSACTION EFFECTS
-    // ==========================================
     const originalAmount = parseFloat(originalTransaction.amount.replace(/,/g, ''));
     
-    if (originalTransaction.type === 'transfer') {
+    if (originalTransaction.type === TRANSACTION_TYPES.TRANSFER) {
       if (!originalTransaction.toAccountId) throw new Error("Invalid original transaction data");
 
       const fromAccount = await ctx.db.get(originalTransaction.accountId);
       const toAccount = await ctx.db.get(originalTransaction.toAccountId);
 
       if (fromAccount && toAccount) {
-         const isFromAsset = fromAccount.type === 'ASSET';
-         const isToAsset = toAccount.type === 'ASSET';
+         const isFromAsset = fromAccount.type === ACCOUNT_TYPES.ASSET;
+         const isToAsset = toAccount.type === ACCOUNT_TYPES.ASSET;
 
          if (isFromAsset || isToAsset) {
             const quantity = parseFloat(originalTransaction.assetDetails?.quantity || '0');
             
-            // Revert BUY (Cash -> Asset)
             if (!isFromAsset && isToAsset) {
-                // Credit Cash
                 const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
                 await ctx.db.patch(fromAccount._id, { balance: (fromBalance + originalAmount).toString() });
                 
-                // Debit Asset (Remove Qty & Cost)
                 const currentQty = toAccount.quantity ?? parseFloat(toAccount.initialQuantity || '0');
                 const currentCostBasis = toAccount.totalCostBasis ?? 0;
                 const newQty = Math.max(0, currentQty - quantity);
@@ -438,18 +434,14 @@ export const update = mutation({
                     balance: (newQty * currentPrice).toString()
                 });
             }
-            // Revert SELL (Asset -> Cash)
             else if (isFromAsset && !isToAsset) {
-                // Debit Cash
                 const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
                 await ctx.db.patch(toAccount._id, { balance: (toBalance - originalAmount).toString() });
 
-                // Credit Asset (Return Qty)
                 const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
                 const currentCostBasis = fromAccount.totalCostBasis ?? 0;
-                // Approx Cost Basis Restoration (Since we don't track profit per tx yet)
                 const newQty = currentQty + quantity;
-                const newCostBasis = currentCostBasis + originalAmount; // Conservative approx
+                const newCostBasis = currentCostBasis + originalAmount; 
                 const currentPrice = currentQty > 0 ? parseFloat(fromAccount.balance) / currentQty : 0;
 
                 await ctx.db.patch(fromAccount._id, {
@@ -459,7 +451,6 @@ export const update = mutation({
                 });
             }
          } else {
-             // Standard Transfer Revert
              const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
              const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
              await ctx.db.patch(fromAccount._id, { balance: (fromBalance + originalAmount).toString() });
@@ -467,28 +458,23 @@ export const update = mutation({
          }
       }
     } else {
-      // Revert Income/Expense
       const account = await ctx.db.get(originalTransaction.accountId);
       if (account) {
           const balance = parseFloat(account.balance.replace(/,/g, ''));
           let newBalance;
-          if (originalTransaction.type === 'income') {
+          if (originalTransaction.type === TRANSACTION_TYPES.INCOME) {
             newBalance = balance - originalAmount;
-          } else { // expense
+          } else { 
             newBalance = balance + originalAmount;
           }
           await ctx.db.patch(account._id, { balance: newBalance.toString() });
       }
     }
 
-    // ==========================================
-    // 2. APPLY NEW TRANSACTION EFFECTS
-    // ==========================================
-    // Construct the new state of the transaction
     const newTx = { ...originalTransaction, ...rest };
     const newAmount = parseFloat(newTx.amount.replace(/,/g, ''));
 
-    if (newTx.type === 'transfer') {
+    if (newTx.type === TRANSACTION_TYPES.TRANSFER) {
       if (!newTx.toAccountId) throw new Error("To account is required for transfers");
 
       const fromAccount = await ctx.db.get(newTx.accountId);
@@ -496,14 +482,13 @@ export const update = mutation({
 
       if (!fromAccount || !toAccount) throw new Error("Accounts not found");
 
-      const isFromAsset = fromAccount.type === 'ASSET';
-      const isToAsset = toAccount.type === 'ASSET';
+      const isFromAsset = fromAccount.type === ACCOUNT_TYPES.ASSET;
+      const isToAsset = toAccount.type === ACCOUNT_TYPES.ASSET;
 
       if (isFromAsset || isToAsset) {
           const quantity = parseFloat(newTx.assetDetails?.quantity || '0');
           if (quantity <= 0) throw new Error("Quantity required for asset transaction");
 
-          // Apply BUY (Cash -> Asset)
           if (!isFromAsset && isToAsset) {
               const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
               await ctx.db.patch(fromAccount._id, { balance: (fromBalance - newAmount).toString() });
@@ -520,7 +505,6 @@ export const update = mutation({
                   balance: (newQty * impliedPrice).toString()
               });
           }
-          // Apply SELL (Asset -> Cash)
           else if (isFromAsset && !isToAsset) {
               const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
               await ctx.db.patch(toAccount._id, { balance: (toBalance + newAmount).toString() });
@@ -548,7 +532,6 @@ export const update = mutation({
               });
           }
       } else {
-          // Standard Transfer Apply
           const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
           const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
           await ctx.db.patch(fromAccount._id, { balance: (fromBalance - newAmount).toString() });
@@ -556,24 +539,33 @@ export const update = mutation({
       }
 
     } else {
-      // Apply Income/Expense
       const account = await ctx.db.get(newTx.accountId);
       if (!account) throw new Error("Account not found");
 
       const balance = parseFloat(account.balance.replace(/,/g, ''));
       let newBalance;
-      if (newTx.type === 'income') {
+      if (newTx.type === TRANSACTION_TYPES.INCOME) {
         newBalance = balance + newAmount;
-      } else { // expense
+      } else { 
         newBalance = balance - newAmount;
       }
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
     }
 
-    // 3. Update Transaction Document
     await ctx.db.patch(id, rest);
 
-    // --- CHECK GOAL PROGRESS ---
+    if (newTx.isSplit && newTx.splits) {
+        for (const split of newTx.splits) {
+            await ensureBudgetExists(ctx, split.categoryId, newTx.date, identity.subject, newTx.householdId);
+        }
+    }
+    else if ((newTx.type === TRANSACTION_TYPES.EXPENSE || newTx.type === TRANSACTION_TYPES.SAVING) && newTx.categoryId) {
+        await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.householdId);
+    }
+    else if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.categoryId) {
+         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.householdId);
+    }
+
     if (newTx.categoryId) {
         await checkGoalProgress(ctx, newTx.categoryId, newTx.householdId, newTx.userId);
     }
@@ -593,23 +585,15 @@ export const deleteTransaction = mutation({
       throw new Error("Transaction not found");
     }
 
-    // Auth Check
     if (transaction.householdId) {
-      const member = await ctx.db
-        .query("householdMembers")
-        .withIndex("by_householdId_userId", (q) =>
-          q.eq("householdId", transaction.householdId!).eq("userId", identity.subject)
-        )
-        .first();
-      if (!member) throw new Error("Unauthorized");
+      await ensureHouseholdAccess(ctx, transaction.householdId, identity.subject);
     } else {
       if (transaction.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
     const amount = parseFloat(transaction.amount.replace(/,/g, ''));
 
-    // --- REVERT LOGIC ---
-    if (transaction.type === 'transfer') {
+    if (transaction.type === TRANSACTION_TYPES.TRANSFER) {
       if (!transaction.toAccountId) throw new Error('Invalid transfer transaction data');
 
       const fromAccount = await ctx.db.get(transaction.accountId);
@@ -617,32 +601,22 @@ export const deleteTransaction = mutation({
 
       if (!fromAccount || !toAccount) throw new Error('One or both accounts not found');
 
-      const isFromAsset = fromAccount.type === 'ASSET';
-      const isToAsset = toAccount.type === 'ASSET';
+      const isFromAsset = fromAccount.type === ACCOUNT_TYPES.ASSET;
+      const isToAsset = toAccount.type === ACCOUNT_TYPES.ASSET;
 
       if (isFromAsset || isToAsset) {
-        // Asset Reversal Logic
         const quantity = parseFloat(transaction.assetDetails?.quantity || '0');
-        if (quantity <= 0) console.warn("Deleting asset transaction with invalid quantity data");
-
-        // Case A: Reverting a BUY (Cash -> Asset)
+        
         if (!isFromAsset && isToAsset) {
-          // 1. Credit Cash Account (Give money back)
           const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
           await ctx.db.patch(fromAccount._id, { balance: (fromBalance + amount).toString() });
 
-          // 2. Debit Asset Account (Remove quantity and cost basis)
           const currentQty = toAccount.quantity ?? parseFloat(toAccount.initialQuantity || '0');
           const currentCostBasis = toAccount.totalCostBasis ?? 0;
 
           const newQty = Math.max(0, currentQty - quantity);
-          const newCostBasis = Math.max(0, currentCostBasis - amount); // Remove the cost added
+          const newCostBasis = Math.max(0, currentCostBasis - amount); 
           
-          // Recalculate estimated balance based on remaining qty
-          // We need an implied price. If we remove the transaction, we revert to previous state?
-          // It's hard to know exact "previous" price without history. 
-          // Best effort: Use current implied price or keep last known price?
-          // Strategy: Calculate current price, keep it constant, apply to new Qty.
           const currentPrice = currentQty > 0 ? parseFloat(toAccount.balance) / currentQty : 0;
           const newEstimatedValue = newQty * currentPrice;
 
@@ -652,81 +626,25 @@ export const deleteTransaction = mutation({
             balance: newEstimatedValue.toString(),
           });
         }
-        // Case B: Reverting a SELL (Asset -> Cash)
         else if (isFromAsset && !isToAsset) {
-          // 1. Debit Cash Account (Take money back)
           const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
           await ctx.db.patch(toAccount._id, { balance: (toBalance - amount).toString() });
 
-          // 2. Credit Asset Account (Return quantity)
           const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
           const currentCostBasis = fromAccount.totalCostBasis ?? 0;
 
-          // Re-calculate the profit that was realized in this transaction to un-realize it.
-          // We need the cost basis OF THE SOLD ITEMS at the time of sale.
-          // This is tricky because we don't store historical avg cost. 
-          // But we can approximate: realizedProfit = SaleAmount - (AvgCost * Qty)
-          // So: (AvgCost * Qty) = SaleAmount - RealizedProfit.
-          // Wait, we don't store individual transaction profit in the transaction doc currently.
-          // We only stored `amount` (Sale Value). 
-          
-          // CRITICAL FIX: We need to assume standard FIFO or Weighted Avg. 
-          // Since we can't perfectly know the historical Cost Basis removed, 
-          // we might have to rely on current avg cost or imperfect reversal if we don't track it.
-          // HOWEVER, for a simple app:
-          // We can try to deduce if we track profit? We don't track profit per Tx.
-          // Let's assume the profit impact was: SaleAmount - (OldAvgCost * Qty).
-          // Reversing it:
-          // NewCostBasis = CurrentCostBasis + (Estimated Cost of Goods Returned)
-          // NewRealizedProfit = CurrentRealizedProfit - (Estimated Profit Reversed)
-          
-          // Simplification for now:
-          // We just add back the Quantity. 
-          // And we need to add back the "Cost Basis" that was removed.
-          // If we don't know it, we are stuck.
-          // Ideally, we should have stored `costBasis` or `profit` in the transaction doc.
-          // Since we didn't, we will assume the Cost Basis to return is (CurrentAvgCost * Qty) 
-          // which is imperfect but safer than nothing.
-          
-          // BETTER APPROACH for "Perfect" Undo:
-          // Use the `assetDetails` in transaction to store `costBasisSnapshot` in future.
-          // For now, let's reverse using current Average Cost (best guess).
-          
           const newQty = currentQty + quantity;
-          
-          // We can't perfectly restore Cost Basis without history. 
-          // Let's assume we restore it proportionally to current? No, that propagates errors.
-          // Let's assume the "Profit" part of the Sale Amount is what we remove from Realized Profit.
-          // And (Sale Amount - Profit) is what we add back to Cost Basis.
-          // Since we don't know the profit, we might just have to accept a slight drift OR
-          // Assume 0 profit (Cost Basis = Sale Amount) if we want to be conservative? No.
-          
-          // Temporary Solution: 
-          // Add back Qty.
-          // Do NOT touch Cost Basis/Profit (safest to avoid corrupting data further),
-          // OR try to reverse based on current stats.
-          
-          // Let's try to reverse using implied logic:
-          // We effectively "buy back" the asset at the sale price? 
-          // That would reset Cost Basis to the Sale Price.
-          
-          const newCostBasis = currentCostBasis + amount; // This assumes 0 profit (conservative).
-          // If there was profit, we are inflating cost basis (bad).
-          
-          // Let's stick to "Add back Quantity" and update Balance.
-          // Ideally we update schema to store `profit` on transaction.
-          
+          const newCostBasis = currentCostBasis + amount; 
           const currentPrice = currentQty > 0 ? parseFloat(fromAccount.balance) / currentQty : 0;
           const newEstimatedValue = newQty * currentPrice;
 
           await ctx.db.patch(fromAccount._id, {
             quantity: newQty,
-            totalCostBasis: newCostBasis, // This is an approximation
+            totalCostBasis: newCostBasis, 
             balance: newEstimatedValue.toString(),
           });
         }
       } else {
-        // Standard Reversal
         const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
         const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
 
@@ -735,15 +653,14 @@ export const deleteTransaction = mutation({
       }
 
     } else {
-      // Income / Expense Reversal
       const account = await ctx.db.get(transaction.accountId);
       if (!account) throw new Error('Account not found');
 
       const balance = parseFloat(account.balance.replace(/,/g, ''));
       let newBalance;
-      if (transaction.type === 'income') {
+      if (transaction.type === TRANSACTION_TYPES.INCOME) {
         newBalance = balance - amount;
-      } else { // expense
+      } else { 
         newBalance = balance + amount;
       }
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
@@ -753,116 +670,59 @@ export const deleteTransaction = mutation({
   },
 });
 
-
-// Helper to check goal progress
-import { Doc, Id } from "./_generated/dataModel";
-import { MutationCtx } from "./_generated/server";
-
 async function checkGoalProgress(ctx: MutationCtx, categoryId: Id<"categories">, householdId: Id<"households"> | undefined, userId: string) {
-    // 1. Get Category
     const category = await ctx.db.get(categoryId);
-    // console.log(`[CheckGoal] Checking category: ${category?.name} (${categoryId})`);
     
-    if (!category || category.type !== 'saving' || !category.targetAmount) {
-        // console.log(`[CheckGoal] Skipped: Not a saving goal or no target.`);
+    if (!category || category.type !== CATEGORY_TYPES.SAVING || !category.targetAmount) {
         return;
     }
 
-    // 2. Calculate Total Accumulated
     let transactions;
     if (householdId) {
         transactions = await ctx.db.query("transactions")
-            .withIndex("by_householdId", q => q.eq("householdId", householdId))
-            .collect();
+            .withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         transactions = await ctx.db.query("transactions")
-            .withIndex("by_userId", q => q.eq("userId", userId))
-            .collect();
+            .withIndex("by_userId", q => q.eq("userId", userId)).collect();
     }
 
-    let accumulated = 0;
-    
-    // We need account types for transfer logic
     let accounts;
     if (householdId) {
         accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
     }
-    const accountTypeMap = new Map(accounts.map(a => [a._id, a.type || 'CASH']));
-    const isSpecial = (type: string) => type === 'ASSET' || type === 'SAVING';
+    const accountsMap: AccountMap = new Map(accounts.map(a => [a._id, a]));
 
-    transactions.forEach(t => {
-        const val = Math.abs(parseFloat(t.amount.replace(/,/g, '') || '0'));
-
-        // Case 1: Standard Accumulation
-        if ((t.type === 'expense' || t.type === 'saving') && String(t.categoryId) === String(categoryId)) {
-             accumulated += val;
-        }
-        
-        // Case 2: Split Transactions
-        if (t.isSplit && t.splits) {
-            t.splits.forEach(s => {
-                if (String(s.categoryId) === String(categoryId)) {
-                    accumulated += Math.abs(parseFloat(s.amount.replace(/,/g, '') || '0'));
-                }
-            });
-        }
-
-        // Case 3: Transfer Logic
-        if (t.type === 'transfer' && String(t.categoryId) === String(categoryId) && t.accountId && t.toAccountId) {
-            const sourceType = accountTypeMap.get(t.accountId) || 'CASH';
-            const destType = accountTypeMap.get(t.toAccountId) || 'CASH';
-            const sourceIsSpecial = isSpecial(sourceType);
-            const destIsSpecial = isSpecial(destType);
-
-            // Inflow: Liquid -> Special (Count as +)
-            if (!sourceIsSpecial && destIsSpecial) {
-                accumulated += val;
-            }
-            // Outflow: Special -> Liquid (Count as -)
-            if (sourceIsSpecial && !destIsSpecial) {
-                accumulated -= val;
-            }
-        }
-    });
+    const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
+    const accumulated = spendingMap[categoryId] || 0;
 
     const target = parseFloat(category.targetAmount.replace(/,/g, ''));
-    // console.log(`[CheckGoal] Accumulated: ${accumulated}, Target: ${target}`);
 
-    // 3. Check if Goal Reached
-    // Use a small epsilon for float comparison safety, or just >=
     if (accumulated >= target) {
-        // console.log(`[CheckGoal] Goal Reached!`);
         
-        if (category.status === 'achieved') {
-             // console.log(`[CheckGoal] Already achieved status.`);
+        if (category.status === GOAL_STATUS.ACHIEVED) {
              return;
         }
 
-        // Check if notification exists
         const existingNotif = await ctx.db.query("notifications")
             .withIndex("by_userId", q => q.eq("userId", userId))
-            .filter(q => q.eq(q.field("type"), "goal_reached"))
+            .filter(q => q.eq(q.field("type"), NOTIFICATION_TYPES.GOAL_REACHED))
             .collect();
         
-        // Filter in memory to match categoryId exactly
         const hasNotified = existingNotif.some(n => String(n.data?.categoryId) === String(categoryId));
         
         if (!hasNotified) {
-             // console.log(`[CheckGoal] Creating notification...`);
              await ctx.db.insert("notifications", {
                 userId,
                 householdId,
-                type: "goal_reached",
+                type: NOTIFICATION_TYPES.GOAL_REACHED,
                 title: "Goal Achieved! 🎉",
                 message: `You've reached your target for ${category.name}. Click here to process your goal funds.`,
                 data: { categoryId: categoryId },
                 isRead: false,
                 createdAt: Date.now(),
             });
-        } else {
-            // console.log(`[CheckGoal] Notification already exists.`);
         }
     }
 }
