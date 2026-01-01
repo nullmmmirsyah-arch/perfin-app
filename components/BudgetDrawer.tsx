@@ -50,6 +50,13 @@ type BudgetDrawerProps = {
   month: number;
 };
 
+const formatAmount = (value: string) => {
+  const cleanValue = value.replace(/[^\d.]/g, '');
+  const parts = cleanValue.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.length > 1 ? `${parts[0]}.${parts[1].slice(0, 2)}` : parts[0];
+};
+
 const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year, month }: BudgetDrawerProps) => {
   const { householdId } = useHousehold();
   const upsertBudget = useMutation(api.budgets.upsertBudget);
@@ -74,7 +81,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
     if (open) {
       form.reset({
         categoryId: defaultCategory?._id ?? '',
-        amount: currentAmount ?? '',
+        amount: currentAmount ? formatAmount(currentAmount) : '',
       });
     }
   }, [open, defaultCategory, currentAmount, form]);
@@ -84,7 +91,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
       await upsertBudget({
         householdId: householdId ?? undefined,
         categoryId: data.categoryId as Id<'categories'>,
-        amount: data.amount,
+        amount: data.amount.replace(/,/g, ''),
         year,
         month,
       });
@@ -119,7 +126,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
 
   const applySuggestion = (amount: number | string) => {
       if (!amount) return;
-      form.setValue('amount', amount.toString());
+      form.setValue('amount', formatAmount(amount.toString()));
   };
 
   return (
@@ -174,7 +181,15 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                             )}
                         </div>
                         <FormControl>
-                          <Input placeholder="e.g., 500.00" {...field} type="number" step="0.01" />
+                          <Input 
+                            placeholder="e.g., 500.00" 
+                            inputMode="decimal"
+                            {...field} 
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                field.onChange(formatAmount(value));
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
