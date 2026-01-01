@@ -359,11 +359,11 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
   return (
     <Form {...form}>
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent>
+        <DrawerContent className="max-h-dvh flex flex-col">
           <DrawerHeader>
             <DrawerTitle>{isEditMode ? 'Edit transaction' : 'Create a new transaction'}</DrawerTitle>
           </DrawerHeader>
-          <div className="p-4">
+          <div className="flex-1 overflow-y-auto p-4 pb-24">
             <Tabs value={transactionType} className="w-full" onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="expense">Expense</TabsTrigger>

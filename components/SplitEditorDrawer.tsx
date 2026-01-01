@@ -71,7 +71,7 @@ export const SplitEditorDrawer = ({ open, onOpenChange, form, categories, labels
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[96%]">
+      <DrawerContent className="h-[96%] flex flex-col">
         <DrawerHeader className="border-b px-4 py-3 flex items-center justify-between">
             <Button variant="ghost" size="sm" className="-ml-2" onClick={handleBack}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> Back
@@ -82,7 +82,7 @@ export const SplitEditorDrawer = ({ open, onOpenChange, form, categories, labels
             </Button>
         </DrawerHeader>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
             {/* Summary Card */}
             <div className="bg-muted/30 rounded-lg p-4 border space-y-2">
                 <div className="flex justify-between text-sm">
@@ -212,7 +212,7 @@ export const SplitEditorDrawer = ({ open, onOpenChange, form, categories, labels
             </Button>
             
             {/* Bottom spacer for mobile keyboard */}
-            <div className="h-40" />
+            {/*<div className="h-40" />*/}
         </div>
       </DrawerContent>
     </Drawer>
