@@ -56,8 +56,10 @@
 
 4.  **Triggers & Automation:**
     - We don't have DB triggers (like SQL). We use **Application-Level Triggers**.
-    - *Example:* In `convex/transactions.ts`, inside the `create` and `update` mutation handler, we explicitly call `checkGoalProgress`.
-    - *Example:* "Auto-Create Zero Budget" logic runs inside transaction mutations to ensure every spending has a budget bucket.
+    - **Account-Category Link:** Creating a `SAVING` or `ASSET` account triggers the creation of a linked `saving` category.
+    - **Auto-Categorization:** Transfer mutations check for destination accounts with `linkedCategoryId` to automatically assign the correct category.
+    - **Smart Auto-Budgeting:** Transaction mutations explicitly call `ensureBudgetExists` which now automatically creates a budget based on the transaction amount if none exists for that period.
+    - **Goal Progress:** Inside `create` and `update` transaction mutations, we explicitly call `checkGoalProgress` to trigger notifications.
 
 ## Directory Structure
 

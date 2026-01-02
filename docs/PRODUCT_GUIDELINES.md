@@ -13,13 +13,15 @@ This document outlines the design philosophy and user experience patterns used i
 ### 1. Navigation
 - **Mobile:** Bottom Navigation Bar (`BottomNav.tsx`).
 - **Desktop:** Sidebar (`Sidebar.tsx`).
-- **Tabs/Sections:** Use **Swipeable Tabs** (Carousel) for major view switches within a page.
+- **Contextual Selection:** Use **Tabs** at the top of forms for major mode switches (e.g., Transaction Type in `TransactionDrawer`, Account Type in `AccountDrawer`).
+- **Swipeable Tabs:** Use **Carousel** for major view switches within a page.
     - *Example:* Transactions Page (List <-> Analytics).
     - *Example:* Budgets Page (Expenses <-> Savings).
 
 ### 2. Forms & Data Entry
 - **Drawers (Sheet) over Modals:** Use `Drawer` (from `vaul`/shadcn) for almost all forms (Add Transaction, Edit Account, etc.).
 - **Nested Drawers:** For complex sub-forms (like **Split Transactions**), DO NOT expand the form inline. Open a second, nested Drawer. This prevents keyboard occlusion issues on mobile.
+- **Unified Account & Goal:** For Saving/Asset accounts, provide optional "Goal Settings" directly in the `AccountDrawer`. This allows users to set targets without leaving the account context.
 - **Auto-Save/Validation:** Use `react-hook-form` + `zod` for instant validation.
 
 ### 3. Feedback System

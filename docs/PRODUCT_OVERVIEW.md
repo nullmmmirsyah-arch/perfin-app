@@ -18,29 +18,25 @@
   - **Liquid (Cash/Bank):** Used for daily spending.
   - **Savings:** Non-liquid funds reserved for specific goals.
   - **Assets:** Track value of non-monetary items (Gold, Stocks) with Quantity/Unit support.
+- **Linked Goals:** Creating a **Saving** or **Asset** account automatically creates a linked category (Goal) with the same name.
+- **Unified Management:** Goal targets (amount and date) are managed directly within the Account management UI.
 - **Lifecycle:** Supports **Archiving/Closing** accounts.
-  - *Rule:* Accounts can only be closed if Balance is 0.
+  - *Rule:* Accounts can only be closed if Balance is 0. Closing an account automatically archives its linked goal.
 - **Separation:** UI separates Liquid Assets vs Long-term Assets.
 
 ### 3. Categories & Goals
 - **Types:** Expense, Income, Saving (Goal).
 - **Goal Logic:**
   - A category of type `saving` is treated as a **Goal**.
+  - **Implicit Coupling:** Most goals are implicitly linked to specific Saving/Asset accounts.
   - **Target:** Has `targetAmount` and `targetDate`.
   - **Accumulation Logic:** Calculated dynamically based on (Expenses + Net Transfers into this category).
 - **Lifecycle:**
   - **Active:** Normal usage.
   - **Achieved:** Goal met (handled via Wizard). Hidden from Budget list.
-  - **Archived:** Manually hidden.
+  - **Archived:** Manually hidden or automatically hidden when the linked account is closed.
 
-### 4. Goal Achievement Workflow (Unique Feature)
-System automatically detects when `Accumulated Amount >= Target Amount` via backend triggers.
-1.  **Notification:** User receives a "Goal Achieved" notification.
-2.  **Wizard (Dialog):**
-    - **Step 1:** Celebration & Action selection.
-    - **Step 2 (Disbursement):** Prompt to transfer funds from *Saving Account* to *Spending Account*. Transaction flagged as `isGoalDisbursement` to avoid messing up income/expense reports.
-    - **Step 3 (Cleanup):** Prompt to Close/Archive the now-empty Saving Account.
-3.  **Result:** Category status updated to `achieved`.
+...
 
 ### 5. Budgeting (Zero-Based Budgeting)
 - **Monthly Budgets:** Set limits per category per month.
@@ -48,25 +44,16 @@ System automatically detects when `Accumulated Amount >= Target Amount` via back
 - **Real-time Tracking:** Visual progress bars synced with Dashboard.
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
-    - **Auto-Create Zero Budget:** If a transaction is made to a category without a budget, the system automatically creates a budget with limit 0, instantly flagging it as "Over Budget" to alert the user.
+    - **Smart Auto-Budgeting:** If a transaction is made to a category without a budget, the system automatically creates a budget with the **transaction amount**. This prevents "false alarm" over-budget warnings while maintaining zero-based integrity.
 - **Sweep Feature:** Move leftover budget from previous month to current month/savings.
 
-### 6. Household & Collaboration
-- Users can create or join Households.
-- Data (Accounts, Transactions, Categories) is shared within the household context.
-- Member roles (Admin/Member).
-
-### 7. Dashboard
-- **Daily Operations:**
-    - **Remaining Monthly Budget:** Shows strict "Safe to Spend" amount (Limit - Spent) for Expenses only. Excludes Savings.
-    - **Unassigned Budget:** Displays available free cash flow side-by-side.
-- **Wealth & Goals:** Net worth tracking & Goal progress.
-- **Logic:** Centralized calculation logic ensures Dashboard numbers always match Budget Page numbers.
+...
 
 ## Business Logic Rules
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is available but dangerous.
 2.  **Transfers:**
     - Transfer between Liquid accounts = Neutral.
-    - Transfer Liquid -> Saving = "Spending" (allocating to goal).
+    - Transfer Liquid -> Saving/Asset = "Spending" (allocating to goal).
+    - **Auto-Categorization:** Transfers to accounts with linked categories automatically inherit that category for tracking progress.
     - Transfer Saving -> Liquid = "Income" (releasing funds), unless flagged as Disbursement.
     - **Buyback/Sell Asset:** Treated as Income (Capital + Profit) to Unassigned Cash (if recorded as split) or Net Reversal of Spending.
