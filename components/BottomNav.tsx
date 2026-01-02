@@ -17,9 +17,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import { Button } from '@/components/ui/button'
-import { ThemeToggle } from './ThemeToggle'
-import { Separator } from '@/components/ui/separator'
 import { useState } from 'react'
 
 export function BottomNav() {

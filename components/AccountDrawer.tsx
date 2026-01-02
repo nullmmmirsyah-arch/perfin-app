@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { z } from 'zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Doc } from '../convex/_generated/dataModel';
 import { useHousehold } from '@/components/HouseholdProvider';
@@ -24,13 +24,13 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const AccountFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -40,15 +40,12 @@ const AccountFormSchema = z.object({
   type: z.enum(['CASH', 'ASSET', 'SAVING']),
   initialQuantity: z.string().optional(),
   unit: z.string().optional(),
+  targetAmount: z.string().optional(),
+  targetDate: z.date().optional(),
+  enableGoal: z.boolean().optional(),
 });
 
-type AccountFormValues = {
-  name: string;
-  balance: string;
-  type: 'CASH' | 'ASSET' | 'SAVING';
-  initialQuantity?: string;
-  unit?: string;
-};
+type AccountFormValues = z.infer<typeof AccountFormSchema>;
 
 type AccountDrawerProps = {
   open: boolean;
@@ -67,6 +64,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
   const { householdId } = useHousehold();
   const createAccount = useMutation(api.accounts.create);
   const updateAccount = useMutation(api.accounts.update);
+  const categories = useQuery(api.categories.get, { householdId: householdId ?? undefined, showArchived: true });
 
   const isEditMode = !!account;
 
@@ -78,17 +76,29 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
       type: 'CASH',
       initialQuantity: '',
       unit: '',
+      targetAmount: '',
+      targetDate: undefined,
+      enableGoal: false,
     },
   });
 
+  const accountType = useWatch({ control: form.control, name: 'type' });
+  const enableGoal = useWatch({ control: form.control, name: 'enableGoal' });
+
   useEffect(() => {
     if (open && isEditMode && account) {
+      // Find linked category to prepopulate goal data
+      const linkedCategory = categories?.find(c => c._id === account.linkedCategoryId);
+      
       form.reset({
         name: account.name,
         balance: account.balance,
         type: (account.type as 'CASH' | 'ASSET' | 'SAVING') || 'CASH',
         initialQuantity: account.initialQuantity || '',
         unit: account.unit || '',
+        targetAmount: linkedCategory?.targetAmount || '',
+        targetDate: linkedCategory?.targetDate ? new Date(linkedCategory.targetDate) : undefined,
+        enableGoal: !!linkedCategory?.targetAmount, // Enable if target exists
       });
     } else if (open && !isEditMode) {
       form.reset({
@@ -97,37 +107,37 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         type: 'CASH',
         initialQuantity: '',
         unit: '',
+        targetAmount: '',
+        targetDate: undefined,
+        enableGoal: false,
       });
     }
-  }, [open, isEditMode, account, form]);
+  }, [open, isEditMode, account, form, categories]);
 
   const onSubmit = (data: AccountFormValues) => {
-    if (isEditMode && account) {
-      updateAccount({
-        id: account._id,
+    const payload = {
         name: data.name,
         balance: data.balance,
         type: data.type,
         initialQuantity: data.initialQuantity,
         unit: data.unit,
+        targetAmount: data.enableGoal ? data.targetAmount : undefined,
+        targetDate: data.enableGoal && data.targetDate ? data.targetDate.toISOString() : undefined,
+    };
+
+    if (isEditMode && account) {
+      updateAccount({
+        id: account._id,
+        ...payload,
       });
     } else {
       createAccount({
         householdId: householdId ?? undefined,
-        name: data.name,
-        balance: data.balance,
-        type: data.type,
-        initialQuantity: data.initialQuantity,
-        unit: data.unit,
+        ...payload,
       });
     }
     onOpenChange(false);
   };
-
-  const accountType = useWatch({
-    control: form.control,
-    name: 'type',
-  });
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -135,9 +145,33 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         <DrawerHeader>
           <DrawerTitle>{isEditMode ? 'Edit Account' : 'Create a new Account'}</DrawerTitle>
         </DrawerHeader>
-        <div className="p-4">
+        <div className="p-4 pt-0">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                        <Tabs 
+                            value={field.value} 
+                            onValueChange={(val) => field.onChange(val as 'CASH' | 'ASSET' | 'SAVING')} 
+                            className="w-full"
+                        >
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="CASH">Cash</TabsTrigger>
+                                <TabsTrigger value="SAVING">Saving</TabsTrigger>
+                                <TabsTrigger value="ASSET">Asset</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="name"
@@ -147,28 +181,6 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                     <FormControl>
                       <Input placeholder="e.g., Wallet" {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Account Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select account type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="CASH">Cash (Standard)</SelectItem>
-                        <SelectItem value="ASSET">Asset (Gold, Stock, etc.)</SelectItem>
-                        <SelectItem value="SAVING">Saving / Goal</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -232,7 +244,95 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                   </FormItem>
                 )}
               />
-              <DrawerFooter>
+
+              {/* Goal Settings Section */}
+              {(accountType === 'SAVING' || accountType === 'ASSET') && (
+                  <div className="border rounded-md p-3 bg-muted/20 space-y-3">
+                      <FormField
+                        control={form.control}
+                        name="enableGoal"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg p-0 space-y-0">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Set Goal Target</FormLabel>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                      />
+                      
+                      {enableGoal && (
+                          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 pt-2">
+                               <FormField
+                                    control={form.control}
+                                    name="targetAmount"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs">Target Amount</FormLabel>
+                                        <FormControl>
+                                        <Input 
+                                            className="h-8"
+                                            placeholder="0" 
+                                            {...field}
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                field.onChange(formatNumber(value));
+                                            }} 
+                                        />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="targetDate"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel className="text-xs">Target Date</FormLabel>
+                                        <Popover>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                            <Button
+                                                variant={"outline"}
+                                                className={cn(
+                                                "w-full h-8 pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                                )}
+                                            >
+                                                {field.value ? format(field.value, "PP") : <span>Pick date</span>}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            disabled={(date) =>
+                                                date < new Date("1900-01-01")
+                                            }
+                                            initialFocus
+                                            />
+                                        </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                          </div>
+                      )}
+                  </div>
+              )}
+
+              <DrawerFooter className="px-0">
                 <Button type="submit">Save changes</Button>
                 <DrawerClose asChild>
                   <Button variant="outline">Cancel</Button>

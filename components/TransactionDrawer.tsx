@@ -36,8 +36,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Doc, Id } from '../convex/_generated/dataModel';
@@ -248,7 +247,7 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     }
   }, [open, isEditMode, transaction, form]);
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, replace } = useFieldArray({
     control: form.control,
     name: 'splits',
   });
@@ -318,10 +317,6 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     control: form.control,
     name: 'isSplit',
   });
-  const amount = useWatch({
-    control: form.control,
-    name: 'amount',
-  });
   const splits = useWatch({
     control: form.control,
     name: 'splits',
@@ -337,7 +332,6 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
 
 
   const allocated = splits?.reduce((acc, split) => acc + parseFloat(split.amount?.replace(/,/g, '') || '0'), 0) || 0;
-  const remaining = parseFloat(amount?.replace(/,/g, '') || '0') - allocated;
 
   const handleTabChange = (value: string) => {
     form.setValue('type', value as 'expense' | 'income' | 'transfer');
@@ -642,8 +636,17 @@ const TransactionFormFields = ({
 const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseFormReturn<TransactionFormValues>, accounts: Doc<'accounts'>[], labels: Doc<'labels'>[], categories: Doc<'categories'>[] }) => {
   const fromAccountId = useWatch({ control: form.control, name: 'accountId' });
   const toAccountId = useWatch({ control: form.control, name: 'toAccountId' });
-  const amount = useWatch({ control: form.control, name: 'amount' });
   const quantity = useWatch({ control: form.control, name: 'assetDetails.quantity' });
+
+  // Prefill category if destination account has a linked category
+  useEffect(() => {
+    if (toAccountId) {
+      const destAccount = accounts.find(a => a._id === toAccountId);
+      if (destAccount?.linkedCategoryId) {
+        form.setValue('categoryId', destAccount.linkedCategoryId);
+      }
+    }
+  }, [toAccountId, accounts, form]);
 
   const fromAccount = accounts.find(a => a._id === fromAccountId);
   const toAccount = accounts.find(a => a._id === toAccountId);
@@ -666,6 +669,7 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
     amountLabel = 'Total Sale Value'; // Sell
   }
 
+  const amount = useWatch({ control: form.control, name: 'amount' });
   const parsedAmount = parseFloat(amount?.replace(/,/g, '') || '0');
   const parsedQuantity = parseFloat(quantity || '0');
   const impliedPrice = parsedQuantity > 0 ? parsedAmount / parsedQuantity : 0;

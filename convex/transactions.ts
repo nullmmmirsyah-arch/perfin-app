@@ -20,6 +20,7 @@ async function ensureBudgetExists(
     categoryId: Id<"categories">, 
     dateStr: string, 
     userId: string, 
+    amount: string, // Accept transaction amount
     householdId?: Id<"households">
 ) {
     const date = new Date(dateStr);
@@ -46,12 +47,12 @@ async function ensureBudgetExists(
     }
 
     if (!existingBudget) {
-        // Auto-create Zero Budget
+        // Auto-create Budget with the transaction amount to prevent "Over Budget" alarm
         await ctx.db.insert("budgets", {
             userId,
             householdId,
             categoryId,
-            amount: "0", // Zero budget to trigger overbudget status
+            amount: amount.replace(/,/g, ''), 
             year,
             month,
         });
@@ -216,6 +217,16 @@ export const create = mutation({
       await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
     }
 
+    let finalCategoryId = args.categoryId;
+
+    // --- AUTO-CATEGORIZE Logic ---
+    if (args.type === TRANSACTION_TYPES.TRANSFER && args.toAccountId && !finalCategoryId) {
+        const destAccount = await ctx.db.get(args.toAccountId as Id<"accounts">);
+        if (destAccount?.linkedCategoryId) {
+            finalCategoryId = destAccount.linkedCategoryId;
+        }
+    }
+
     const amount = parseFloat(args.amount.replace(/,/g, ''));
 
     if (args.type === TRANSACTION_TYPES.TRANSFER) {
@@ -317,20 +328,21 @@ export const create = mutation({
 
     const transaction = await ctx.db.insert("transactions", {
       ...args,
+      categoryId: finalCategoryId as Id<"categories"> | undefined,
       userId: identity.subject,
       householdId: args.householdId,
     });
 
     if (args.isSplit && args.splits) {
         for (const split of args.splits) {
-            await ensureBudgetExists(ctx, split.categoryId, args.date, identity.subject, args.householdId);
+            await ensureBudgetExists(ctx, split.categoryId, args.date, identity.subject, split.amount, args.householdId);
         }
     } 
-    else if ((args.type === TRANSACTION_TYPES.EXPENSE || args.type === TRANSACTION_TYPES.SAVING) && args.categoryId) {
-        await ensureBudgetExists(ctx, args.categoryId, args.date, identity.subject, args.householdId);
+    else if ((args.type === TRANSACTION_TYPES.EXPENSE || args.type === TRANSACTION_TYPES.SAVING) && finalCategoryId) {
+        await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId);
     }
-    else if (args.type === TRANSACTION_TYPES.TRANSFER && args.categoryId) {
-         await ensureBudgetExists(ctx, args.categoryId, args.date, identity.subject, args.householdId);
+    else if (args.type === TRANSACTION_TYPES.TRANSFER && finalCategoryId) {
+         await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId);
     }
 
     if (args.householdId) {
@@ -354,8 +366,8 @@ export const create = mutation({
       }
     }
 
-    if (args.categoryId) {
-        await checkGoalProgress(ctx, args.categoryId, args.householdId, identity.subject);
+    if (finalCategoryId) {
+        await checkGoalProgress(ctx, finalCategoryId as Id<"categories">, args.householdId, identity.subject);
     }
 
     return transaction;
@@ -472,6 +484,16 @@ export const update = mutation({
     }
 
     const newTx = { ...originalTransaction, ...rest };
+    let finalCategoryId = newTx.categoryId;
+
+    // --- AUTO-CATEGORIZE Logic for Update ---
+    if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.toAccountId && !finalCategoryId) {
+        const destAccount = await ctx.db.get(newTx.toAccountId as Id<"accounts">);
+        if (destAccount?.linkedCategoryId) {
+            finalCategoryId = destAccount.linkedCategoryId;
+        }
+    }
+
     const newAmount = parseFloat(newTx.amount.replace(/,/g, ''));
 
     if (newTx.type === TRANSACTION_TYPES.TRANSFER) {
@@ -552,18 +574,18 @@ export const update = mutation({
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
     }
 
-    await ctx.db.patch(id, rest);
+    await ctx.db.patch(id, { ...rest, categoryId: finalCategoryId });
 
     if (newTx.isSplit && newTx.splits) {
         for (const split of newTx.splits) {
-            await ensureBudgetExists(ctx, split.categoryId, newTx.date, identity.subject, newTx.householdId);
+            await ensureBudgetExists(ctx, split.categoryId, newTx.date, identity.subject, split.amount, newTx.householdId);
         }
     }
     else if ((newTx.type === TRANSACTION_TYPES.EXPENSE || newTx.type === TRANSACTION_TYPES.SAVING) && newTx.categoryId) {
-        await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.householdId);
+        await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId);
     }
     else if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.categoryId) {
-         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.householdId);
+         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId);
     }
 
     if (newTx.categoryId) {

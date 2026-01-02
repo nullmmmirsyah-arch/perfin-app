@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal, Trash2, Edit, ChevronDown } from 'lucide-react'
-import { Doc, Id } from '../convex/_generated/dataModel'
 import { TransactionWithDetails } from './transactions/types'
 
 export function TransactionItem({ 

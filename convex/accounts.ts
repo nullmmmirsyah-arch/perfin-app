@@ -1,8 +1,8 @@
 import { v } from "convex/values";
-import { mutation, query, QueryCtx } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
-import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES } from "./lib/constants";
+import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES, GOAL_STATUS } from "./lib/constants";
 
 export const get = query({
   args: { 
@@ -36,6 +36,8 @@ export const create = mutation({
     type: v.optional(v.string()),
     initialQuantity: v.optional(v.string()),
     unit: v.optional(v.string()),
+    targetAmount: v.optional(v.string()),
+    targetDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -45,9 +47,29 @@ export const create = mutation({
         await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
     }
 
+    let linkedCategoryId: Id<"categories"> | undefined;
+
+    // Auto-create linked category for Savings/Assets
+    if (args.type === ACCOUNT_TYPES.SAVING || args.type === ACCOUNT_TYPES.ASSET) {
+        linkedCategoryId = await ctx.db.insert("categories", {
+            userId: identity.subject,
+            householdId: args.householdId,
+            name: args.name,
+            type: CATEGORY_TYPES.SAVING,
+            targetAmount: args.targetAmount,
+            targetDate: args.targetDate,
+        });
+    }
+
     const accountId = await ctx.db.insert("accounts", {
-      ...args,
+      householdId: args.householdId,
+      name: args.name,
+      balance: args.balance,
+      type: args.type,
+      initialQuantity: args.initialQuantity,
+      unit: args.unit,
       userId: identity.subject,
+      linkedCategoryId,
     });
 
     // Create Initial Balance Transaction if balance > 0
@@ -97,12 +119,14 @@ export const update = mutation({
     type: v.optional(v.string()),
     initialQuantity: v.optional(v.string()),
     unit: v.optional(v.string()),
+    targetAmount: v.optional(v.string()),
+    targetDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, ...rest } = args;
+    const { id, targetAmount, targetDate, ...rest } = args;
     const account = await ctx.db.get(id);
     if (!account) throw new Error("Account not found");
 
@@ -112,7 +136,34 @@ export const update = mutation({
         if (account.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(id, rest);
+    if (args.name && account.linkedCategoryId) {
+        await ctx.db.patch(account.linkedCategoryId, { 
+            name: args.name,
+            targetAmount: targetAmount ?? undefined, // Only update if provided
+            targetDate: targetDate ?? undefined
+        });
+    } else if (account.linkedCategoryId && (targetAmount !== undefined || targetDate !== undefined)) {
+         await ctx.db.patch(account.linkedCategoryId, { 
+            targetAmount: targetAmount ?? undefined,
+            targetDate: targetDate ?? undefined
+        });
+    }
+
+    // If type changed to SAVING/ASSET and no category linked yet, create it
+    let newLinkedCategoryId = account.linkedCategoryId;
+    const newType = args.type || account.type;
+    if (!newLinkedCategoryId && (newType === ACCOUNT_TYPES.SAVING || newType === ACCOUNT_TYPES.ASSET)) {
+        newLinkedCategoryId = await ctx.db.insert("categories", {
+            userId: identity.subject,
+            householdId: account.householdId,
+            name: args.name || account.name,
+            type: CATEGORY_TYPES.SAVING,
+            targetAmount: targetAmount,
+            targetDate: targetDate,
+        });
+    }
+
+    await ctx.db.patch(id, { ...rest, linkedCategoryId: newLinkedCategoryId });
   },
 });
 
@@ -157,5 +208,9 @@ export const archiveAccount = mutation({
     }
 
     await ctx.db.patch(args.id, { isArchived: true });
+
+    if (account.linkedCategoryId) {
+        await ctx.db.patch(account.linkedCategoryId, { isArchived: true, status: GOAL_STATUS.ARCHIVED });
+    }
   },
 });

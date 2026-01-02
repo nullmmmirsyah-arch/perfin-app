@@ -6,22 +6,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function groupTransactionsByDate(transactions: any[]) {
+interface TransactionMinimal {
+  date: string;
+  [key: string]: unknown;
+}
+
+export function groupTransactionsByDate<T extends TransactionMinimal>(transactions: T[]) {
   if (!transactions) return {};
 
-  const groups: Record<string, any[]> = {};
+  const groups: Record<string, T[]> = {};
 
   transactions.forEach((transaction) => {
     const date = new Date(transaction.date);
-    let dateKey = format(date, 'yyyy-MM-dd');
     let displayDate = format(date, 'dd MMM yyyy');
 
     if (isToday(date)) {
       displayDate = 'Today';
-      dateKey = 'today'; // Ensure Today is always first if sorting keys
     } else if (isYesterday(date)) {
       displayDate = 'Yesterday';
-      dateKey = 'yesterday';
     }
 
     if (!groups[displayDate]) {

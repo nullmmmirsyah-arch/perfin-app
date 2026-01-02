@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../convex/_generated/api'
-import { Doc, Id } from '../convex/_generated/dataModel'
+import { Id } from '../convex/_generated/dataModel'
 import {
   Dialog,
   DialogContent,
@@ -62,11 +62,14 @@ export default function GoalAchievementDialog({
   // Reset state when categoryId changes or dialog opens
   useEffect(() => {
     if (open) {
-        setStep('intro')
-        setSourceAccountId('')
-        setDestAccountId('')
-        setTransferAmount('')
-        setActionForAccount('keep')
+        const timer = setTimeout(() => {
+            setStep('intro')
+            setSourceAccountId('')
+            setDestAccountId('')
+            setTransferAmount('')
+            setActionForAccount('keep')
+        }, 0)
+        return () => clearTimeout(timer)
     }
   }, [categoryId, open])
 
@@ -112,8 +115,8 @@ export default function GoalAchievementDialog({
           
           toast.success("Funds transferred successfully!")
           setStep('cleanup')
-      } catch (e: any) {
-          toast.error(e.message)
+      } catch (e: unknown) {
+          toast.error(e instanceof Error ? e.message : "Transfer failed")
       }
   }
 
@@ -126,8 +129,8 @@ export default function GoalAchievementDialog({
           try {
              await archiveAccount({ id: sourceAccountId as Id<"accounts"> })
              toast.success("Source account closed")
-          } catch (e: any) {
-             toast.error(`Could not close account: ${e.message}`)
+          } catch (e: unknown) {
+             toast.error(`Could not close account: ${e instanceof Error ? e.message : "Unknown error"}`)
           }
       }
 
@@ -148,7 +151,7 @@ export default function GoalAchievementDialog({
                 </div>
                 <DialogTitle className="text-center text-xl">Goal Achieved!</DialogTitle>
                 <DialogDescription className="text-center">
-                    Congratulations! You've reached your target for <strong>{category.name}</strong>.
+                    Congratulations! You&apos;ve reached your target for <strong>{category.name}</strong>.
                     <br/>
                     What would you like to do with the funds?
                 </DialogDescription>
@@ -233,18 +236,18 @@ export default function GoalAchievementDialog({
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label>Source Account Action</Label>
-                        <Select value={actionForAccount} onValueChange={(v: any) => setActionForAccount(v)}>
+                        <Select value={actionForAccount} onValueChange={(v: 'keep' | 'close') => setActionForAccount(v)}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="keep">Keep it active (I will use it again)</SelectItem>
-                                <SelectItem value="close">Close/Archive it (I'm done with it)</SelectItem>
+                                <SelectItem value="close">Close/Archive it (I&apos;m done with it)</SelectItem>
                             </SelectContent>
                         </Select>
                         {actionForAccount === 'close' && (
                              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                                Note: Account can only be closed if balance is 0. If you didn't transfer everything, it might fail.
+                                Note: Account can only be closed if balance is 0. If you didn&apos;t transfer everything, it might fail.
                              </p>
                         )}
                     </div>

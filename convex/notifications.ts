@@ -1,8 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query, internalQuery, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
-import { NOTIFICATION_TYPES } from "./lib/constants";
 
 export const getSubscriptions = internalQuery({
   args: { userId: v.string() },

@@ -67,6 +67,7 @@ export default defineSchema({
     totalCostBasis: v.optional(v.number()),
     totalRealizedProfit: v.optional(v.number()),
     isArchived: v.optional(v.boolean()),
+    linkedCategoryId: v.optional(v.id("categories")),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),

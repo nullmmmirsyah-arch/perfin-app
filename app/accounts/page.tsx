@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Trash2, Edit, Archive, History } from 'lucide-react'
+import { MoreHorizontal, Trash2, Edit, Archive } from 'lucide-react'
 import AccountDrawer from '@/components/AccountDrawer'
 import {
   AlertDialog,
@@ -67,7 +67,7 @@ export default function AccountsPage() {
       try {
         await deleteAccount({ id: accountToDelete._id })
         toast.success("Account deleted")
-      } catch (error: any) {
+      } catch {
         toast.error("Failed to delete account")
       }
       setAccountToDelete(undefined)
@@ -79,8 +79,8 @@ export default function AccountsPage() {
         try {
             await archiveAccount({ id: accountToClose._id })
             toast.success("Account closed/archived")
-        } catch (error: any) {
-            toast.error(error.message || "Failed to close account")
+        } catch {
+            toast.error("Failed to close account")
         }
         setAccountToClose(undefined)
     }

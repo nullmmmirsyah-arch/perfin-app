@@ -1,20 +1,17 @@
 import React from 'react';
-import { useFieldArray, UseFormReturn } from 'react-hook-form';
-import { Doc, Id } from '../convex/_generated/dataModel';
+import { useFieldArray, UseFormReturn, FieldValues } from 'react-hook-form';
+import { Doc } from '../convex/_generated/dataModel';
 import { Button } from '@/components/ui/button';
 import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-  DrawerFooter,
-  DrawerClose,
 } from '@/components/ui/drawer';
 import {
   FormControl,
   FormField,
   FormItem,
-  FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,19 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PlusCircle, Trash2, ArrowLeft, Check } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Reusing types from TransactionDrawer parent context if possible, 
+// Reusing types from TransactionDrawer parent context if possible,
 // but for clarity we define what we need.
 type SplitEditorDrawerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  form: UseFormReturn<any>; // Using any to avoid circular dependency mess, but should be TransactionFormValues
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  form: UseFormReturn<any>;
   categories: Doc<'categories'>[];
   labels: Doc<'labels'>[];
 };
-
 const formatNumber = (value: string | undefined) => {
   if (!value) return '';
   const parsed = parseFloat(value.replace(/,/g, ''));
@@ -50,22 +47,17 @@ export const SplitEditorDrawer = ({ open, onOpenChange, form, categories, labels
     name: 'splits',
   });
 
-  const amount = form.watch('amount');
-  const splits = form.watch('splits');
+  const amount = form.watch('amount') as string | undefined;
+  const splits = form.watch('splits') as { amount: string }[] | undefined;
 
-  const allocated = splits?.reduce((acc: number, split: any) => acc + parseFloat(split.amount?.replace(/,/g, '') || '0'), 0) || 0;
+  const allocated = splits?.reduce((acc: number, split) => acc + parseFloat(split.amount?.replace(/,/g, '') || '0'), 0) || 0;
   const remaining = parseFloat(amount?.replace(/,/g, '') || '0') - allocated;
 
   const handleDone = () => {
-      // Basic validation? Or let parent handle it on submit.
-      // Parent form schema handles validation (Total match).
       onOpenChange(false);
   };
 
   const handleBack = () => {
-      // Maybe revert changes? Or just close.
-      // Current behavior: Just close (keep changes).
-      // If user wants to cancel split, they should toggle the checkbox in parent.
       onOpenChange(false);
   };
 
