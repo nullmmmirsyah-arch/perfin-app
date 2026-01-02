@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Info } from 'lucide-react';
+import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export type BudgetBreakdownItem = {
   categoryName: string;
@@ -27,7 +29,76 @@ type Props = {
   summary: SummaryData | undefined | null;
 };
 
+const BudgetRow = ({ item, daysRemaining }: { item: BudgetBreakdownItem, daysRemaining: number }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
+    const isOver = item.spent > item.limit;
+    
+    // Per-category Safe Spend Logic
+    // If over budget, safe spend is 0 (or negative technically, but 0 makes sense for "safe")
+    const safeSpend = Math.max(0, item.remaining) / daysRemaining;
+
+    return (
+        <div 
+            className="flex flex-col gap-1.5 pb-2 cursor-pointer group"
+            onClick={() => setIsOpen(!isOpen)}
+        >
+            <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors flex items-center gap-1">
+                    {item.categoryName}
+                    {isOpen ? <ChevronUp className="h-3 w-3 opacity-50" /> : <ChevronDown className="h-3 w-3 opacity-50" />}
+                </span>
+                <span className={cn(
+                    "font-bold text-xs",
+                    isOver ? "text-destructive" : "text-primary"
+                )}>
+                    {isOver
+                    ? `Over ${(item.spent - item.limit).toLocaleString()}`
+                    : `${item.remaining.toLocaleString()} left`
+                    }
+                </span>
+            </div>
+            
+            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                    className={cn("h-full rounded-full transition-all duration-500", isOver ? "bg-destructive" : "bg-primary")}
+                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                />
+            </div>
+            
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{Math.round(percentage)}%</span>
+                <span>{item.spent.toLocaleString()} / {item.limit.toLocaleString()}</span>
+            </div>
+
+            {/* Expanded Insight */}
+            {isOpen && !isOver && item.remaining > 0 && (
+                <div className="mt-1 p-2 bg-primary/5 rounded-md border border-primary/10 animate-in slide-in-from-top-1 fade-in">
+                    <div className="flex justify-between items-center text-xs">
+                        <span className="text-primary font-medium flex items-center gap-1.5">
+                            <CalendarClock className="h-3 w-3" /> Safe Daily:
+                        </span>
+                        <span className="font-bold text-primary">
+                            ~{safeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} / day
+                        </span>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 export function DailyOperationsCard({ summary }: Props) {
+  // Insight Logic
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysPassed = now.getDate();
+  const daysRemaining = daysInMonth - daysPassed + 1; // Include today
+  
+  const remainingBudget = summary?.remainingBudget || 0;
+  const dailySafeSpend = remainingBudget > 0 ? remainingBudget / daysRemaining : 0;
+
   return (
     <Card className="w-full h-full">
       <CardHeader className="pb-2">
@@ -48,11 +119,18 @@ export function DailyOperationsCard({ summary }: Props) {
             <div className="flex items-start justify-between mb-2">
                 <div>
                     <div className="text-2xl font-bold text-primary">
-                        {summary?.remainingBudget.toLocaleString() ?? '...'}
+                        {remainingBudget.toLocaleString() ?? '...'}
                     </div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
-                        Monthly Budget Left
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                            Monthly Budget Left
+                        </p>
+                        {remainingBudget > 0 && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20 cursor-help" title="Safe to spend daily">
+                                ~{dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day
+                            </Badge>
+                        )}
+                    </div>
                 </div>
                 <Popover>
                     <PopoverTrigger asChild>
@@ -60,62 +138,51 @@ export function DailyOperationsCard({ summary }: Props) {
                             <Info className="h-4 w-4" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent align="end" className="w-64">
+                    <PopoverContent align="end" className="w-72">
                         <div className="space-y-3">
-                            <h4 className="font-medium text-sm border-b pb-2">Budget Details</h4>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">Unassigned Cash</span>
-                                <span className={cn(
-                                    "font-bold",
-                                    (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
-                                )}>
-                                    {summary?.unassignedCash.toLocaleString() ?? '...'}
-                                </span>
+                            <h4 className="font-medium text-sm border-b pb-2 flex items-center gap-2">
+                                <Info className="h-3 w-3" /> Budget Insights
+                            </h4>
+                            
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">Unassigned Cash</span>
+                                    <span className={cn(
+                                        "font-bold",
+                                        (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
+                                    )}>
+                                        {summary?.unassignedCash.toLocaleString() ?? '...'}
+                                    </span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground flex items-center gap-1.5">
+                                        <CalendarClock className="h-3 w-3" /> Time Remaining
+                                    </span>
+                                    <span className="font-medium">
+                                        {daysRemaining} days <span className="text-muted-foreground text-xs font-normal">({Math.round((daysPassed/daysInMonth)*100)}% passed)</span>
+                                    </span>
+                                </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground bg-muted/50 p-2 rounded">
-                                Unassigned Cash = Total Income - Total Budgeted (All Time). Keep this positive!
-                            </p>
+
+                            <div className="text-[10px] text-muted-foreground bg-muted/50 p-2 rounded space-y-1">
+                                <p>• <strong>Safe Spend:</strong> You can spend <strong>{dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong> today globally to stay on track.</p>
+                                <p>• <strong>Tip:</strong> Tap on any category below to see its specific daily limit.</p>
+                            </div>
                         </div>
                     </PopoverContent>
                 </Popover>
             </div>
-            <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
+            
+            <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin pb-12">
               {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (
                 <p className="text-xs text-muted-foreground italic">No expense budgets set.</p>
               )}
               {summary?.budgetBreakdown
                 ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
-                .map((item: BudgetBreakdownItem, index: number) => {
-                  const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
-                  const isOver = item.spent > item.limit;
-
-                  return (
-                    <div key={index} className="flex flex-col gap-1.5 pb-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground font-medium">{item.categoryName}</span>
-                        <span className={cn(
-                          "font-bold text-xs",
-                          isOver ? "text-destructive" : "text-primary"
-                        )}>
-                          {isOver
-                            ? `Over ${(item.spent - item.limit).toLocaleString()}`
-                            : `${item.remaining.toLocaleString()} left`
-                          }
-                        </span>
-                      </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn("h-full rounded-full transition-all duration-500", isOver ? "bg-destructive" : "bg-primary")}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-muted-foreground">
-                        <span>{Math.round(percentage)}%</span>
-                        <span>{item.spent.toLocaleString()} / {item.limit.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                .map((item: BudgetBreakdownItem, index: number) => (
+                    <BudgetRow key={index} item={item} daysRemaining={daysRemaining} />
+                ))}
             </div>
           </TabsContent>
 
