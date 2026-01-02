@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet } from 'lucide-react';
+import { Wallet, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 export type BudgetBreakdownItem = {
   categoryName: string;
@@ -43,26 +45,39 @@ export function DailyOperationsCard({ summary }: Props) {
 
           {/* BUDGET TAB */}
           <TabsContent value="budget" className="space-y-4 animate-in fade-in-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-start justify-between mb-2">
                 <div>
-                    <div className="text-xl font-bold">
+                    <div className="text-2xl font-bold text-primary">
                         {summary?.remainingBudget.toLocaleString() ?? '...'}
                     </div>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                         Monthly Budget Left
                     </p>
                 </div>
-                <div className="border-l pl-4">
-                    <div className={cn(
-                        "text-xl font-bold",
-                        (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-primary"
-                    )}>
-                        {summary?.unassignedCash.toLocaleString() ?? '...'}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
-                        Unassigned Budget
-                    </p>
-                </div>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground -mt-1">
+                            <Info className="h-4 w-4" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-64">
+                        <div className="space-y-3">
+                            <h4 className="font-medium text-sm border-b pb-2">Budget Details</h4>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Unassigned Cash</span>
+                                <span className={cn(
+                                    "font-bold",
+                                    (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
+                                )}>
+                                    {summary?.unassignedCash.toLocaleString() ?? '...'}
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground bg-muted/50 p-2 rounded">
+                                Unassigned Cash = Total Income - Total Budgeted (All Time). Keep this positive!
+                            </p>
+                        </div>
+                    </PopoverContent>
+                </Popover>
             </div>
             <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
               {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (
