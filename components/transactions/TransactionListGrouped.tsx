@@ -6,8 +6,8 @@ interface Props {
   transactions: TransactionWithDetails[];
   onEdit: (transaction: TransactionWithDetails) => void;
   onDelete: (transaction: TransactionWithDetails) => void;
-  highlightLabelId?: string;
-  highlightCategoryId?: string;
+  highlightLabelId?: string[];
+  highlightCategoryId?: string[];
 }
 
 export function TransactionListGrouped({ transactions, onEdit, onDelete, highlightLabelId, highlightCategoryId }: Props) {
@@ -18,13 +18,13 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, highlig
     let total = 0;
     transactions.forEach(t => {
       let amount = 0;
-      const isFiltered = highlightLabelId || highlightCategoryId;
+      const isFiltered = (highlightLabelId && highlightLabelId.length > 0) || (highlightCategoryId && highlightCategoryId.length > 0);
       
       if (isFiltered && t.isSplit && t.splits) {
         // Sum only matching splits
         amount = t.splits.reduce((acc, split) => {
-          const labelMatch = !highlightLabelId || String(split.labelId) === String(highlightLabelId);
-          const categoryMatch = !highlightCategoryId || String(split.categoryId) === String(highlightCategoryId);
+          const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelId && highlightLabelId.includes(String(split.labelId)));
+          const categoryMatch = !highlightCategoryId || highlightCategoryId.length === 0 || (split.categoryId && highlightCategoryId.includes(String(split.categoryId)));
           
           if (labelMatch && categoryMatch) {
             return acc + parseFloat(split.amount.replace(/,/g, '') || '0');
@@ -32,7 +32,10 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, highlig
           return acc;
         }, 0);
       } else {
-        // Use full amount if not split or not filtered
+        // Use full amount if not split or not filtered (or if filtered but matches main transaction logic - handled by parent filter, here we just sum visible)
+        // Note: The parent 'get' query already filters main transactions. 
+        // But for daily total of SPLIT transactions where only SOME splits match, we need this logic.
+        // If it's NOT split, we assume it matched the filter to get here.
         amount = parseFloat(t.amount.replace(/,/g, '') || '0');
       }
 

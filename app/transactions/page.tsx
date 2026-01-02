@@ -38,10 +38,10 @@ export default function TransactionsPage() {
   const [activeTab, setActiveTab] = useState("list")
 
   const [filters, setFilters] = useState<{
-    type: string | undefined
-    accountId: string | undefined
-    categoryId: string | undefined
-    labelId: string | undefined
+    type: string[] | undefined
+    accountId: string[] | undefined
+    categoryId: string[] | undefined
+    labelId: string[] | undefined
     dateRange: DateRange | undefined
   }>({
     type: undefined,

@@ -3,13 +3,6 @@
 import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import { useHousehold } from '@/components/HouseholdProvider'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { DateRange } from 'react-day-picker'
 import {
   Popover,
@@ -25,13 +18,14 @@ import { Calendar } from './ui/calendar'
 import { cn } from '@/lib/utils'
 import { Label } from './ui/label'
 import { useState } from 'react'
+import { MultiSelect, Option } from './ui/multi-select'
 
 type TransactionFiltersProps = {
   filters: {
-    type: string | undefined
-    accountId: string | undefined
-    categoryId: string | undefined
-    labelId: string | undefined
+    type: string[] | undefined
+    accountId: string[] | undefined
+    categoryId: string[] | undefined
+    labelId: string[] | undefined
     dateRange: DateRange | undefined
   }
   onFilterChange: (filters: TransactionFiltersProps['filters']) => void
@@ -47,40 +41,24 @@ export default function TransactionFilters({
   const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
   const [open, setOpen] = useState(false);
 
-  const handleTypeChange = (type: string) => {
-    onFilterChange({ ...filters, type: type === 'all' ? undefined : type })
-  }
-
-  const handleAccountChange = (accountId: string) => {
-    onFilterChange({ ...filters, accountId: accountId === 'all' ? undefined : accountId })
-  }
-
-  const handleCategoryChange = (categoryId: string) => {
-    onFilterChange({ ...filters, categoryId: categoryId === 'all' ? undefined : categoryId })
-  }
-
-  const handleLabelChange = (labelId: string) => {
-    onFilterChange({ ...filters, labelId: labelId === 'all' ? undefined : labelId })
-  }
-
   const handleDateChange = (dateRange: DateRange | undefined) => {
     onFilterChange({ ...filters, dateRange })
   }
 
-  const clearFilter = (key: keyof typeof filters) => {
-    onFilterChange({ ...filters, [key]: undefined })
-  }
+  const activeFiltersCount = (filters.type?.length || 0) + 
+                             (filters.accountId?.length || 0) + 
+                             (filters.categoryId?.length || 0) + 
+                             (filters.labelId?.length || 0);
 
-  const activeFiltersCount = [
-    filters.type,
-    filters.accountId,
-    filters.categoryId,
-    filters.labelId,
-  ].filter(Boolean).length;
+  const typeOptions: Option[] = [
+    { label: 'Income', value: 'income' },
+    { label: 'Expense', value: 'expense' },
+    { label: 'Transfer', value: 'transfer' },
+  ];
 
-  const getAccountName = (id: string) => accounts?.find(a => a._id === id)?.name || id;
-  const getCategoryName = (id: string) => categories?.find(c => c._id === id)?.name || id;
-  const getLabelName = (id: string) => labels?.find(l => l._id === id)?.name || id;
+  const accountOptions: Option[] = accounts?.map(a => ({ label: a.name, value: a._id })) || [];
+  const categoryOptions: Option[] = categories?.map(c => ({ label: c.name, value: c._id })) || [];
+  const labelOptions: Option[] = labels?.map(l => ({ label: l.name, value: l._id })) || [];
 
   return (
     <div className="space-y-4 mb-6">
@@ -137,7 +115,7 @@ export default function TransactionFilters({
             </Button>
           </PopoverTrigger>
           <PopoverContent 
-            className="w-[300px] p-4 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-top-2 duration-300" 
+            className="w-xs p-4 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-top-2 duration-300" 
             align="start"
           >
             <div className="space-y-4">
@@ -163,68 +141,42 @@ export default function TransactionFilters({
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</Label>
-                  <Select onValueChange={handleTypeChange} value={filters.type || 'all'}>
-                    <SelectTrigger className={cn("h-8 transition-colors", filters.type && "bg-primary/10 border-primary/20 text-primary font-medium")}>
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="income">Income</SelectItem>
-                      <SelectItem value="expense">Expense</SelectItem>
-                      <SelectItem value="transfer">Transfer</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <MultiSelect
+                    options={typeOptions}
+                    selected={filters.type || []}
+                    onChange={(val) => onFilterChange({ ...filters, type: val.length > 0 ? val : undefined })}
+                    placeholder="All Types"
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account</Label>
-                  <Select onValueChange={handleAccountChange} value={filters.accountId || 'all'}>
-                    <SelectTrigger className={cn("h-8 transition-colors", filters.accountId && "bg-primary/10 border-primary/20 text-primary font-medium")}>
-                      <SelectValue placeholder="All Accounts" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Accounts</SelectItem>
-                      {accounts?.map(account => (
-                        <SelectItem key={account._id} value={account._id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiSelect
+                    options={accountOptions}
+                    selected={filters.accountId || []}
+                    onChange={(val) => onFilterChange({ ...filters, accountId: val.length > 0 ? val : undefined })}
+                    placeholder="All Accounts"
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</Label>
-                  <Select onValueChange={handleCategoryChange} value={filters.categoryId || 'all'}>
-                    <SelectTrigger className={cn("h-8 transition-colors", filters.categoryId && "bg-primary/10 border-primary/20 text-primary font-medium")}>
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {categories?.map(category => (
-                        <SelectItem key={category._id} value={category._id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiSelect
+                    options={categoryOptions}
+                    selected={filters.categoryId || []}
+                    onChange={(val) => onFilterChange({ ...filters, categoryId: val.length > 0 ? val : undefined })}
+                    placeholder="All Categories"
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Label</Label>
-                  <Select onValueChange={handleLabelChange} value={filters.labelId || 'all'}>
-                    <SelectTrigger className={cn("h-8 transition-colors", filters.labelId && "bg-primary/10 border-primary/20 text-primary font-medium")}>
-                      <SelectValue placeholder="All Labels" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Labels</SelectItem>
-                      {labels?.map(label => (
-                        <SelectItem key={label._id} value={label._id}>
-                          {label.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiSelect
+                    options={labelOptions}
+                    selected={filters.labelId || []}
+                    onChange={(val) => onFilterChange({ ...filters, labelId: val.length > 0 ? val : undefined })}
+                    placeholder="All Labels"
+                  />
                 </div>
               </div>
             </div>
@@ -233,7 +185,7 @@ export default function TransactionFilters({
       </div>
 
       {/* Active Filter Badges */}
-      {(filters.type || filters.accountId || filters.categoryId || filters.labelId || filters.dateRange) && (
+      {(activeFiltersCount > 0 || filters.dateRange) && (
         <div className="flex flex-wrap gap-2">
           {filters.dateRange && (
              <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
@@ -243,30 +195,30 @@ export default function TransactionFilters({
                 <button onClick={() => handleDateChange(undefined)} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
              </Badge>
           )}
-          {filters.type && (
-            <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1 capitalize">
-              {filters.type}
-              <button onClick={() => clearFilter('type')} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+          {filters.type?.map(t => (
+            <Badge key={t} variant="secondary" className="gap-1 rounded-md px-2 py-1 capitalize">
+              {t}
+              <button onClick={() => onFilterChange({ ...filters, type: filters.type?.filter(i => i !== t) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
-          )}
-          {filters.accountId && (
-            <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
-              Account: {getAccountName(filters.accountId)}
-              <button onClick={() => clearFilter('accountId')} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+          ))}
+          {filters.accountId?.map(id => (
+            <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
+              Acc: {accountOptions.find(o => o.value === id)?.label || id}
+              <button onClick={() => onFilterChange({ ...filters, accountId: filters.accountId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
-          )}
-          {filters.categoryId && (
-            <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
-              Cat: {getCategoryName(filters.categoryId)}
-              <button onClick={() => clearFilter('categoryId')} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+          ))}
+          {filters.categoryId?.map(id => (
+            <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
+              Cat: {categoryOptions.find(o => o.value === id)?.label || id}
+              <button onClick={() => onFilterChange({ ...filters, categoryId: filters.categoryId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
-          )}
-          {filters.labelId && (
-            <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
-              Label: {getLabelName(filters.labelId)}
-              <button onClick={() => clearFilter('labelId')} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+          ))}
+          {filters.labelId?.map(id => (
+            <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
+              Lbl: {labelOptions.find(o => o.value === id)?.label || id}
+              <button onClick={() => onFilterChange({ ...filters, labelId: filters.labelId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
-          )}
+          ))}
           <Button 
             variant="ghost" 
             size="sm" 

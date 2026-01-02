@@ -62,10 +62,10 @@ async function ensureBudgetExists(
 export const get = query({
   args: {
     householdId: v.optional(v.id("households")),
-    type: v.optional(v.string()),
-    accountId: v.optional(v.string()),
-    categoryId: v.optional(v.string()),
-    labelId: v.optional(v.string()),
+    type: v.optional(v.array(v.string())),
+    accountId: v.optional(v.array(v.string())),
+    categoryId: v.optional(v.array(v.string())),
+    labelId: v.optional(v.array(v.string())),
     dateRange: v.optional(v.object({
       start: v.optional(v.string()),
       end: v.optional(v.string()),
@@ -94,15 +94,34 @@ export const get = query({
         .withIndex("by_userId_date", (q) => q.eq("userId", identity.subject));
     }
 
-    if (type) {
-      query = query.filter((q) => q.eq(q.field("type"), type));
-    }
+    // Filter Logic:
+    // Convex filter() runs on the database/backend server for each document.
+    // We can use standard JS logic inside if we're not relying on specific Index lookups for these fields (which we aren't, we used Date index).
+    // Note: 'type' and 'accountId' args are now arrays.
 
-    if (accountId) {
+    if (type && type.length > 0) {
+      // Logic: OR (is any of the selected types)
+      // Since we can't easily spread into q.or() dynamically in all TS setups, 
+      // we can construct a helper or just iterate manually if needed, 
+      // BUT for simplicity and flexibility with arrays, standard index scan + filter usually allows simple boolean logic.
+      // However, q.eq only compares values.
+      // A better approach for "IN array" in Convex filter function is simple JS logic if the builder allows it?
+      // No, query.filter(q => ...) must use q operations.
+      // The robust way for dynamic "IN" is converting to a massive OR chain.
+      
       query = query.filter((q) => 
         q.or(
-          q.eq(q.field("accountId"), accountId),
-          q.eq(q.field("toAccountId"), accountId)
+          ...type.map(t => q.eq(q.field("type"), t))
+        )
+      );
+    }
+
+    if (accountId && accountId.length > 0) {
+      // Logic: (From IN accounts) OR (To IN accounts)
+      query = query.filter((q) => 
+        q.or(
+           q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
+           q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
         )
       );
     }
@@ -121,15 +140,18 @@ export const get = query({
 
     let filteredResults = allCandidates;
     
-    if (labelId || categoryId) {
+    // JS Filtering for Category & Label (handling Splits & Multi-Select)
+    if ((labelId && labelId.length > 0) || (categoryId && categoryId.length > 0)) {
         filteredResults = allCandidates.filter(t => {
-            const mainMatchesLabel = !labelId || String(t.labelId) === String(labelId);
-            const mainMatchesCat = !categoryId || String(t.categoryId) === String(categoryId);
+            // Check Main Transaction
+            const mainMatchesLabel = !labelId || labelId.length === 0 || (t.labelId && labelId.includes(t.labelId));
+            const mainMatchesCat = !categoryId || categoryId.length === 0 || (t.categoryId && categoryId.includes(t.categoryId));
             const isMainMatch = mainMatchesLabel && mainMatchesCat;
 
+            // Check Splits
             const hasMatchingSplit = t.splits?.some(s => {
-                const splitMatchesLabel = !labelId || String(s.labelId) === String(labelId);
-                const splitMatchesCat = !categoryId || String(s.categoryId) === String(categoryId);
+                const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelId && labelId.includes(s.labelId));
+                const splitMatchesCat = !categoryId || categoryId.length === 0 || (s.categoryId && categoryId.includes(s.categoryId));
                 return splitMatchesLabel && splitMatchesCat;
             });
 

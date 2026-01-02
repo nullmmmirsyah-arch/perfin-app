@@ -22,19 +22,19 @@ export function TransactionItem({
   transaction: TransactionWithDetails, 
   onEdit?: () => void, 
   onDelete?: () => void,
-  highlightLabelId?: string,
-  highlightCategoryId?: string,
+  highlightLabelId?: string[],
+  highlightCategoryId?: string[],
 }) {
   const [isOpen, setIsOpen] = useState(false)
 
   // Calculate effective amount based on filters
   let displayAmountVal = parseFloat(transaction.amount.replace(/,/g, '') || '0');
-  const isFiltered = highlightLabelId || highlightCategoryId;
+  const isFiltered = (highlightLabelId && highlightLabelId.length > 0) || (highlightCategoryId && highlightCategoryId.length > 0);
   
   if (isFiltered && transaction.isSplit && transaction.splits) {
     const filteredSum = transaction.splits.reduce((acc, split) => {
-      const labelMatch = !highlightLabelId || String(split.labelId) === String(highlightLabelId);
-      const categoryMatch = !highlightCategoryId || String(split.categoryId) === String(highlightCategoryId);
+      const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelId && highlightLabelId.includes(String(split.labelId)));
+      const categoryMatch = !highlightCategoryId || highlightCategoryId.length === 0 || (split.categoryId && highlightCategoryId.includes(String(split.categoryId)));
       
       if (labelMatch && categoryMatch) {
         return acc + parseFloat(split.amount.replace(/,/g, '') || '0');
@@ -167,8 +167,8 @@ export function TransactionItem({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Breakdown</p>
               {transaction.splits?.map((split, index) => {
                 // Determine opacity based on highlight filters
-                const labelMatch = !highlightLabelId || String(split.labelId) === String(highlightLabelId);
-                const categoryMatch = !highlightCategoryId || String(split.categoryId) === String(highlightCategoryId);
+                const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelId && highlightLabelId.includes(String(split.labelId)));
+                const categoryMatch = !highlightCategoryId || highlightCategoryId.length === 0 || (split.categoryId && highlightCategoryId.includes(String(split.categoryId)));
                 const isMatch = labelMatch && categoryMatch;
                 
                 const opacityClass = isMatch ? "opacity-100" : "opacity-30 grayscale";
