@@ -73,7 +73,7 @@ export const get = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const { householdId, accountId, categoryId, labelId, dateRange, paginationOpts } = args;
+    const { householdId, type, accountId, categoryId, labelId, dateRange, paginationOpts } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -94,8 +94,17 @@ export const get = query({
         .withIndex("by_userId_date", (q) => q.eq("userId", identity.subject));
     }
 
+    if (type) {
+      query = query.filter((q) => q.eq(q.field("type"), type));
+    }
+
     if (accountId) {
-      query = query.filter((q) => q.eq(q.field("accountId"), accountId));
+      query = query.filter((q) => 
+        q.or(
+          q.eq(q.field("accountId"), accountId),
+          q.eq(q.field("toAccountId"), accountId)
+        )
+      );
     }
     
     if (dateRange?.start) {
