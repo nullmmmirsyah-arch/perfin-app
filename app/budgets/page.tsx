@@ -120,6 +120,11 @@ export default function BudgetsPage() {
   const isPastMonth = selectedDate.getFullYear() < now.getFullYear() || 
     (selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() < now.getMonth());
 
+  // Calculate Days Remaining for Safe Spend Logic
+  const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+  const daysPassed = selectedDate.getMonth() === now.getMonth() && selectedDate.getFullYear() === now.getFullYear() ? now.getDate() : (isPastMonth ? daysInMonth : 0);
+  const daysRemaining = Math.max(1, daysInMonth - daysPassed + (selectedDate.getMonth() === now.getMonth() ? 1 : 0)); // Avoid division by zero
+
   // Split logic
   const savings = budgetStatus?.filter(item => item.category.type === 'saving') || []
   const expenses = budgetStatus?.filter(item => item.category.type === 'expense') || []
@@ -144,6 +149,8 @@ export default function BudgetsPage() {
     const limit = budget ? parseFloat(budget.amount) : 0
     const percentage = limit > 0 ? (spent / limit) * 100 : 0
     const isOverBudget = spent > limit && limit > 0
+    const remaining = Math.max(0, limit - spent);
+    const dailySafeSpend = remaining / daysRemaining;
 
     return (
         <Card key={category._id} className="p-6 flex flex-col justify-between shadow-sm h-full min-h-[160px]">
@@ -153,9 +160,16 @@ export default function BudgetsPage() {
                     <h3 className="font-semibold text-lg flex items-center gap-2">
                         {category.name}
                     </h3>
-                    <p className="text-sm text-muted-foreground capitalize">
-                        {isGoal ? 'Financial Goal' : category.type}
-                    </p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground capitalize">
+                            {isGoal ? 'Financial Goal' : category.type}
+                        </p>
+                        {!isGoal && budget && remaining > 0 && !isPastMonth && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                                ~{dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day
+                            </span>
+                        )}
+                    </div>
                     </div>
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -392,10 +406,8 @@ export default function BudgetsPage() {
                 >
                     <Wallet className="h-4 w-4" />
                     Monthly Expenses
-                    <span className="ml-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                        <span>{expenses.length}</span>
-                        <span className="opacity-50">|</span>
-                        <span className="font-bold">{totalRemainingExpenses.toLocaleString()} remaining</span>
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">
+                        {expenses.length}
                     </span>
                 </button>
                 <button
@@ -409,7 +421,7 @@ export default function BudgetsPage() {
                 >
                     <Target className="h-4 w-4" />
                     Savings & Goals
-                    <span className="ml-1 text-xs bg-muted px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">
                         {savings.length}
                     </span>
                 </button>
@@ -419,9 +431,35 @@ export default function BudgetsPage() {
                 <CarouselContent>
                     {/* SLIDE 1: EXPENSES */}
                     <CarouselItem className="basis-full pl-4">
-                        <div className="h-full pr-4">
+                        <div className="h-full pr-4 space-y-4">
+                            {/* Expenses Summary Card */}
+                            <div className="bg-card border rounded-xl p-4 shadow-sm">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Monthly Budget</p>
+                                        <div className="flex items-baseline gap-2 mt-1">
+                                            <span className="text-2xl font-bold">{totalRemainingExpenses.toLocaleString()}</span>
+                                            <span className="text-sm text-muted-foreground">left</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-muted-foreground">
+                                            {expenses.reduce((acc, i) => acc + i.spent, 0).toLocaleString()} / {expenses.reduce((acc, i) => acc + (i.budget ? parseFloat(i.budget.amount) : 0), 0).toLocaleString()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Progress 
+                                    value={(() => {
+                                        const totalLimit = expenses.reduce((acc, i) => acc + (i.budget ? parseFloat(i.budget.amount) : 0), 0);
+                                        const totalSpent = expenses.reduce((acc, i) => acc + i.spent, 0);
+                                        return totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
+                                    })()} 
+                                    className="h-2"
+                                />
+                            </div>
+
                             {expenses.length === 0 ? (
-                                <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[300px] flex items-center justify-center">
+                                <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
                                     <div className="space-y-2">
                                         <Wallet className="h-8 w-8 text-muted-foreground mx-auto" />
                                         <p className="text-muted-foreground">No expense categories found.</p>
@@ -437,9 +475,37 @@ export default function BudgetsPage() {
 
                     {/* SLIDE 2: SAVINGS */}
                     <CarouselItem className="basis-full pl-4">
-                        <div className="h-full pr-4">
+                        <div className="h-full pr-4 space-y-4">
+                            {/* Savings Summary Card */}
+                            <div className="bg-card border rounded-xl p-4 shadow-sm">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Saved (All Goals)</p>
+                                        <div className="flex items-baseline gap-2 mt-1">
+                                            <span className="text-2xl font-bold text-success">
+                                                {savings.reduce((acc, i) => acc + i.accumulated, 0).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-muted-foreground">Target Total</p>
+                                        <p className="text-sm font-medium">
+                                            {savings.reduce((acc, i) => acc + (i.category.targetAmount ? parseFloat(i.category.targetAmount.replace(/,/g, '')) : 0), 0).toLocaleString()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Progress 
+                                    value={(() => {
+                                        const totalTarget = savings.reduce((acc, i) => acc + (i.category.targetAmount ? parseFloat(i.category.targetAmount.replace(/,/g, '')) : 0), 0);
+                                        const totalSaved = savings.reduce((acc, i) => acc + i.accumulated, 0);
+                                        return totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
+                                    })()} 
+                                    className="h-2 bg-muted [&>div]:bg-success"
+                                />
+                            </div>
+
                             {savings.length === 0 ? (
-                                <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[300px] flex items-center justify-center">
+                                <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
                                     <div className="space-y-2">
                                         <Target className="h-8 w-8 text-muted-foreground mx-auto" />
                                         <p className="text-muted-foreground">No savings goals set.</p>
