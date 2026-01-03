@@ -184,7 +184,10 @@ export default function TransactionsPage() {
                     {/* ANALYTICS VIEW */}
                     <CarouselItem className="basis-full">
                          <div className="space-y-4 px-1">
-                             <TransactionAnalytics transactions={transactions as TransactionWithDetails[]} />
+                             <TransactionAnalytics 
+                                transactions={transactions as TransactionWithDetails[]} 
+                                filters={filters}
+                             />
                              {status === "CanLoadMore" && (
                                 <div className="mt-8 flex justify-center">
                                     <p className="text-xs text-muted-foreground">

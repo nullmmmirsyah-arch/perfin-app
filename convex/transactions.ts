@@ -59,6 +59,111 @@ async function ensureBudgetExists(
     }
 }
 
+export const getExpensesTrend = query({
+  args: {
+    householdId: v.optional(v.id("households")),
+    type: v.optional(v.array(v.string())),
+    accountId: v.optional(v.array(v.string())),
+    categoryId: v.optional(v.array(v.string())),
+    labelId: v.optional(v.array(v.string())),
+    dateRange: v.optional(v.object({
+      start: v.string(),
+      end: v.string(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const { householdId, type, accountId, categoryId, labelId, dateRange } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    // Helper to get totals for a specific date range
+    const getPeriodTotal = async (start: string, end: string) => {
+        let query;
+        if (householdId) {
+            if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) return 0;
+            query = ctx.db.query("transactions").withIndex("by_householdId_date", q => q.eq("householdId", householdId));
+        } else {
+            query = ctx.db.query("transactions").withIndex("by_userId_date", q => q.eq("userId", identity.subject));
+        }
+
+        // Apply Date Filter
+        query = query.filter(q => q.gte(q.field("date"), start)).filter(q => q.lte(q.field("date"), end));
+
+        // Apply Other Filters (Same as main get query logic)
+        // Ensure we only count Expenses for trend
+        query = query.filter(q => q.eq(q.field("type"), TRANSACTION_TYPES.EXPENSE));
+
+        if (accountId && accountId.length > 0) {
+             query = query.filter((q) => 
+                q.or(
+                   q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
+                   q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
+                )
+             );
+        }
+
+        const transactions = await query.collect();
+
+        // JS Filter for Category/Label & Summation
+        return transactions.reduce((acc, t) => {
+            // JS Filter Check
+            const mainMatchesLabel = !labelId || labelId.length === 0 || (t.labelId && labelId.includes(t.labelId));
+            const mainMatchesCat = !categoryId || categoryId.length === 0 || (t.categoryId && categoryId.includes(t.categoryId));
+            
+            // Note: For trend, we simplify split logic. We sum the main amount if matches, 
+            // OR if it's split, we sum the matching splits.
+            
+            let amountToAdd = 0;
+            if (t.isSplit && t.splits) {
+                 amountToAdd = t.splits.reduce((sAcc, s) => {
+                    const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelId && labelId.includes(s.labelId));
+                    const splitMatchesCat = !categoryId || categoryId.length === 0 || (s.categoryId && categoryId.includes(s.categoryId));
+                    if (splitMatchesLabel && splitMatchesCat) {
+                        return sAcc + parseFloat(s.amount.replace(/,/g, '') || '0');
+                    }
+                    return sAcc;
+                 }, 0);
+            } else if (mainMatchesLabel && mainMatchesCat) {
+                 amountToAdd = parseFloat(t.amount.replace(/,/g, '') || '0');
+            }
+
+            return acc + amountToAdd;
+        }, 0);
+    };
+
+    // 1. Calculate Current Period
+    const currentStart = dateRange?.start || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const currentEnd = dateRange?.end || new Date().toISOString();
+    const currentTotal = await getPeriodTotal(currentStart, currentEnd);
+
+    // 2. Calculate Previous Period (Same Duration Shifted Back)
+    const startObj = new Date(currentStart);
+    const endObj = new Date(currentEnd);
+    const duration = endObj.getTime() - startObj.getTime();
+    
+    // Shift back by duration (e.g., last 30 days -> prev 30 days)
+    const prevEndObj = new Date(startObj.getTime() - 1); // 1ms before current start
+    const prevStartObj = new Date(prevEndObj.getTime() - duration);
+    
+    const prevTotal = await getPeriodTotal(prevStartObj.toISOString(), prevEndObj.toISOString());
+
+    // 3. Calculate Percentage
+    let percentage = 0;
+    if (prevTotal > 0) {
+        percentage = ((currentTotal - prevTotal) / prevTotal) * 100;
+    } else if (currentTotal > 0) {
+        percentage = 100; // From 0 to something is 100% increase (technically infinite, but cap for UI)
+    }
+
+    return {
+        currentTotal,
+        prevTotal,
+        percentage,
+        direction: percentage > 0 ? 'up' : 'down'
+    };
+  }
+});
+
 export const get = query({
   args: {
     householdId: v.optional(v.id("households")),

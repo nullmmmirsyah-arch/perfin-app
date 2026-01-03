@@ -3,6 +3,10 @@
 import * as React from "react"
 import { Label, Pie, PieChart } from "recharts"
 import { TransactionWithDetails } from "./types"
+import { useQuery } from "convex/react"
+import { api } from "../../convex/_generated/api"
+import { DateRange } from "react-day-picker"
+import { useHousehold } from "../HouseholdProvider"
 
 import {
   Card,
@@ -19,12 +23,37 @@ import {
 } from "@/components/ui/chart"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { startOfMonth, endOfMonth } from "date-fns"
 
 type Props = {
   transactions: TransactionWithDetails[]
+  filters?: {
+    type: string[] | undefined
+    accountId: string[] | undefined
+    categoryId: string[] | undefined
+    labelId: string[] | undefined
+    dateRange: DateRange | undefined
+  }
 }
 
-export function TransactionAnalytics({ transactions }: Props) {
+export function TransactionAnalytics({ transactions, filters }: Props) {
+  const { householdId } = useHousehold()
+  
+  // Prepare args for trend query
+  const trendArgs = React.useMemo(() => ({
+    householdId: householdId ?? undefined,
+    type: filters?.type,
+    accountId: filters?.accountId,
+    categoryId: filters?.categoryId,
+    labelId: filters?.labelId,
+    dateRange: filters?.dateRange ? {
+        start: filters.dateRange.from?.toISOString() || startOfMonth(new Date()).toISOString(),
+        end: filters.dateRange.to?.toISOString() || endOfMonth(new Date()).toISOString(),
+    } : undefined
+  }), [householdId, filters]);
+
+  const trendData = useQuery(api.transactions.getExpensesTrend, trendArgs);
+
   const analyticsData = React.useMemo(() => {
     // Filter only expenses for analytics
     const expenses = transactions.filter(t => t.type === 'expense')
@@ -33,23 +62,31 @@ export function TransactionAnalytics({ transactions }: Props) {
     let total = 0
 
     expenses.forEach(t => {
-      const amount = parseFloat(t.amount.replace(/,/g, '') || '0')
-      
-      // Handle splits if necessary, but typically splits have their own categories
-      // The current TransactionWithDetails structure has `categoryId` on the main transaction
-      // OR `splits`. If `isSplit` is true, we should look at splits.
-      
+      // Logic to check if a specific item matches current filters
+      const matchesFilter = (catId?: string, labId?: string) => {
+          const catMatch = !filters?.categoryId || filters.categoryId.length === 0 || (catId && filters.categoryId.includes(catId));
+          const labMatch = !filters?.labelId || filters.labelId.length === 0 || (labId && filters.labelId.includes(labId));
+          return catMatch && labMatch;
+      };
+
       if (t.isSplit && t.splits) {
          t.splits.forEach(split => {
-            const splitAmount = parseFloat(split.amount.replace(/,/g, '') || '0')
-            const catName = split.categoryName || "Uncategorized"
-            categoryMap.set(catName, (categoryMap.get(catName) || 0) + splitAmount)
-            total += splitAmount
+            // STRICT FILTER CHECK inside split
+            if (matchesFilter(split.categoryId, split.labelId)) {
+                const splitAmount = parseFloat(split.amount.replace(/,/g, '') || '0')
+                const catName = split.categoryName || "Uncategorized"
+                categoryMap.set(catName, (categoryMap.get(catName) || 0) + splitAmount)
+                total += splitAmount
+            }
          })
       } else {
-        const catName = t.categoryName || "Uncategorized"
-        categoryMap.set(catName, (categoryMap.get(catName) || 0) + amount)
-        total += amount
+        // Main transaction check
+        if (matchesFilter(t.categoryId, t.labelId)) {
+            const amount = parseFloat(t.amount.replace(/,/g, '') || '0')
+            const catName = t.categoryName || "Uncategorized"
+            categoryMap.set(catName, (categoryMap.get(catName) || 0) + amount)
+            total += amount
+        }
       }
     })
 
@@ -79,8 +116,9 @@ export function TransactionAnalytics({ transactions }: Props) {
     return config
   }, [analyticsData])
 
-  // Mock Trend for Phase 1 Demo (Since we don't have historical data fetched yet)
-  const mockTrend = -5 // -5% vs last month
+  // Real Trend Data
+  const percentageChange = trendData?.percentage || 0;
+  const isUp = trendData?.direction === 'up';
 
   if (analyticsData.total === 0) {
       return (
@@ -154,9 +192,13 @@ export function TransactionAnalytics({ transactions }: Props) {
           </ChartContainer>
           
           <div className="flex justify-center mt-4">
-             <Badge variant={mockTrend > 0 ? "destructive" : "default"} className="text-sm px-3 py-1">
-                {mockTrend > 0 ? "🔴" : "🟢"} {Math.abs(mockTrend)}% vs Last Month
-             </Badge>
+             {trendData ? (
+                 <Badge variant={isUp ? "destructive" : "default"} className="text-sm px-3 py-1">
+                    {isUp ? "🔴" : "🟢"} {Math.abs(percentageChange).toFixed(1)}% vs Prior Period
+                 </Badge>
+             ) : (
+                 <Badge variant="secondary" className="text-xs">Calculating trend...</Badge>
+             )}
           </div>
         </CardContent>
       </Card>
