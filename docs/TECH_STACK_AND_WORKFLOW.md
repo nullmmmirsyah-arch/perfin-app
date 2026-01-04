@@ -61,6 +61,10 @@
     - **Smart Auto-Budgeting:** Transaction mutations explicitly call `ensureBudgetExists` which now automatically creates a budget based on the transaction amount if none exists for that period.
     - **Goal Progress:** Inside `create` and `update` transaction mutations, we explicitly call `checkGoalProgress` to trigger notifications.
 
+5.  **Performance Optimization:**
+    - **Avoid N+1 Queries:** When fetching lists of items with related data (e.g., Transactions with Accounts/Categories), always use **Batch Fetching**.
+    - **Pattern:** Collect all IDs first -> `Promise.all(ids.map(ctx.db.get))` -> Map results back. **Do NOT** await `ctx.db.get` inside a loop.
+
 ## Directory Structure
 
 ```

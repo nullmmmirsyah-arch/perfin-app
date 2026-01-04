@@ -72,6 +72,9 @@ export default function ComponentName({ ... }: Props) {
     - **Rule:** When performing calculations, always sanitize: `parseFloat(amount.replace(/,/g, '') || '0')`.
     - **Formatting:** Use `new Intl.NumberFormat('en-US').format(val)`.
 
+7.  **Performance & Queries:**
+    - **Batch Fetching:** Never use `await ctx.db.get()` inside a `map` or loop when processing a list. Use `Promise.all` to fetch all related documents in parallel (Batch Pattern).
+
 ## Frontend Logic
 
 1.  **State Management:**
