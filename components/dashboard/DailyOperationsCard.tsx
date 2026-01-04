@@ -6,11 +6,13 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { calculateBudgetPace } from '@/lib/finance-utils';
 
 export type BudgetBreakdownItem = {
   categoryName: string;
   categoryType: string;
   targetAmount?: number;
+  enablePacing?: boolean;
   accumulated: number;
   limit: number;
   spent: number;
@@ -34,12 +36,54 @@ const BudgetRow = ({ item, daysRemaining }: { item: BudgetBreakdownItem, daysRem
     const isOver = item.spent > item.limit;
     const safeSpend = Math.max(0, item.remaining) / daysRemaining;
 
+    // Pacing Logic
+    const now = new Date();
+    const pacing = item.enablePacing && item.limit > 0
+        ? calculateBudgetPace(item.spent, item.limit, now.getFullYear(), now.getMonth())
+        : null;
+
     return (
         <div className="flex flex-col gap-1.5 pb-2 border-b border-border/40 last:border-0 last:pb-0">
             <div className="flex justify-between items-start">
-                <span className="text-sm font-medium truncate pr-2">
-                    {item.categoryName}
-                </span>
+                <div className="flex items-center gap-1.5 truncate pr-2">
+                    <span className="text-sm font-medium truncate">
+                        {item.categoryName}
+                    </span>
+                    {pacing && (
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <div className={cn(
+                                    "h-2 w-2 rounded-full animate-pulse cursor-pointer shrink-0",
+                                    pacing.status === 'safe' ? "bg-success" : 
+                                    pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
+                                )} />
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-3" align="start">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 border-b pb-1">
+                                        <div className={cn(
+                                            "h-2 w-2 rounded-full",
+                                            pacing.status === 'safe' ? "bg-success" : 
+                                            pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
+                                        )} />
+                                        <h4 className="font-semibold text-xs">
+                                            {pacing.status === 'safe' ? "On Track" : 
+                                             pacing.status === 'warning' ? "Spending Alert" : "Critical"}
+                                        </h4>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        {pacing.status === 'safe' 
+                                            ? "Pace is healthy." 
+                                            : pacing.status === 'warning'
+                                            ? `Spending fast! Limit: ~${pacing.dailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`
+                                            : `Too fast! Reduce to ~${pacing.dailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`
+                                        }
+                                    </p>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    )}
+                </div>
                 
                 {/* Safe Daily Badge - Always Visible if applicable */}
                 {!isOver && item.remaining > 0 && safeSpend > 0 ? (
@@ -57,7 +101,12 @@ const BudgetRow = ({ item, daysRemaining }: { item: BudgetBreakdownItem, daysRem
             
             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                 <div
-                    className={cn("h-full rounded-full transition-all duration-500", isOver ? "bg-destructive" : "bg-primary")}
+                    className={cn(
+                        "h-full rounded-full transition-all duration-500", 
+                        isOver ? "bg-destructive" : 
+                        (pacing?.status === 'warning' ? "bg-yellow-500" : 
+                         pacing?.status === 'danger' ? "bg-destructive" : "bg-primary")
+                    )}
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                 />
             </div>
@@ -166,6 +215,29 @@ export function DailyOperationsCard({ summary }: Props) {
               )}
               {summary?.budgetBreakdown
                 ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
+                .sort((a, b) => {
+                    const now = new Date();
+                    
+                    const getPacingScore = (item: BudgetBreakdownItem) => {
+                        if (!item.enablePacing || item.limit <= 0) return 0; // Lowest priority
+                        
+                        const p = calculateBudgetPace(item.spent, item.limit, now.getFullYear(), now.getMonth());
+                        if (p.status === 'danger') return 3;
+                        if (p.status === 'warning') return 2;
+                        return 1; // Safe but tracked
+                    };
+
+                    const scoreA = getPacingScore(a);
+                    const scoreB = getPacingScore(b);
+
+                    // Sort Descending by Score (High Priority First)
+                    if (scoreA !== scoreB) return scoreB - scoreA;
+                    
+                    // Secondary Sort: Percentage Spent (Highest first)
+                    const pctA = a.limit > 0 ? (a.spent / a.limit) : 0;
+                    const pctB = b.limit > 0 ? (b.spent / b.limit) : 0;
+                    return pctB - pctA;
+                })
                 .map((item: BudgetBreakdownItem, index: number) => (
                     <BudgetRow key={index} item={item} daysRemaining={daysRemaining} />
                 ))}

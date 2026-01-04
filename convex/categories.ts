@@ -42,6 +42,7 @@ export const create = mutation({
     type: v.string(),
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
+    enablePacing: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -67,6 +68,7 @@ export const update = mutation({
     type: v.optional(v.string()),
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
+    enablePacing: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

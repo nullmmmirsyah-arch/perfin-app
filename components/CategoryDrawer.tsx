@@ -36,12 +36,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 
 const CategoryFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   type: z.string().min(1, 'Type is required'),
   targetAmount: z.string().optional(),
   targetDate: z.date().optional(),
+  enablePacing: z.boolean(),
 });
 
 type CategoryFormValues = z.infer<typeof CategoryFormSchema>;
@@ -75,6 +77,7 @@ const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) =
         type: category.type,
         targetAmount: category.targetAmount || '',
         targetDate: category.targetDate ? new Date(category.targetDate) : undefined,
+        enablePacing: category.enablePacing || false,
       });
     } else if (open && !isEditMode) {
       form.reset({
@@ -82,6 +85,7 @@ const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) =
         type: '',
         targetAmount: '',
         targetDate: undefined,
+        enablePacing: false,
       });
     }
   }, [open, isEditMode, category, form]);
@@ -92,6 +96,7 @@ const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) =
         type: data.type,
         targetAmount: data.targetAmount,
         targetDate: data.targetDate ? data.targetDate.toISOString() : undefined,
+        enablePacing: data.enablePacing,
     };
 
     if (isEditMode) {
@@ -159,6 +164,31 @@ const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) =
                   </FormItem>
                 )}
               />
+
+              {categoryType === 'expense' && (
+                <FormField
+                  control={form.control}
+                  name="enablePacing"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Smart Budget Pace
+                        </FormLabel>
+                        <div className="text-sm text-muted-foreground">
+                          Track daily spending pace for this category.
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {categoryType === 'saving' && (
                 <div className="space-y-4 border-l-2 pl-4 border-primary/20">

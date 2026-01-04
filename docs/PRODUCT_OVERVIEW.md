@@ -49,6 +49,14 @@
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
     - **Smart Auto-Budgeting:** If a transaction is made to a category without a budget, the system automatically creates a budget with the **transaction amount**. This prevents "false alarm" over-budget warnings while maintaining zero-based integrity.
+- **Smart Budget Pace (New):**
+    - **Concept:** Proactive warning system for variable expenses.
+    - **Logic:** Compares "Time Passed %" vs "Budget Used %".
+    - **Indicators:**
+        - 🟢 **Safe:** Spending is slower than time.
+        - 🟡 **Warning:** Spending pace is matching time (+10% tolerance).
+        - 🔴 **Danger:** Spending is significantly faster than time.
+    - **Opt-In:** Users can enable/disable this per category.
 - **Sweep Feature:** Move leftover budget from previous month to current month/savings.
 
 ### 6. Households & Collaboration

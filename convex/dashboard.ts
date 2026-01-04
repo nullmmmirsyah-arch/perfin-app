@@ -223,6 +223,7 @@ export const getDashboardSummary = query({
                 categoryName: cat?.name || 'Unknown',
                 categoryType: cat?.type || 'expense',
                 targetAmount: cat?.targetAmount ? parseFloat(cat.targetAmount.replace(/,/g, '')) : undefined,
+                enablePacing: cat?.enablePacing,
                 accumulated,
                 limit,
                 spent,

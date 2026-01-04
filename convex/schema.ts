@@ -80,6 +80,7 @@ export default defineSchema({
     targetDate: v.optional(v.string()),
     isArchived: v.optional(v.boolean()),
     status: v.optional(v.string()),
+    enablePacing: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
