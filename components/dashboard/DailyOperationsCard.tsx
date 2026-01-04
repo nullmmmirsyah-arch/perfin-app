@@ -30,61 +30,47 @@ type Props = {
 };
 
 const BudgetRow = ({ item, daysRemaining }: { item: BudgetBreakdownItem, daysRemaining: number }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    
     const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
     const isOver = item.spent > item.limit;
-    
-    // Per-category Safe Spend Logic
-    // If over budget, safe spend is 0 (or negative technically, but 0 makes sense for "safe")
     const safeSpend = Math.max(0, item.remaining) / daysRemaining;
 
     return (
-        <div 
-            className="flex flex-col gap-1.5 pb-2 cursor-pointer group"
-            onClick={() => setIsOpen(!isOpen)}
-        >
-            <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground font-medium group-hover:text-foreground transition-colors flex items-center gap-1">
+        <div className="flex flex-col gap-1.5 pb-2 border-b border-border/40 last:border-0 last:pb-0">
+            <div className="flex justify-between items-start">
+                <span className="text-sm font-medium truncate pr-2">
                     {item.categoryName}
-                    {isOpen ? <ChevronUp className="h-3 w-3 opacity-50" /> : <ChevronDown className="h-3 w-3 opacity-50" />}
                 </span>
-                <span className={cn(
-                    "font-bold text-xs",
-                    isOver ? "text-destructive" : "text-primary"
-                )}>
-                    {isOver
-                    ? `Over ${(item.spent - item.limit).toLocaleString()}`
-                    : `${item.remaining.toLocaleString()} left`
-                    }
-                </span>
+                
+                {/* Safe Daily Badge - Always Visible if applicable */}
+                {!isOver && item.remaining > 0 && safeSpend > 0 ? (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-primary/5 text-primary border-primary/20 shrink-0">
+                        ~{safeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day
+                    </Badge>
+                ) : isOver ? (
+                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 font-normal shrink-0">
+                        Over Budget
+                    </Badge>
+                ) : (
+                    <span className="text-[10px] text-muted-foreground font-medium">Done</span>
+                )}
             </div>
             
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                 <div
                     className={cn("h-full rounded-full transition-all duration-500", isOver ? "bg-destructive" : "bg-primary")}
                     style={{ width: `${Math.min(percentage, 100)}%` }}
                 />
             </div>
             
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>{Math.round(percentage)}%</span>
+            <div className="flex justify-between items-center text-[10px] text-muted-foreground">
                 <span>{item.spent.toLocaleString()} / {item.limit.toLocaleString()}</span>
+                <span className={isOver ? "text-destructive font-bold" : "text-foreground font-medium"}>
+                    {isOver 
+                        ? `-${(item.spent - item.limit).toLocaleString()}` 
+                        : `${item.remaining.toLocaleString()} left`
+                    }
+                </span>
             </div>
-
-            {/* Expanded Insight */}
-            {isOpen && !isOver && item.remaining > 0 && (
-                <div className="mt-1 p-2 bg-primary/5 rounded-md border border-primary/10 animate-in slide-in-from-top-1 fade-in">
-                    <div className="flex justify-between items-center text-xs">
-                        <span className="text-primary font-medium flex items-center gap-1.5">
-                            <CalendarClock className="h-3 w-3" /> Safe Daily:
-                        </span>
-                        <span className="font-bold text-primary">
-                            ~{safeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} / day
-                        </span>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

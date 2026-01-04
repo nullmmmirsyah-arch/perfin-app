@@ -41,6 +41,11 @@ This document outlines the design philosophy and user experience patterns used i
 - **Passive Trigger:** Don't force the user to check progress. Send a **Notification** (Bell Icon).
 - **Guided Action:** When clicking the notification, launch a **Wizard** (Dialog) that guides the user through the financial implications (Transfer -> Close Account -> Mark Done). DO NOT make them do this manually.
 
+### 6. Actionable Insights
+- **Safe Daily Spend:** Provide actionable daily limits (e.g., "~Rp 50k/day") instead of just static remaining budgets.
+- **On-Demand Details:** Use interactive elements (like clicking a budget row) to reveal granular insights without cluttering the main view.
+- **Contextual Summary:** Place summary cards (Total Remaining, Total Saved) directly within their relevant tabs/slides, not in global headers.
+
 ## Visual Style
 - **Components:** shadcn/ui (Radix UI + Tailwind).
 - **Theme:** Support Dark/Light mode (via `next-themes`).

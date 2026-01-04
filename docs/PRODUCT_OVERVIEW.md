@@ -10,7 +10,7 @@
     - **Buy:** Decreases Cash, Increases Asset Quantity/Cost Basis.
     - **Sell:** Increases Cash, Decreases Asset Quantity/Cost Basis, calculates Realized Profit.
 - **Split Transactions:** Ability to split a single transaction into multiple categories. Uses a dedicated **Nested Drawer** UI for better mobile experience.
-- **Filtering:** Filter by Date Range, Account, Category, and Type.
+- **Filtering:** Powerful **Multi-Select Filtering** allows users to combine multiple Accounts, Categories, or Types simultaneously. Supports Date Range filtering.
 - **Analytics:** Integrated visual analytics (Donut Chart & Trend) directly within the transaction list via a swipeable tab interface.
 
 ### 2. Accounts (Funds Storage)
