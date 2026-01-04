@@ -256,25 +256,49 @@ export const getDashboardSummary = query({
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 10);
 
-    const recentTransactions = await Promise.all(
-        sortedTransactions.map(async (t) => {
-            const fromAccount = await ctx.db.get(t.accountId);
-            const toAccount = t.toAccountId ? await ctx.db.get(t.toAccountId) : null;
-            const category = t.categoryId ? await ctx.db.get(t.categoryId) : null;
-            const label = t.labelId ? await ctx.db.get(t.labelId) : null;
+    // Batch Fetch Related Entities for Recent Transactions
+    const txAccountIds = new Set<Id<"accounts">>();
+    const txCategoryIds = new Set<Id<"categories">>();
+    const txLabelIds = new Set<Id<"labels">>();
 
-            const splitsWithDetails = t.splits 
-                ? await Promise.all(t.splits.map(async (split) => {
-                    const splitCategory = await ctx.db.get(split.categoryId);
-                    const splitLabel = split.labelId ? await ctx.db.get(split.labelId) : null;
+    sortedTransactions.forEach(t => {
+        txAccountIds.add(t.accountId);
+        if (t.toAccountId) txAccountIds.add(t.toAccountId);
+        if (t.categoryId) txCategoryIds.add(t.categoryId);
+        if (t.labelId) txLabelIds.add(t.labelId);
+
+        t.splits?.forEach(s => {
+            txCategoryIds.add(s.categoryId);
+            if (s.labelId) txLabelIds.add(s.labelId);
+        });
+    });
+
+    const [txAccounts, txCategories, txLabels] = await Promise.all([
+        Promise.all(Array.from(txAccountIds).map(id => ctx.db.get(id))),
+        Promise.all(Array.from(txCategoryIds).map(id => ctx.db.get(id))),
+        Promise.all(Array.from(txLabelIds).map(id => ctx.db.get(id))),
+    ]);
+
+    const txAccountMap = new Map(txAccounts.filter(Boolean).map(a => [a!._id, a!]));
+    const txCategoryMap = new Map(txCategories.filter(Boolean).map(c => [c!._id, c!]));
+    const txLabelMap = new Map(txLabels.filter(Boolean).map(l => [l!._id, l!]));
+
+    const recentTransactions = sortedTransactions.map((t) => {
+            const fromAccount = txAccountMap.get(t.accountId);
+            const toAccount = t.toAccountId ? txAccountMap.get(t.toAccountId) : null;
+            const category = t.categoryId ? txCategoryMap.get(t.categoryId) : null;
+            const label = t.labelId ? txLabelMap.get(t.labelId) : null;
+
+            const splitsWithDetails = t.splits?.map((split) => {
+                    const splitCategory = txCategoryMap.get(split.categoryId);
+                    const splitLabel = split.labelId ? txLabelMap.get(split.labelId) : null;
                     return {
                         ...split,
                         categoryName: splitCategory?.name,
                         labelName: splitLabel?.name,
                         labelColor: splitLabel?.color,
                     };
-                }))
-                : undefined;
+                });
 
             return {
                 ...t,
@@ -284,8 +308,7 @@ export const getDashboardSummary = query({
                 label,
                 splits: splitsWithDetails,
             };
-        })
-    );
+    });
 
     return {
       liquidCash,

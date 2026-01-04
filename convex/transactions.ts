@@ -270,46 +270,62 @@ export const get = query({
     const pageResults = filteredResults.slice(cursor, cursor + limit);
     const isDone = cursor + limit >= filteredResults.length;
     const continueCursor = isDone ? "" : (cursor + limit).toString();
-    
-    const pageWithDetails = await Promise.all(
-      pageResults.map(async (transaction) => {
-        const fromAccount = await ctx.db.get(transaction.accountId);
-        const toAccount = transaction.toAccountId
-          ? await ctx.db.get(transaction.toAccountId)
-          : null;
 
-        const label = transaction.labelId
-          ? await ctx.db.get(transaction.labelId)
-          : null;
+    // Batch fetch related entities to avoid N+1 queries
+    const accountIds = new Set<Id<"accounts">>();
+    const categoryIds = new Set<Id<"categories">>();
+    const labelIds = new Set<Id<"labels">>();
 
-        const category = transaction.categoryId
-          ? await ctx.db.get(transaction.categoryId)
-          : null;
+    pageResults.forEach(t => {
+      accountIds.add(t.accountId);
+      if (t.toAccountId) accountIds.add(t.toAccountId);
+      if (t.categoryId) categoryIds.add(t.categoryId);
+      if (t.labelId) labelIds.add(t.labelId);
+      
+      t.splits?.forEach(s => {
+        categoryIds.add(s.categoryId);
+        if (s.labelId) labelIds.add(s.labelId);
+      });
+    });
 
-        const splitsWithDetails = transaction.splits 
-          ? await Promise.all(transaction.splits.map(async (split) => {
-              const splitCategory = await ctx.db.get(split.categoryId);
-              const splitLabel = split.labelId ? await ctx.db.get(split.labelId) : null;
-              
-              return {
-                ...split,
-                categoryName: splitCategory?.name,
-                labelName: splitLabel?.name,
-                labelColor: splitLabel?.color,
-              };
-            }))
-          : undefined;
+    // Parallel fetch all unique related documents
+    const [accounts, categories, labels] = await Promise.all([
+      Promise.all(Array.from(accountIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(categoryIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(labelIds).map(id => ctx.db.get(id))),
+    ]);
+
+    const accountMap = new Map(accounts.filter(Boolean).map(a => [a!._id, a!]));
+    const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
+    const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
+
+    const pageWithDetails = pageResults.map((transaction) => {
+      const fromAccount = accountMap.get(transaction.accountId);
+      const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
+      const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
+      const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
+
+      const splitsWithDetails = transaction.splits?.map((split) => {
+        const splitCategory = categoryMap.get(split.categoryId);
+        const splitLabel = split.labelId ? labelMap.get(split.labelId) : null;
 
         return {
-          ...transaction,
-          fromAccountName: fromAccount?.name,
-          toAccountName: toAccount?.name,
-          categoryName: category?.name,
-          label: label,
-          splits: splitsWithDetails,
+          ...split,
+          categoryName: splitCategory?.name,
+          labelName: splitLabel?.name,
+          labelColor: splitLabel?.color,
         };
-      })
-    );
+      });
+
+      return {
+        ...transaction,
+        fromAccountName: fromAccount?.name,
+        toAccountName: toAccount?.name,
+        categoryName: category?.name,
+        label: label || null,
+        splits: splitsWithDetails,
+      };
+    });
 
     return {
         page: pageWithDetails,
