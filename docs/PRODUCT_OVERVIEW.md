@@ -11,7 +11,7 @@
     - **Sell:** Increases Cash, Decreases Asset Quantity/Cost Basis, calculates Realized Profit.
 - **Split Transactions:** Ability to split a single transaction into multiple categories. Uses a dedicated **Nested Drawer** UI for better mobile experience.
 - **Filtering:** Powerful **Multi-Select Filtering** allows users to combine multiple Accounts, Categories, or Types simultaneously. Supports Date Range filtering.
-- **Analytics:** Integrated visual analytics (Donut Chart & Trend) directly within the transaction list via a swipeable tab interface.
+- **Analytics:** Integrated visual analytics (Donut Chart) with **Real-time Trend Analysis** (comparing current vs previous period) directly within the transaction list via a swipeable tab interface.
 
 ### 2. Accounts (Funds Storage)
 - **Types:**
@@ -36,7 +36,11 @@
   - **Achieved:** Goal met (handled via Wizard). Hidden from Budget list.
   - **Archived:** Manually hidden or automatically hidden when the linked account is closed.
 
-...
+### 4. Labels (Tagging)
+- **Purpose:** flexible tagging system for transactions, independent of Categories.
+- **Usage:** Useful for tracking specific events (e.g., "Holiday 2024", "Reimbursable") across different categories.
+- **Visuals:** Labels have names and custom colors.
+- **Splits:** Can be applied to individual splits within a split transaction.
 
 ### 5. Budgeting (Zero-Based Budgeting)
 - **Monthly Budgets:** Set limits per category per month.
@@ -47,7 +51,13 @@
     - **Smart Auto-Budgeting:** If a transaction is made to a category without a budget, the system automatically creates a budget with the **transaction amount**. This prevents "false alarm" over-budget warnings while maintaining zero-based integrity.
 - **Sweep Feature:** Move leftover budget from previous month to current month/savings.
 
-...
+### 6. Households & Collaboration
+- **Multi-User:** Support for shared financial tracking (e.g., couples, families).
+- **Roles:**
+  - **Admin:** Can manage members and settings.
+  - **Member:** Can view and add transactions.
+- **Invites:** Invite system via email/code with expiration.
+- **Context Switching:** Users can switch between "Personal" view and "Household" view. Data is siloed by `householdId`.
 
 ## Business Logic Rules
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is available but dangerous.

@@ -3,7 +3,7 @@
 ## Technology Stack
 
 ### Frontend
-- **Framework:** [Next.js 15+](https://nextjs.org/) (App Router).
+- **Framework:** [Next.js 16](https://nextjs.org/) (App Router).
 - **Language:** TypeScript.
 - **Styling:** [Tailwind CSS](https://tailwindcss.com/).
 - **UI Library:** [shadcn/ui](https://ui.shadcn.com/) (based on Radix UI).
@@ -79,6 +79,8 @@
 │   ├── transactions.ts  # Transaction logic
 │   ├── accounts.ts      # Account logic
 │   ├── budgets.ts       # Budget logic
+│   ├── labels.ts        # Label logic
+│   ├── households.ts    # Household logic
 │   ├── lib/             # Shared Business Logic & Helpers (Finance, Auth, Constants)
 │   ├── push.ts          # Web Push Actions
 │   ├── notifications.ts # In-app notification logic
