@@ -29,9 +29,10 @@ type SummaryData = {
 
 type Props = {
   summary: SummaryData | undefined | null;
+  isPrivacyMode?: boolean;
 };
 
-const BudgetRow = ({ item, daysRemaining }: { item: BudgetBreakdownItem, daysRemaining: number }) => {
+const BudgetRow = ({ item, daysRemaining, isPrivacyMode }: { item: BudgetBreakdownItem, daysRemaining: number, isPrivacyMode?: boolean }) => {
     const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
     const isOver = item.spent > item.limit;
     const safeSpend = Math.max(0, item.remaining) / daysRemaining;
@@ -88,7 +89,7 @@ const BudgetRow = ({ item, daysRemaining }: { item: BudgetBreakdownItem, daysRem
                 {/* Safe Daily Badge - Always Visible if applicable */}
                 {!isOver && item.remaining > 0 && safeSpend > 0 ? (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-primary/5 text-primary border-primary/20 shrink-0">
-                        ~{safeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day
+                        {isPrivacyMode ? '****' : `~${safeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`}
                     </Badge>
                 ) : isOver ? (
                     <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 font-normal shrink-0">
@@ -112,19 +113,21 @@ const BudgetRow = ({ item, daysRemaining }: { item: BudgetBreakdownItem, daysRem
             </div>
             
             <div className="flex justify-between items-center text-[10px] text-muted-foreground">
-                <span>{item.spent.toLocaleString()} / {item.limit.toLocaleString()}</span>
+                <span>
+                    {isPrivacyMode ? '****' : item.spent.toLocaleString()} / {isPrivacyMode ? '****' : item.limit.toLocaleString()}
+                </span>
                 <span className={isOver ? "text-destructive font-bold" : "text-foreground font-medium"}>
-                    {isOver 
+                    {isPrivacyMode ? '****' : (isOver 
                         ? `-${(item.spent - item.limit).toLocaleString()}` 
                         : `${item.remaining.toLocaleString()} left`
-                    }
+                    )}
                 </span>
             </div>
         </div>
     );
 };
 
-export function DailyOperationsCard({ summary }: Props) {
+export function DailyOperationsCard({ summary, isPrivacyMode }: Props) {
   // Insight Logic
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -154,7 +157,7 @@ export function DailyOperationsCard({ summary }: Props) {
             <div className="flex items-start justify-between mb-2">
                 <div>
                     <div className="text-2xl font-bold text-primary">
-                        {remainingBudget.toLocaleString() ?? '...'}
+                        {isPrivacyMode ? '****' : (remainingBudget.toLocaleString() ?? '...')}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
@@ -162,7 +165,7 @@ export function DailyOperationsCard({ summary }: Props) {
                         </p>
                         {remainingBudget > 0 && (
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20 cursor-help" title="Safe to spend daily">
-                                ~{dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day
+                                {isPrivacyMode ? '****' : `~${dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`}
                             </Badge>
                         )}
                     </div>
@@ -186,7 +189,7 @@ export function DailyOperationsCard({ summary }: Props) {
                                         "font-bold",
                                         (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
                                     )}>
-                                        {summary?.unassignedCash.toLocaleString() ?? '...'}
+                                        {isPrivacyMode ? '****' : (summary?.unassignedCash.toLocaleString() ?? '...')}
                                     </span>
                                 </div>
                                 
@@ -201,7 +204,7 @@ export function DailyOperationsCard({ summary }: Props) {
                             </div>
 
                             <div className="text-[10px] text-muted-foreground bg-muted/50 p-2 rounded space-y-1">
-                                <p>• <strong>Safe Spend:</strong> You can spend <strong>{dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong> today globally to stay on track.</p>
+                                <p>• <strong>Safe Spend:</strong> You can spend <strong>{isPrivacyMode ? '****' : dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong> today globally to stay on track.</p>
                                 <p>• <strong>Tip:</strong> Tap on any category below to see its specific daily limit.</p>
                             </div>
                         </div>
@@ -239,7 +242,7 @@ export function DailyOperationsCard({ summary }: Props) {
                     return pctB - pctA;
                 })
                 .map((item: BudgetBreakdownItem, index: number) => (
-                    <BudgetRow key={index} item={item} daysRemaining={daysRemaining} />
+                    <BudgetRow key={index} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} />
                 ))}
             </div>
           </TabsContent>
@@ -248,7 +251,7 @@ export function DailyOperationsCard({ summary }: Props) {
           <TabsContent value="cash" className="space-y-4 animate-in fade-in-5">
             <div>
               <div className="text-2xl font-bold">
-                {summary?.liquidCash.toLocaleString() ?? '...'}
+                {isPrivacyMode ? '****' : (summary?.liquidCash.toLocaleString() ?? '...')}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                 Total Liquid Cash
@@ -259,7 +262,7 @@ export function DailyOperationsCard({ summary }: Props) {
               {summary?.cashAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/20">
                   <span className="font-medium">{account.name}</span>
-                  <span>{account.balance.toLocaleString()}</span>
+                  <span>{isPrivacyMode ? '****' : account.balance.toLocaleString()}</span>
                 </div>
               ))}
             </div>

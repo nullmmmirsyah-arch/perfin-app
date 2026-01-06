@@ -13,9 +13,10 @@ type SummaryData = {
 
 type Props = {
   summary: SummaryData | undefined | null;
+  isPrivacyMode?: boolean;
 };
 
-export function WealthCard({ summary }: Props) {
+export function WealthCard({ summary, isPrivacyMode }: Props) {
   return (
     <Card className="w-full h-full">
       <CardHeader className="pb-2">
@@ -36,10 +37,12 @@ export function WealthCard({ summary }: Props) {
           <TabsContent value="goals" className="space-y-4 animate-in fade-in-5">
             <div>
               <div className="text-2xl font-bold text-success">
-                {summary?.budgetBreakdown
-                  ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
-                  .reduce((acc: number, item: BudgetBreakdownItem) => acc + item.accumulated, 0)
-                  .toLocaleString() ?? '0'}
+                {isPrivacyMode ? '****' : (
+                  summary?.budgetBreakdown
+                    ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
+                    .reduce((acc: number, item: BudgetBreakdownItem) => acc + item.accumulated, 0)
+                    .toLocaleString() ?? '0'
+                )}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                 Accumulated Goal Progress
@@ -60,7 +63,7 @@ export function WealthCard({ summary }: Props) {
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground font-medium">{item.categoryName}</span>
                         <span className="font-bold text-xs text-success">
-                          {item.accumulated.toLocaleString()}
+                          {isPrivacyMode ? '****' : item.accumulated.toLocaleString()}
                         </span>
                       </div>
                       <div className="h-2 w-full bg-success/10 rounded-full overflow-hidden">
@@ -71,7 +74,7 @@ export function WealthCard({ summary }: Props) {
                       </div>
                       <div className="flex justify-between text-[10px] text-muted-foreground">
                         <span>{item.targetAmount ? `${Math.round(percentage)}%` : 'No Target'}</span>
-                        <span>Goal: {item.targetAmount ? item.targetAmount.toLocaleString() : '∞'}</span>
+                        <span>Goal: {isPrivacyMode ? '****' : (item.targetAmount ? item.targetAmount.toLocaleString() : '∞')}</span>
                       </div>
                     </div>
                   );
@@ -83,7 +86,7 @@ export function WealthCard({ summary }: Props) {
           <TabsContent value="savings" className="space-y-4 animate-in fade-in-5">
             <div>
               <div className="text-2xl font-bold text-success">
-                {summary?.totalSavingsOnly.toLocaleString() ?? '...'}
+                {isPrivacyMode ? '****' : (summary?.totalSavingsOnly.toLocaleString() ?? '...')}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                 Total In Savings Accounts
@@ -94,7 +97,7 @@ export function WealthCard({ summary }: Props) {
               {summary?.savingAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-success/10 text-success">
                   <span className="font-medium">{account.name}</span>
-                  <span>{account.balance.toLocaleString()}</span>
+                  <span>{isPrivacyMode ? '****' : account.balance.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -104,7 +107,7 @@ export function WealthCard({ summary }: Props) {
           <TabsContent value="assets" className="space-y-4 animate-in fade-in-5">
             <div>
               <div className="text-2xl font-bold text-primary">
-                {summary?.totalAssetsOnly.toLocaleString() ?? '...'}
+                {isPrivacyMode ? '****' : (summary?.totalAssetsOnly.toLocaleString() ?? '...')}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                 Total Assets Value
@@ -115,7 +118,7 @@ export function WealthCard({ summary }: Props) {
               {summary?.assetAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-primary/10 text-primary">
                   <span className="font-medium">{account.name}</span>
-                  <span>{account.balance.toLocaleString()}</span>
+                  <span>{isPrivacyMode ? '****' : account.balance.toLocaleString()}</span>
                 </div>
               ))}
             </div>

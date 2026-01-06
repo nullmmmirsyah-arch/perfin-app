@@ -25,6 +25,7 @@ import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransac
 import { TransactionWithDetails } from '@/components/transactions/types'
 
 import { PageHeader } from '@/components/PageHeader'
+import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 
 export default function Dashboard() {
   const { householdId } = useHousehold()
@@ -36,6 +37,9 @@ export default function Dashboard() {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithDetails | undefined>(undefined)
   const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithDetails | undefined>(undefined)
+  
+  // Privacy Mode
+  const { isPrivacyMode, togglePrivacyMode, isLoaded } = usePrivacyMode()
 
   const deleteTransaction = useMutation(api.transactions.deleteTransaction)
 
@@ -52,11 +56,16 @@ export default function Dashboard() {
     }
   }
 
+  // Prevent hydration mismatch or layout shift if needed, but here simple rendering is fine.
+  // The hook handles isLoaded if we want to show a skeleton, but for privacy it's better to default to hidden (safe).
+
   return (
     <div className="p-4 md:p-8 pb-24 md:pb-8">
       <PageHeader 
         title="Dashboard" 
-        description="Overview of your daily operations and wealth." 
+        description="Overview of your daily operations and wealth."
+        isPrivacyMode={isPrivacyMode}
+        onTogglePrivacy={togglePrivacyMode}
       />
 
       {/* Transaction Actions Components */}
@@ -91,10 +100,10 @@ export default function Dashboard() {
             >
                 <CarouselContent className="-ml-4">
                     <CarouselItem className="pl-4 basis-[85%]">
-                        <DailyOperationsCard summary={summary} />
+                        <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} />
                     </CarouselItem>
                     <CarouselItem className="pl-4 basis-[85%]">
-                        <WealthCard summary={summary} />
+                        <WealthCard summary={summary} isPrivacyMode={isPrivacyMode} />
                     </CarouselItem>
                 </CarouselContent>
             </Carousel>
@@ -110,8 +119,8 @@ export default function Dashboard() {
             </>
         ) : (
             <>
-                <DailyOperationsCard summary={summary} />
-                <WealthCard summary={summary} />
+                <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} />
+                <WealthCard summary={summary} isPrivacyMode={isPrivacyMode} />
             </>
         )}
       </div>
