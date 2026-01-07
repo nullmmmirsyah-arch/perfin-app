@@ -851,6 +851,10 @@ export const deleteTransaction = mutation({
     }
 
     await ctx.db.delete(args.id);
+
+    if (transaction.categoryId) {
+        await checkGoalProgress(ctx, transaction.categoryId, transaction.householdId, transaction.userId);
+    }
   },
 });
 
@@ -883,20 +887,19 @@ async function checkGoalProgress(ctx: MutationCtx, categoryId: Id<"categories">,
 
     const target = parseFloat(category.targetAmount.replace(/,/g, ''));
 
+    const existingNotif = await ctx.db.query("notifications")
+        .withIndex("by_userId", q => q.eq("userId", userId))
+        .filter(q => q.eq(q.field("type"), NOTIFICATION_TYPES.GOAL_REACHED))
+        .collect();
+    
+    const specificNotif = existingNotif.find(n => String(n.data?.categoryId) === String(categoryId));
+
     if (accumulated >= target) {
-        
         if (category.status === GOAL_STATUS.ACHIEVED) {
              return;
         }
-
-        const existingNotif = await ctx.db.query("notifications")
-            .withIndex("by_userId", q => q.eq("userId", userId))
-            .filter(q => q.eq(q.field("type"), NOTIFICATION_TYPES.GOAL_REACHED))
-            .collect();
         
-        const hasNotified = existingNotif.some(n => String(n.data?.categoryId) === String(categoryId));
-        
-        if (!hasNotified) {
+        if (!specificNotif) {
              await ctx.db.insert("notifications", {
                 userId,
                 householdId,
@@ -907,6 +910,12 @@ async function checkGoalProgress(ctx: MutationCtx, categoryId: Id<"categories">,
                 isRead: false,
                 createdAt: Date.now(),
             });
+        }
+    } else {
+        // Regression: Goal is no longer met (e.g. transaction deleted)
+        // If there was a notification, remove it so it can trigger again later.
+        if (specificNotif) {
+            await ctx.db.delete(specificNotif._id);
         }
     }
 }
