@@ -141,11 +141,11 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
+      <DrawerContent className="max-h-dvh flex flex-col">
         <DrawerHeader>
           <DrawerTitle>{isEditMode ? 'Edit Account' : 'Create a new Account'}</DrawerTitle>
         </DrawerHeader>
-        <div className="p-4 pt-0">
+        <div className="flex-1 overflow-y-auto p-4 pt-0">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               
@@ -331,16 +331,17 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                       )}
                   </div>
               )}
-
-              <DrawerFooter className="px-0">
-                <Button type="submit">Save changes</Button>
-                <DrawerClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DrawerClose>
-              </DrawerFooter>
+              {/* Hidden submit button */}
+              <button type="submit" className="hidden" />
             </form>
           </Form>
         </div>
+        <DrawerFooter className="border-t bg-background pt-4 pb-safe px-4">
+            <Button onClick={form.handleSubmit(onSubmit)}>Save changes</Button>
+            <DrawerClose asChild>
+                <Button variant="outline">Cancel</Button>
+            </DrawerClose>
+        </DrawerFooter>
       </DrawerContent>
     </Drawer>
   );

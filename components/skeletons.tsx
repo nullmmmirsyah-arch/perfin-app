@@ -6,19 +6,26 @@ export function TransactionItemSkeleton({ variant = 'default' }: { variant?: 'de
   const isSlim = variant === 'slim'
   return (
     <div className={cn(
-      "flex justify-between items-center border rounded-lg",
-      isSlim ? "p-2 px-3" : "p-4"
+      "flex justify-between items-center bg-card",
+      isSlim ? "py-2" : "p-4 border rounded-lg shadow-sm"
     )}>
-      <div className="flex items-center gap-3 w-full">
-        <Skeleton className="h-6 w-6 rounded-full shrink-0" />
-        <div className="space-y-2 w-full max-w-[200px]">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-3 w-2/3" />
+      <div className="flex items-center gap-4 flex-1 overflow-hidden">
+        {/* Icon Circle */}
+        <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+        
+        <div className="space-y-1.5 flex-1 min-w-0">
+          {/* Category Name */}
+          <Skeleton className="h-4 w-32" />
+          {/* Account/Date/Desc */}
+          <Skeleton className="h-3 w-24" />
         </div>
       </div>
-      <div className="flex flex-col items-end gap-2 shrink-0">
-        <Skeleton className="h-5 w-20" />
-        {!isSlim && <Skeleton className="h-4 w-12" />}
+
+      <div className="flex flex-col items-end gap-1.5 ml-4 shrink-0">
+        {/* Amount */}
+        <Skeleton className="h-4 w-20" />
+        {/* Status/Badge */}
+        {!isSlim && <Skeleton className="h-3 w-12 rounded-full" />}
       </div>
     </div>
   )

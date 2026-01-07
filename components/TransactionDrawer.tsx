@@ -357,7 +357,7 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
           <DrawerHeader>
             <DrawerTitle>{isEditMode ? 'Edit transaction' : 'Create a new transaction'}</DrawerTitle>
           </DrawerHeader>
-          <div className="flex-1 overflow-y-auto p-4 pb-24">
+          <div className="flex-1 overflow-y-auto p-4">
             <Tabs value={transactionType} className="w-full" onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="expense">Expense</TabsTrigger>
@@ -365,8 +365,8 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
                 <TabsTrigger value="transfer">Transfer</TabsTrigger>
               </TabsList>
               
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <TabsContent value="expense" className="space-y-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
+                  <TabsContent value="expense" className="space-y-4 mt-0">
                     <TransactionFormFields 
                       form={form} 
                       categories={categories || []} 
@@ -377,7 +377,7 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
                       onEditSplit={() => setSplitDrawerOpen(true)}
                     />
                   </TabsContent>
-                  <TabsContent value="income" className="space-y-4">
+                  <TabsContent value="income" className="space-y-4 mt-0">
                     <TransactionFormFields 
                       form={form} 
                       categories={categories || []} 
@@ -388,20 +388,22 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
                       onEditSplit={() => setSplitDrawerOpen(true)}
                     />
                   </TabsContent>
-                  <TabsContent value="transfer" className="space-y-4">
+                  <TabsContent value="transfer" className="space-y-4 mt-0">
                     <TransferFormFields form={form} accounts={accounts || []} labels={labels || []} categories={categories || []} />
                   </TabsContent>
 
-                  <DrawerFooter>
-                    <Button type="submit">Save changes</Button>
-                    <DrawerClose asChild>
-                      <Button variant="outline">Cancel</Button>
-                    </DrawerClose>
-                  </DrawerFooter>
+                  {/* Hidden submit button to allow Enter key submission within form fields if needed */}
+                  <button type="submit" className="hidden" />
                 </form>
               
             </Tabs>
           </div>
+          <DrawerFooter className="border-t bg-background pt-4 pb-safe">
+            <Button onClick={form.handleSubmit(onSubmit)}>Save changes</Button>
+            <DrawerClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DrawerClose>
+          </DrawerFooter>
         </DrawerContent>
       </Drawer>
 

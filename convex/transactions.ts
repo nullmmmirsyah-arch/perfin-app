@@ -21,7 +21,8 @@ async function ensureBudgetExists(
     dateStr: string, 
     userId: string, 
     amount: string, // Accept transaction amount
-    householdId?: Id<"households">
+    householdId?: Id<"households">,
+    shouldIncrement: boolean = false // New param: Auto-adjust budget upward
 ) {
     const date = new Date(dateStr);
     const month = date.getMonth();
@@ -46,15 +47,24 @@ async function ensureBudgetExists(
             ).first();
     }
 
+    const txAmount = parseFloat(amount.replace(/,/g, '') || '0');
+
     if (!existingBudget) {
-        // Auto-create Budget with the transaction amount to prevent "Over Budget" alarm
+        // Auto-create Budget
         await ctx.db.insert("budgets", {
             userId,
             householdId,
             categoryId,
-            amount: amount.replace(/,/g, ''), 
+            amount: txAmount.toString(), 
             year,
             month,
+        });
+    } else if (shouldIncrement) {
+        // Auto-adjust: Increment existing budget
+        const currentLimit = parseFloat(existingBudget.amount.replace(/,/g, '') || '0');
+        const newLimit = currentLimit + txAmount;
+        await ctx.db.patch(existingBudget._id, {
+            amount: newLimit.toString()
         });
     }
 }
@@ -487,14 +497,15 @@ export const create = mutation({
 
     if (args.isSplit && args.splits) {
         for (const split of args.splits) {
-            await ensureBudgetExists(ctx, split.categoryId, args.date, identity.subject, split.amount, args.householdId);
+            await ensureBudgetExists(ctx, split.categoryId, args.date, identity.subject, split.amount, args.householdId, false);
         }
     } 
     else if ((args.type === TRANSACTION_TYPES.EXPENSE || args.type === TRANSACTION_TYPES.SAVING) && finalCategoryId) {
-        await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId);
+        const shouldIncrement = args.type === TRANSACTION_TYPES.SAVING;
+        await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, shouldIncrement);
     }
     else if (args.type === TRANSACTION_TYPES.TRANSFER && finalCategoryId) {
-         await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId);
+         await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, true);
     }
 
     if (args.householdId) {
@@ -638,7 +649,6 @@ export const update = mutation({
     const newTx = { ...originalTransaction, ...rest };
     let finalCategoryId = newTx.categoryId;
 
-    // --- AUTO-CATEGORIZE Logic for Update ---
     if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.toAccountId && !finalCategoryId) {
         const destAccount = await ctx.db.get(newTx.toAccountId as Id<"accounts">);
         if (destAccount?.linkedCategoryId) {
@@ -730,14 +740,14 @@ export const update = mutation({
 
     if (newTx.isSplit && newTx.splits) {
         for (const split of newTx.splits) {
-            await ensureBudgetExists(ctx, split.categoryId, newTx.date, identity.subject, split.amount, newTx.householdId);
+            await ensureBudgetExists(ctx, split.categoryId, newTx.date, identity.subject, split.amount, newTx.householdId, false);
         }
     }
     else if ((newTx.type === TRANSACTION_TYPES.EXPENSE || newTx.type === TRANSACTION_TYPES.SAVING) && newTx.categoryId) {
-        await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId);
+        await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId, false);
     }
     else if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.categoryId) {
-         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId);
+         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId, false);
     }
 
     if (newTx.categoryId) {
