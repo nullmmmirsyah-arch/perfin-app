@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import { Doc, Id } from '../convex/_generated/dataModel'
-import { Bell, PartyPopper } from 'lucide-react'
+import { Bell, PartyPopper, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -25,7 +25,8 @@ export default function NotificationBell() {
   const notifications = useQuery(api.notifications.get, { householdId: householdId ?? undefined })
   
   const markRead = useMutation(api.notifications.markAsRead)
-  const markAllRead = useMutation(api.notifications.markAllAsRead)
+  const deleteAll = useMutation(api.notifications.deleteAll)
+  const deleteOne = useMutation(api.notifications.deleteNotification)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedGoalNotif, setSelectedGoalNotif] = useState<Doc<"notifications"> | null>(null)
@@ -51,8 +52,13 @@ export default function NotificationBell() {
     }
   }
 
-  const handleMarkAllRead = async () => {
-      await markAllRead({ householdId: householdId ?? undefined })
+  const handleClearAll = async () => {
+      await deleteAll({ householdId: householdId ?? undefined })
+  }
+
+  const handleDeleteOne = async (e: React.MouseEvent, id: Id<"notifications">) => {
+      e.stopPropagation() // Prevent triggering the card click
+      await deleteOne({ id })
   }
 
   return (
@@ -74,9 +80,9 @@ export default function NotificationBell() {
         <PopoverContent align="end" className="w-80 p-0">
           <div className="flex items-center justify-between p-4 border-b">
             <h4 className="font-semibold">Notifications</h4>
-            {unreadCount > 0 && (
-                <Button variant="ghost" size="sm" className="h-auto text-xs text-muted-foreground p-0" onClick={handleMarkAllRead}>
-                    Mark all read
+            {notifications && notifications.length > 0 && (
+                <Button variant="ghost" size="sm" className="h-auto text-xs text-muted-foreground p-0 hover:text-destructive" onClick={handleClearAll}>
+                    Clear all
                 </Button>
             )}
           </div>
@@ -90,10 +96,10 @@ export default function NotificationBell() {
                     {notifications.map((notif) => (
                         <div 
                             key={notif._id} 
-                            className={`p-4 hover:bg-muted/50 cursor-pointer transition-colors ${!notif.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                            className={`p-4 hover:bg-muted/50 cursor-pointer transition-colors relative ${!notif.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                             onClick={() => handleNotificationClick(notif)}
                         >
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 pr-8">
                                 <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${!notif.isRead ? 'bg-blue-500' : 'bg-transparent'}`} />
                                 <div className="space-y-1">
                                     <div className="flex items-center gap-2">
@@ -106,6 +112,14 @@ export default function NotificationBell() {
                                     </p>
                                 </div>
                             </div>
+                            <Button
+                                variant="ghost" 
+                                size="icon" 
+                                className="absolute right-2 top-2 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={(e) => handleDeleteOne(e, notif._id)}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
                         </div>
                     ))}
                 </div>

@@ -162,6 +162,49 @@ export const markAllAsRead = mutation({
   }
 })
 
+export const deleteAll = mutation({
+  args: { householdId: v.optional(v.id("households")) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    let notifications;
+    if (args.householdId) {
+        await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
+        notifications = await ctx.db.query("notifications")
+            .withIndex("by_householdId", q => q.eq("householdId", args.householdId))
+            .collect();
+    } else {
+        notifications = await ctx.db.query("notifications")
+            .withIndex("by_userId", q => q.eq("userId", identity.subject))
+            .collect();
+    }
+
+    for (const n of notifications) {
+        await ctx.db.delete(n._id);
+    }
+  }
+})
+
+export const deleteNotification = mutation({
+  args: { id: v.id("notifications") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const notif = await ctx.db.get(args.id);
+    if (!notif) return;
+
+    if (notif.householdId) {
+         await ensureHouseholdAccess(ctx, notif.householdId, identity.subject);
+    } else {
+         if (notif.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    await ctx.db.delete(args.id);
+  },
+});
+
 // Internal Mutation to be called by other functions
 export const createInternal = mutation({
     args: {
