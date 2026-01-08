@@ -119,40 +119,59 @@ export function calculateSpendingByCategory(
 
 /**
  * Calculates Unassigned Cash (Global Logic).
- * Formula: Total Income (All Time) - Total Budgeted (All Time).
+ * New Formula: Total Liquid Cash - Sum(Remaining Budget Obligations)
+ * Remaining Obligation = Max(0, Budget Amount - Spent in that Period)
  */
 export function calculateUnassignedCash(
   allTransactions: Doc<"transactions">[],
   allBudgets: Doc<"budgets">[],
   accountsMap: AccountMap
 ): number {
-  // 1. Calculate Total Income
-  const totalIncome = allTransactions.reduce((acc, t) => {
-    const amount = parseFloat(t.amount.replace(/,/g, '') || '0');
-
-    // Case 1: Standard Income
-    if (t.type === TRANSACTION_TYPES.INCOME) {
-      // Note: If income is split, we sum the splits.
-      if (t.isSplit && t.splits) {
-        return acc + t.splits.reduce((sAcc, s) => sAcc + parseFloat(s.amount.replace(/,/g, '') || '0'), 0);
-      }
-      return acc + amount;
+  // 1. Calculate Total Liquid Cash (Current Reality)
+  let totalLiquidCash = 0;
+  for (const account of accountsMap.values()) {
+    if (isLiquidAccount(account)) {
+      totalLiquidCash += parseFloat(account.balance.replace(/,/g, '') || '0');
     }
+  }
 
-    // Case 2: Asset Liquidation (Transfer Special -> Liquid)
-    if (t.type === TRANSACTION_TYPES.TRANSFER && t.accountId && t.toAccountId) {
-      const source = accountsMap.get(t.accountId);
-      const dest = accountsMap.get(t.toAccountId);
-      if (!isLiquidAccount(source) && isLiquidAccount(dest)) {
-        return acc + amount;
-      }
+  // 2. Group Spending by Month & Category
+  // Map<"YYYY-MM", Map<CategoryId, Amount>>
+  const monthlySpending = new Map<string, Map<string, number>>();
+
+  allTransactions.forEach(t => {
+    // Only care about spending flows
+    const flows = analyzeTransactionFlow(t, accountsMap);
+    const date = new Date(t.date);
+    const key = `${date.getFullYear()}-${date.getMonth()}`; // "2024-0" for Jan
+
+    if (!monthlySpending.has(key)) {
+        monthlySpending.set(key, new Map());
     }
+    const categoryMap = monthlySpending.get(key)!;
 
-    return acc;
-  }, 0);
+    flows.forEach(flow => {
+      if (flow.type === 'SPENDING') {
+        const current = categoryMap.get(flow.categoryId) || 0;
+        categoryMap.set(flow.categoryId, current + flow.amount);
+      }
+    });
+  });
 
-  // 2. Calculate Total Budgeted
-  const totalBudgeted = allBudgets.reduce((acc, b) => acc + parseFloat(b.amount.replace(/,/g, '') || '0'), 0);
+  // 3. Calculate Total Remaining Budget Obligations
+  let totalRemainingObligations = 0;
 
-  return totalIncome - totalBudgeted;
+  allBudgets.forEach(b => {
+    const key = `${b.year}-${b.month}`;
+    const categoryMap = monthlySpending.get(key);
+    const spent = categoryMap?.get(b.categoryId) || 0;
+    const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+    
+    // Obligation is what's left to be spent. 
+    // If we overspent, obligation is 0 (we don't owe the envelope anymore, we owe the bank/unassigned).
+    const remaining = Math.max(0, allocated - spent);
+    totalRemainingObligations += remaining;
+  });
+
+  return totalLiquidCash - totalRemainingObligations;
 }

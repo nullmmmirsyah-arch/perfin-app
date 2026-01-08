@@ -60,12 +60,59 @@ async function ensureBudgetExists(
             month,
         });
     } else if (shouldIncrement) {
-        // Auto-adjust: Increment existing budget
+        // Smart Auto-Adjust: Only increment if the new transaction would exceed the current budget.
+        // This prevents budget ballooning when users delete and re-add transactions.
+        
+        // 1. Calculate current spending for this category in this month
+        const startOfMonth = new Date(year, month, 1).toISOString();
+        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
+        
+        let monthTransactions;
+        if (householdId) {
+            monthTransactions = await ctx.db.query("transactions")
+                .withIndex("by_householdId_date", q => q.eq("householdId", householdId))
+                .filter(q => q.gte(q.field("date"), startOfMonth) && q.lte(q.field("date"), endOfMonth))
+                .collect();
+        } else {
+            monthTransactions = await ctx.db.query("transactions")
+                .withIndex("by_userId_date", q => q.eq("userId", userId))
+                .filter(q => q.gte(q.field("date"), startOfMonth) && q.lte(q.field("date"), endOfMonth))
+                .collect();
+        }
+
+        // Simple calc: Sum of transactions linked to this category
+        // Note: We don't need full AccountMap logic here because 'Transfer to Goal' is explicit in this context.
+        // We just sum 'spending' type transactions or transfers to this goal.
+        // But reusing calculateSpendingByCategory is safer if we want to be exact.
+        // For performance/simplicity here, we just sum amounts where categoryId matches.
+        
+        const currentSpent = monthTransactions.reduce((acc, t) => {
+            // Check main category
+            if (t.categoryId === categoryId) {
+                return acc + parseFloat(t.amount.replace(/,/g, '') || '0');
+            }
+            // Check splits
+            if (t.isSplit && t.splits) {
+                const split = t.splits.find(s => s.categoryId === categoryId);
+                if (split) return acc + parseFloat(split.amount.replace(/,/g, '') || '0');
+            }
+            return acc;
+        }, 0);
+
         const currentLimit = parseFloat(existingBudget.amount.replace(/,/g, '') || '0');
-        const newLimit = currentLimit + txAmount;
-        await ctx.db.patch(existingBudget._id, {
-            amount: newLimit.toString()
-        });
+        
+        // Fix: Since we insert the transaction BEFORE calling this function in 'create',
+        // currentSpent (queried from DB) ALREADY INCLUDES the new transaction amount.
+        // So projectedTotal is simply currentSpent.
+        const projectedTotal = currentSpent;
+
+        if (projectedTotal > currentLimit) {
+            // Only update if we strictly need more room
+            // We set the new limit to exactly match the projected total (Tight Fit)
+            await ctx.db.patch(existingBudget._id, {
+                amount: projectedTotal.toString()
+            });
+        }
     }
 }
 
