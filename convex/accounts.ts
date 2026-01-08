@@ -115,7 +115,6 @@ export const update = mutation({
   args: {
     id: v.id("accounts"),
     name: v.optional(v.string()),
-    balance: v.optional(v.string()),
     type: v.optional(v.string()),
     initialQuantity: v.optional(v.string()),
     unit: v.optional(v.string()),

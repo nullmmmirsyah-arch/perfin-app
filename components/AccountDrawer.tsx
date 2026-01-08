@@ -222,12 +222,13 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                 name="balance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{isEditMode ? 'Balance' : 'Initial Balance'}</FormLabel>
+                    <FormLabel>{isEditMode ? 'Current Balance' : 'Initial Balance'}</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="0" 
                         inputMode="numeric" 
                         {...field} 
+                        disabled={isEditMode}
                         value={field.value || ''}
                         onChange={(e) => {
                           const value = e.target.value;
@@ -240,6 +241,11 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                         }}
                       />
                     </FormControl>
+                    {isEditMode && (
+                        <p className="text-[10px] text-muted-foreground bg-muted/30 p-2 rounded italic">
+                            Balance can only be changed via transactions (Income/Expense/Transfer) to keep your financial reports accurate.
+                        </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

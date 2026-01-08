@@ -185,6 +185,37 @@ export const deleteCategory = mutation({
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
+    // 1. Check for Transactions
+    const transactions = await ctx.db.query("transactions")
+        .withIndex("by_userId", q => q.eq("userId", identity.subject)) // Global check
+        .collect();
+    
+    const hasTransactions = transactions.some(t => 
+        t.categoryId === args.id || 
+        (t.isSplit && t.splits?.some(s => s.categoryId === args.id))
+    );
+
+    if (hasTransactions) {
+        throw new Error("Cannot delete category with transaction history. Please use Archive instead to keep your data safe.");
+    }
+
+    // 2. Check for Budgets with allocated amount > 0
+    const budgets = await ctx.db.query("budgets")
+        .withIndex("by_user_category_year_month", q => q.eq("userId", identity.subject).eq("categoryId", args.id))
+        .collect();
+    
+    const hasActiveBudgets = budgets.some(b => parseFloat(b.amount.replace(/,/g, '') || '0') > 0);
+
+    if (hasActiveBudgets) {
+        throw new Error("This category has active budget allocations. Please remove the budgets or archive the category instead.");
+    }
+
+    // 3. Cleanup: Delete any associated budget records (orphans or zero-budgets)
+    for (const budget of budgets) {
+        await ctx.db.delete(budget._id);
+    }
+
+    // 4. Finally, delete the category
     await ctx.db.delete(args.id);
   },
 });
