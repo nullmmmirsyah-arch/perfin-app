@@ -26,6 +26,7 @@ import { Check, PartyPopper, ArrowRight, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { useHousehold } from './HouseholdProvider'
 import { useEffect } from 'react'
+import confetti from 'canvas-confetti'
 
 type GoalAchievementDialogProps = {
   open: boolean
@@ -68,6 +69,32 @@ export default function GoalAchievementDialog({
             setDestAccountId('')
             setTransferAmount('')
             setActionForAccount('keep')
+            
+            // Trigger Confetti
+            const end = Date.now() + 3 * 1000;
+            const colors = ['#a786ff', '#fd8bbc', '#eca184', '#f8deb1'];
+
+            (function frame() {
+              confetti({
+                particleCount: 2,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: colors
+              });
+              confetti({
+                particleCount: 2,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: colors
+              });
+
+              if (Date.now() < end) {
+                requestAnimationFrame(frame);
+              }
+            }());
+
         }, 0)
         return () => clearTimeout(timer)
     }

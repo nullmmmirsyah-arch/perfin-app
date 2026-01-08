@@ -51,12 +51,15 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel"
+import { useRouter } from "next/navigation"
 
 export default function BudgetsPage() {
   const [open, setOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<Doc<'categories'> | undefined>(undefined)
   const [selectedAmount, setSelectedAmount] = useState<string | undefined>(undefined)
   const [selectedDate, setSelectedDate] = useState(new Date())
+  
+  const router = useRouter()
   
   // Carousel State
   const [api, setApi] = useState<CarouselApi>()
@@ -166,7 +169,16 @@ export default function BudgetsPage() {
         : null;
 
     return (
-        <Card key={category._id} className="p-6 flex flex-col justify-between shadow-sm h-full min-h-[160px]">
+        <Card 
+            key={category._id} 
+            className={cn(
+                "p-6 flex flex-col justify-between shadow-sm h-full min-h-[160px] transition-all",
+                isGoal ? "cursor-pointer hover:shadow-md active:scale-[0.99]" : ""
+            )}
+            onClick={() => {
+                if (isGoal) router.push(`/goals/${category._id}`)
+            }}
+        >
             <div>
                 <div className="flex justify-between items-start mb-4">
                     <div>
@@ -175,7 +187,7 @@ export default function BudgetsPage() {
                         {pacing && (
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <div className={cn(
+                                    <div onClick={(e) => e.stopPropagation()} className={cn(
                                         "h-2 w-2 rounded-full animate-pulse cursor-pointer",
                                         pacing.status === 'safe' ? "bg-success" : 
                                         pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
@@ -235,19 +247,25 @@ export default function BudgetsPage() {
                     </div>
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                         <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(category, budget?.amount)}>
+                        <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(category, budget?.amount)
+                        }}>
                         <Edit2 className="mr-2 h-4 w-4" />
                         {isGoal ? 'Set Monthly Contribution' : (budget ? 'Edit Budget' : 'Set Budget')}
                         </DropdownMenuItem>
                                             {budget && (
                                             <DropdownMenuItem
                                                 className="text-destructive"
-                                                onClick={() => setBudgetToDelete({ id: budget._id, name: category.name })}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setBudgetToDelete({ id: budget._id, name: category.name })
+                                                }}
                                             >
                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                 Remove Budget

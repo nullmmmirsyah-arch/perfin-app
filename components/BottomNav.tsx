@@ -8,7 +8,8 @@ import {
   ArrowLeftRight, 
   Wallet, 
   PiggyBank, 
-  Menu
+  Menu,
+  Target
 } from 'lucide-react'
 import {
   Drawer,
@@ -93,6 +94,32 @@ export function BottomNav() {
                                 <DrawerTitle>App Navigation</DrawerTitle>
                               </DrawerHeader>
                               <div className="p-4 grid gap-4 pb-10">
+                                <Link 
+                                  href="/goals" 
+                                  onClick={() => setOpen(false)}
+                                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
+                                >
+                                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                      <Target className="h-5 w-5" />
+                                   </div>
+                                   <div className="flex-1">
+                                      <p className="font-medium">Goals</p>
+                                      <p className="text-xs text-muted-foreground">Track your savings targets</p>
+                                   </div>
+                                </Link>
+                                <Link 
+                                  href="/accounts" 
+                                  onClick={() => setOpen(false)}
+                                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
+                                >
+                                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                      <Wallet className="h-5 w-5" />
+                                   </div>
+                                   <div className="flex-1">
+                                      <p className="font-medium">Accounts</p>
+                                      <p className="text-xs text-muted-foreground">Bank, Cash, and Assets</p>
+                                   </div>
+                                </Link>
                                 <Link 
                                   href="/accounts" 
                                   onClick={() => setOpen(false)}

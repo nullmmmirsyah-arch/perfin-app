@@ -8,7 +8,8 @@ import {
   Wallet, 
   Tags, 
   PiggyBank, 
-  Hash
+  Hash,
+  Target
 } from 'lucide-react'
 
 import {
@@ -30,6 +31,7 @@ import { HouseholdSwitcher } from './HouseholdSwitcher'
 const links = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { href: '/goals', label: 'Goals', icon: Target },
   { href: '/accounts', label: 'Accounts', icon: Wallet },
   { href: '/categories', label: 'Categories', icon: Tags },
   { href: '/budgets', label: 'Budgets', icon: PiggyBank },

@@ -52,9 +52,10 @@ type CategoryDrawerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   category?: Doc<'categories'>;
+  defaultType?: 'income' | 'expense' | 'saving';
 };
 
-const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) => {
+const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryDrawerProps) => {
   const { householdId } = useHousehold();
   const createCategory = useMutation(api.categories.create);
   const updateCategory = useMutation(api.categories.update);
@@ -82,13 +83,13 @@ const CategoryDrawer = ({ open, onOpenChange, category }: CategoryDrawerProps) =
     } else if (open && !isEditMode) {
       form.reset({
         name: '',
-        type: '',
+        type: defaultType || '',
         targetAmount: '',
         targetDate: undefined,
         enablePacing: false,
       });
     }
-  }, [open, isEditMode, category, form]);
+  }, [open, isEditMode, category, form, defaultType]);
 
   const onSubmit = (data: CategoryFormValues) => {
     const payload = {
