@@ -6,6 +6,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Parses a currency string into a number.
+ * Handles removal of commas and ensures a valid number return.
+ */
+export function parseAmount(value: string | undefined | null): number {
+  if (!value) return 0;
+  // Replace commas and handle empty string
+  const clean = value.replace(/,/g, '');
+  const parsed = parseFloat(clean);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 interface TransactionMinimal {
   date: string;
   [key: string]: unknown;

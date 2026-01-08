@@ -7,6 +7,16 @@ import {
 export type AccountMap = Map<string, Doc<"accounts">>;
 
 /**
+ * Parses a currency string into a number.
+ */
+export function parseAmount(value: string | undefined | null): number {
+  if (!value) return 0;
+  const clean = value.replace(/,/g, '');
+  const parsed = parseFloat(clean);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
  * Checks if an account is considered "Liquid" (Cash/Bank).
  * Returns true for type 'CASH' or undefined (legacy).
  * Returns false for 'ASSET' or 'SAVING'.
