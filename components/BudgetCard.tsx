@@ -15,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Doc, Id } from '../convex/_generated/api'
+import { Doc, Id } from '../convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { calculateBudgetPace } from '@/lib/finance-utils'
