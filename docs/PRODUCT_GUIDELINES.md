@@ -34,6 +34,7 @@ This document outlines the design philosophy and user experience patterns used i
 - **Separation of Concerns:**
   - **Accounts Page:** Separated into "Spending & Cash" vs "Savings & Assets".
   - **Budgets Page:** Separated into "Monthly Expenses" (Limits) vs "Savings & Goals" (Targets) via Carousel.
+  - **Goals Page:** Dedicated view for saving targets, separated into "Active" and "Completed" tabs.
   - **Categories Page:** Separated into "Goals", "Expenses", "Income", and "Archived".
 - **Closed Items:** Always hide archived/closed items inside a `Collapsible` section or filter them out by default.
 
@@ -49,6 +50,12 @@ This document outlines the design philosophy and user experience patterns used i
     - **Prioritization:** In Dashboard, sort budget items by urgency (Danger > Warning > Safe) so users see critical issues first.
 - **On-Demand Details:** Use interactive elements (like clicking a budget row) to reveal granular insights without cluttering the main view.
 - **Contextual Summary:** Place summary cards (Total Remaining, Total Saved) directly within their relevant tabs/slides, not in global headers.
+
+### 7. Privacy Mode
+- **Purpose:** Protect sensitive financial data when using the app in public spaces.
+- **Default Behavior:** Privacy Mode defaults to **ON (Active)** every time the application is loaded or the user navigates back to the Dashboard. It does not persist the "OFF" state across sessions/navigation to ensure security.
+- **Visuals:** Sensitive amounts (Balances, Totals) are masked using bullet characters (`••••`) instead of asterisks.
+- **Interaction:** Toggled via the **Eye Icon** in the Dashboard Page Header.
 
 ## Visual Style
 - **Components:** shadcn/ui (Radix UI + Tailwind).

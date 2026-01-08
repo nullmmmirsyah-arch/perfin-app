@@ -1,21 +1,17 @@
 import { useState, useEffect } from 'react';
 
 export function usePrivacyMode() {
-  const [isPrivacyMode, setIsPrivacyMode] = useState(true); // Default to true (safe)
+  const [isPrivacyMode, setIsPrivacyMode] = useState(true); // Always default to true (safe)
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('perfin_privacy_mode');
-    if (stored !== null) {
-      setIsPrivacyMode(stored === 'true');
-    }
+    // We no longer read from localStorage to ensure it resets every session/navigation
     setIsLoaded(true);
   }, []);
 
   const togglePrivacyMode = () => {
-    const newState = !isPrivacyMode;
-    setIsPrivacyMode(newState);
-    localStorage.setItem('perfin_privacy_mode', String(newState));
+    setIsPrivacyMode(!isPrivacyMode);
+    // We no longer save to localStorage
   };
 
   return { isPrivacyMode, togglePrivacyMode, isLoaded };

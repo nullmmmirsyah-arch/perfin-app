@@ -28,12 +28,13 @@
 - **Types:** Expense, Income, Saving (Goal).
 - **Goal Logic:**
   - A category of type `saving` is treated as a **Goal**.
+  - **Dedicated View:** Goals have a dedicated management page (`/goals`) separate from standard category management.
   - **Implicit Coupling:** Most goals are implicitly linked to specific Saving/Asset accounts.
   - **Target:** Has `targetAmount` and `targetDate`.
   - **Accumulation Logic:** Calculated dynamically based on (Expenses + Net Transfers into this category).
 - **Lifecycle:**
-  - **Active:** Normal usage.
-  - **Achieved:** Goal met (handled via Wizard). Hidden from Budget list.
+  - **Active:** Normal usage, displayed in the "Active" tab on the Goals page.
+  - **Achieved:** Goal met (handled via Wizard). Moved to the "Completed" tab on the Goals page.
   - **Archived:** Manually hidden or automatically hidden when the linked account is closed.
 
 ### 4. Labels (Tagging)
