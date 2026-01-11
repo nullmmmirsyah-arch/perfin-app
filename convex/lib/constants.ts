@@ -36,6 +36,14 @@ export const GOAL_STATUS = {
 
 export type GoalStatus = typeof GOAL_STATUS[keyof typeof GOAL_STATUS];
 
+export const GOAL_TYPES = {
+  INVESTMENT: "investment", // Wealth Building (Emergency Fund, Gold)
+  BILL: "bill",             // Sinking Fund (Tax, Insurance)
+  PURCHASE: "purchase",     // Wishlist (Vacation, Gadget)
+} as const;
+
+export type GoalType = typeof GOAL_TYPES[keyof typeof GOAL_TYPES];
+
 export const NOTIFICATION_TYPES = {
   GOAL_REACHED: "goal_reached",
   SYSTEM: "system",

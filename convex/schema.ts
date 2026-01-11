@@ -81,9 +81,27 @@ export default defineSchema({
     isArchived: v.optional(v.boolean()),
     status: v.optional(v.string()),
     enablePacing: v.optional(v.boolean()),
+    goalType: v.optional(v.union(
+      v.literal("investment"),
+      v.literal("bill"),
+      v.literal("purchase")
+    )),
+    lastResetDate: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
+  
+  goalHistory: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    categoryId: v.id("categories"),
+    completedDate: v.string(),
+    finalAmount: v.number(),
+    targetAmount: v.number(),
+    note: v.optional(v.string()),
+  })
+    .index("by_categoryId", ["categoryId"]),
+
   labels: defineTable({
     userId: v.string(),
     householdId: v.optional(v.id("households")),

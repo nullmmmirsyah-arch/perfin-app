@@ -1,3 +1,5 @@
+import { differenceInMonths } from "date-fns";
+
 export type PacingStatus = 'safe' | 'warning' | 'danger';
 
 export interface PacingResult {
@@ -6,6 +8,34 @@ export interface PacingResult {
   timeProgress: number;
   spendProgress: number;
   daysRemaining: number;
+}
+
+export function calculateGoalStrategy(
+  currentAmount: number,
+  targetAmount: number,
+  targetDateStr?: string
+) {
+  if (!targetAmount || !targetDateStr) return null;
+
+  const now = new Date();
+  const targetDate = new Date(targetDateStr);
+  
+  if (targetDate <= now) return null; // Already passed or today
+
+  const remainingAmount = Math.max(0, targetAmount - currentAmount);
+  if (remainingAmount === 0) return { monthly: 0, months: 0, isDone: true };
+
+  // Calculate months remaining (including current month)
+  const monthsRemaining = differenceInMonths(targetDate, now) + (targetDate.getDate() >= now.getDate() ? 0 : 1);
+  const divisor = Math.max(1, monthsRemaining);
+  
+  const monthly = remainingAmount / divisor;
+
+  return {
+    monthly,
+    months: divisor,
+    isDone: false
+  };
 }
 
 export function calculateBudgetPace(

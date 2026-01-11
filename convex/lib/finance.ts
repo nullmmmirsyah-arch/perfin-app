@@ -96,7 +96,19 @@ export function analyzeTransactionFlow(
     // Scenario C: Special -> Liquid (Tarik Tabungan / Jual Aset)
     // Effect: Income (New Available Cash) OR Negative Spending (Reversal).
     if (!sourceIsLiquid && destIsLiquid && t.categoryId) {
+      // FIX: Check if this is a Goal Disbursement (Completion/Reset)
+      // If yes, it's NOT Negative Spending (which means "I returned the item").
+      // Instead, it's "Release of Funds" which should increase Unassigned Cash naturally 
+      // without affecting the 'Spent' history of the category negatively.
+      if (t.isGoalDisbursement) {
+          // It's neutral/income effectively because Liquid Cash increases, 
+          // and we DO NOT want to reduce the 'spent' amount of the category 
+          // because that would increase the 'remaining obligation'.
+          return []; 
+      }
+
       // We mark this as NEGATIVE SPENDING to reduce the "Spent" amount of that category.
+      // Useful for reversals or mistakes.
       effects.push({ categoryId: t.categoryId, amount: -baseAmount, type: 'SPENDING' });
       return effects;
     }

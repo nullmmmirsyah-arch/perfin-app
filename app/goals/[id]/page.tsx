@@ -35,7 +35,7 @@ export default function GoalDetailPage() {
       )
   }
 
-  const { category, currentAmount, history } = data
+  const { category, currentAmount, history, pastCycles } = data
   const targetAmount = category.targetAmount ? parseFloat(category.targetAmount.replace(/,/g, '')) : 0
   const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0
   const remaining = Math.max(0, targetAmount - currentAmount)
@@ -128,7 +128,37 @@ export default function GoalDetailPage() {
             </div>
         )}
 
-        {/* 3. History */}
+        {/* 3. Past Cycles (History) */}
+        {pastCycles && pastCycles.length > 0 && (
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <h4 className="font-semibold text-base">History / Past Cycles</h4>
+                </div>
+                <div className="space-y-3">
+                    {pastCycles.map((cycle: any) => (
+                        <div key={cycle._id} className="bg-muted/30 border border-dashed rounded-lg p-4 flex justify-between items-center">
+                            <div>
+                                <p className="font-medium text-sm">Cycle Completed</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {format(new Date(cycle.completedDate), 'dd MMMM yyyy')}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <span className="font-semibold text-sm block">
+                                    {new Intl.NumberFormat().format(cycle.finalAmount)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    Target: {new Intl.NumberFormat().format(cycle.targetAmount)}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
+        {/* 4. Recent Transactions */}
         <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b">
                 <History className="h-5 w-5 text-muted-foreground" />

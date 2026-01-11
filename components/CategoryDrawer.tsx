@@ -44,6 +44,7 @@ const CategoryFormSchema = z.object({
   targetAmount: z.string().optional(),
   targetDate: z.date().optional(),
   enablePacing: z.boolean(),
+  goalType: z.enum(['investment', 'bill', 'purchase']).optional(),
 });
 
 type CategoryFormValues = z.infer<typeof CategoryFormSchema>;
@@ -79,6 +80,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         targetAmount: category.targetAmount || '',
         targetDate: category.targetDate ? new Date(category.targetDate) : undefined,
         enablePacing: category.enablePacing || false,
+        goalType: (category.goalType as 'investment' | 'bill' | 'purchase') || 'purchase',
       });
     } else if (open && !isEditMode) {
       form.reset({
@@ -87,6 +89,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         targetAmount: '',
         targetDate: undefined,
         enablePacing: false,
+        goalType: 'purchase',
       });
     }
   }, [open, isEditMode, category, form, defaultType]);
@@ -98,6 +101,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         targetAmount: data.targetAmount,
         targetDate: data.targetDate ? data.targetDate.toISOString() : undefined,
         enablePacing: data.enablePacing,
+        goalType: data.type === 'saving' ? data.goalType : undefined,
     };
 
     if (isEditMode) {
@@ -123,11 +127,12 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>{isEditMode ? 'Edit Category' : 'Create a new Category'}</DrawerTitle>
-        </DrawerHeader>
-        <div className="p-4">
+      <DrawerContent className="max-h-[96dvh]">
+        <div className="overflow-y-auto p-4 pb-safe">
+          <DrawerHeader className="px-0">
+            <DrawerTitle>{isEditMode ? 'Edit Category' : 'Create a new Category'}</DrawerTitle>
+          </DrawerHeader>
+          
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -192,7 +197,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
               )}
 
               {categoryType === 'saving' && (
-                <div className="space-y-4 border-l-2 pl-4 border-primary/20">
+                <div className="space-y-4 border-l-2 pl-4 border-primary/20 animate-in fade-in slide-in-from-top-2">
                     <FormField
                         control={form.control}
                         name="targetAmount"
@@ -250,15 +255,38 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
                         </FormItem>
                         )}
                     />
+                    
+                    <FormField
+                        control={form.control}
+                        name="goalType"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Goal Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select goal type" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="purchase">✨ Purchase (Wishlist)</SelectItem>
+                                    <SelectItem value="bill">📅 Bill (Sinking Fund)</SelectItem>
+                                    <SelectItem value="investment">🛡️ Investment (Wealth)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                 </div>
               )}
 
-              <DrawerFooter>
-                <Button type="submit">Save changes</Button>
+              <div className="flex flex-col gap-2 pt-4">
+                <Button type="submit" onClick={form.handleSubmit(onSubmit)}>Save changes</Button>
                 <DrawerClose asChild>
                   <Button variant="outline">Cancel</Button>
                 </DrawerClose>
-              </DrawerFooter>
+              </div>
             </form>
           </Form>
         </div>

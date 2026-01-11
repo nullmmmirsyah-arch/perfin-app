@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
-import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES, GOAL_STATUS } from "./lib/constants";
+import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES, GOAL_STATUS, GOAL_TYPES } from "./lib/constants";
 
 export const get = query({
   args: { 
@@ -38,6 +38,7 @@ export const create = mutation({
     unit: v.optional(v.string()),
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
+    goalType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -51,6 +52,13 @@ export const create = mutation({
 
     // Auto-create linked category for Savings/Assets
     if (args.type === ACCOUNT_TYPES.SAVING || args.type === ACCOUNT_TYPES.ASSET) {
+        // If ASSET, force goalType to INVESTMENT. Otherwise use provided or default to PURCHASE.
+        // Actually, let's trust frontend to send correct type, but for ASSET we enforce logic.
+        let finalGoalType = args.goalType;
+        if (args.type === ACCOUNT_TYPES.ASSET) {
+            finalGoalType = GOAL_TYPES.INVESTMENT;
+        }
+
         linkedCategoryId = await ctx.db.insert("categories", {
             userId: identity.subject,
             householdId: args.householdId,
@@ -58,6 +66,7 @@ export const create = mutation({
             type: CATEGORY_TYPES.SAVING,
             targetAmount: args.targetAmount,
             targetDate: args.targetDate,
+            goalType: finalGoalType as any, // Cast to avoid strict typing issues with string vs union in mutation args
         });
     }
 
@@ -120,12 +129,13 @@ export const update = mutation({
     unit: v.optional(v.string()),
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
+    goalType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, targetAmount, targetDate, ...rest } = args;
+    const { id, targetAmount, targetDate, goalType, ...rest } = args;
     const account = await ctx.db.get(id);
     if (!account) throw new Error("Account not found");
 
@@ -139,12 +149,14 @@ export const update = mutation({
         await ctx.db.patch(account.linkedCategoryId, { 
             name: args.name,
             targetAmount: targetAmount ?? undefined, // Only update if provided
-            targetDate: targetDate ?? undefined
+            targetDate: targetDate ?? undefined,
+            goalType: goalType as any ?? undefined
         });
-    } else if (account.linkedCategoryId && (targetAmount !== undefined || targetDate !== undefined)) {
+    } else if (account.linkedCategoryId && (targetAmount !== undefined || targetDate !== undefined || goalType !== undefined)) {
          await ctx.db.patch(account.linkedCategoryId, { 
             targetAmount: targetAmount ?? undefined,
-            targetDate: targetDate ?? undefined
+            targetDate: targetDate ?? undefined,
+            goalType: goalType as any ?? undefined
         });
     }
 
@@ -152,6 +164,11 @@ export const update = mutation({
     let newLinkedCategoryId = account.linkedCategoryId;
     const newType = args.type || account.type;
     if (!newLinkedCategoryId && (newType === ACCOUNT_TYPES.SAVING || newType === ACCOUNT_TYPES.ASSET)) {
+        let finalGoalType = goalType;
+        if (newType === ACCOUNT_TYPES.ASSET) {
+            finalGoalType = GOAL_TYPES.INVESTMENT;
+        }
+
         newLinkedCategoryId = await ctx.db.insert("categories", {
             userId: identity.subject,
             householdId: account.householdId,
@@ -159,6 +176,7 @@ export const update = mutation({
             type: CATEGORY_TYPES.SAVING,
             targetAmount: targetAmount,
             targetDate: targetDate,
+            goalType: finalGoalType as any,
         });
     }
 
@@ -179,6 +197,37 @@ export const deleteAccount = mutation({
         await ensureHouseholdAccess(ctx, account.householdId, identity.subject);
     } else {
         if (account.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    // 1. Check for Transactions linked to this Account
+    const transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId", q => q.eq("userId", identity.subject))
+        .collect(); // Global fetch is safe for personal/household scope check later, or filter by index better.
+        // Actually, let's just check if ANY transaction uses this accountId.
+    
+    const accountHasTx = transactions.some(t => t.accountId === args.id || t.toAccountId === args.id);
+    
+    if (accountHasTx) {
+        throw new Error("Cannot delete account with existing transactions. Please Archive it instead.");
+    }
+
+    // 2. Handle Linked Category
+    if (account.linkedCategoryId) {
+        // Check if category has ANY transactions (even from other accounts)
+        const categoryHasTx = transactions.some(t => 
+            t.categoryId === account.linkedCategoryId || 
+            (t.isSplit && t.splits?.some(s => s.categoryId === account.linkedCategoryId))
+        );
+
+        if (!categoryHasTx) {
+            // Safe to delete category too
+            await ctx.db.delete(account.linkedCategoryId);
+        } else {
+            // Category is used elsewhere, just unlink it? 
+            // Or actually, if it's a Saving Goal paired to this account, it shouldn't have txs from elsewhere usually.
+            // But if it does, we preserve the category but it becomes an orphan (which is better than deleting data).
+        }
     }
 
     await ctx.db.delete(args.id);

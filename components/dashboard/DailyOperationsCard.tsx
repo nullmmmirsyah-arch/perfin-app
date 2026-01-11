@@ -12,7 +12,9 @@ export type BudgetBreakdownItem = {
   categoryName: string;
   categoryType: string;
   targetAmount?: number;
+  targetDate?: string;
   enablePacing?: boolean;
+  goalType?: string;
   accumulated: number;
   limit: number;
   spent: number;

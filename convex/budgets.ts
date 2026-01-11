@@ -138,7 +138,25 @@ export const getBudgetStatus = query({
         .map((category) => {
             const budget = budgetMap.get(category._id);
             const spent = spendingByCategory[category._id] || 0;
-            const accumulated = accumulatedMap[category._id] || 0;
+            
+            // Fix: Calculate Accumulated with Cycle Reset logic
+            let accumulated = accumulatedMap[category._id] || 0;
+            
+            if (category.type === 'saving' && category.lastResetDate) {
+                const resetTime = new Date(category.lastResetDate).getTime();
+                // Filter transactions relevant to THIS category only
+                const relevantTx = allTransactions.filter(t => {
+                    const isAfter = new Date(t.date).getTime() > resetTime;
+                    if (!isAfter) return false;
+                    
+                    if (t.categoryId === category._id) return true;
+                    if (t.isSplit && t.splits?.some(s => s.categoryId === category._id)) return true;
+                    return false;
+                });
+                
+                const cycleMap = calculateSpendingByCategory(relevantTx, accountsMap);
+                accumulated = cycleMap[category._id] || 0;
+            }
             
             return {
                 category,
@@ -450,6 +468,124 @@ export const deleteBudget = mutation({
 
     await ctx.db.delete(args.id);
   },
+});
+
+export const moveBudgetFunds = mutation({
+  args: {
+    householdId: v.optional(v.id("households")),
+    fromCategoryId: v.optional(v.id("categories")), // null = Unassigned
+    toCategoryId: v.id("categories"),
+    amount: v.string(),
+    month: v.number(),
+    year: v.number(),
+  },
+  handler: async (ctx, { householdId, fromCategoryId, toCategoryId, amount, month, year }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
+
+    if (householdId) {
+        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
+    }
+
+    const moveAmount = parseFloat(amount.replace(/,/g, '') || '0');
+    if (moveAmount <= 0) throw new Error("Amount must be greater than 0");
+
+    // 1. Fetch Budgets
+    let allBudgets;
+    if (householdId) {
+        allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", year).eq("month", month)).collect();
+    } else {
+        allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", year).eq("month", month)).collect();
+    }
+
+    // 2. Determine Source Availability
+    if (fromCategoryId) {
+        // Move from another Category
+        const sourceBudget = allBudgets.find(b => b.categoryId === fromCategoryId);
+        const sourceLimit = sourceBudget ? parseFloat(sourceBudget.amount.replace(/,/g, '') || '0') : 0;
+        
+        // We must check if source has enough *Remaining* (Limit - Spent)
+        // Fetch spending for validation
+        const startOfMonth = new Date(year, month, 1);
+        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        
+        let txQuery;
+        if (householdId) {
+            txQuery = ctx.db.query("transactions").withIndex("by_householdId_date", q => q.eq("householdId", householdId));
+        } else {
+            txQuery = ctx.db.query("transactions").withIndex("by_userId_date", q => q.eq("userId", userId));
+        }
+        
+        const transactions = await txQuery
+            .filter(q => q.gte(q.field("date"), startOfMonth.toISOString()) && q.lte(q.field("date"), endOfMonth.toISOString()))
+            .collect();
+
+        // Get Account Map for accurate spending calculation
+        let allAccounts;
+        if (householdId) {
+            allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        } else {
+            allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+        }
+        const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
+
+        const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
+        const sourceSpent = spendingMap[fromCategoryId] || 0;
+        const sourceAvailable = Math.max(0, sourceLimit - sourceSpent);
+
+        if (moveAmount > sourceAvailable) {
+            throw new Error(`Insufficient funds in source category. Available: ${sourceAvailable.toLocaleString()}`);
+        }
+
+        // Reduce Source Budget
+        if (sourceBudget) {
+            const newSourceAmount = sourceLimit - moveAmount;
+            await ctx.db.patch(sourceBudget._id, { amount: newSourceAmount.toString() });
+        }
+    } else {
+        // Move from Unassigned Cash
+        // Re-calculate Unassigned Global
+        // (Expensive but safe). Or trust frontend? Better re-calculate.
+        
+        // Fetch ALL time data for accurate Unassigned Calc
+        let allTx, allAcc, allBudgetsGlobal;
+        
+        if (householdId) {
+            allTx = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+            allBudgetsGlobal = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
+            allAcc = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        } else {
+            allTx = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+            allBudgetsGlobal = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId)).collect();
+            allAcc = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+        }
+        
+        const accMap = new Map(allAcc.map(a => [a._id, a]));
+        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap);
+
+        if (moveAmount > unassigned) {
+             throw new Error(`Insufficient Unassigned Cash. Available: ${unassigned.toLocaleString()}`);
+        }
+        // Unassigned reduces automatically when we increase a budget limit. No manual patch needed for "Unassigned" entity.
+    }
+
+    // 3. Increase Destination Budget
+    const destBudget = allBudgets.find(b => b.categoryId === toCategoryId);
+    if (destBudget) {
+        const currentDest = parseFloat(destBudget.amount.replace(/,/g, '') || '0');
+        await ctx.db.patch(destBudget._id, { amount: (currentDest + moveAmount).toString() });
+    } else {
+        await ctx.db.insert("budgets", {
+            userId,
+            householdId,
+            categoryId: toCategoryId,
+            amount: moveAmount.toString(),
+            year,
+            month
+        });
+    }
+  }
 });
 
 export const sweepBudgets = mutation({

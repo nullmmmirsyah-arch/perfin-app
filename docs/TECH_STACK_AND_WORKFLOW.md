@@ -56,9 +56,13 @@
 
 4.  **Triggers & Automation:**
     - We don't have DB triggers (like SQL). We use **Application-Level Triggers**.
-    - **Account-Category Link:** Creating a `SAVING` or `ASSET` account triggers the creation of a linked `saving` category.
+    - **Atomic Account-Category Mirroring:**
+        - Creating a `SAVING` or `ASSET` account -> triggers creation of linked `saving` category.
+        - Creating a `saving` category -> triggers creation of linked `SAVING` account.
+        - Updating/Deleting one entity automatically propagates to the other.
     - **Auto-Categorization:** Transfer mutations check for destination accounts with `linkedCategoryId` to automatically assign the correct category.
-    - **Smart Auto-Budgeting:** Transaction mutations explicitly call `ensureBudgetExists` which now automatically creates a budget based on the transaction amount if none exists for that period.
+    - **Smart Auto-Budgeting:** Transaction mutations explicitly call `ensureBudgetExists`. *Enhancement:* It now checks for `isGoalDisbursement` flag to prevent inflating budget during goal withdrawals.
+    - **Smart Disbursement Detection:** In `convex/transactions.ts`, system automatically detects Transfer from Special Account -> Liquid Account and flags it as `isGoalDisbursement`. This ensures accurate accounting (Neutral/Income effect instead of Negative Spending).
     - **Goal Progress:** Inside `create` and `update` transaction mutations, we explicitly call `checkGoalProgress` to trigger notifications.
 
 5.  **Performance Optimization:**

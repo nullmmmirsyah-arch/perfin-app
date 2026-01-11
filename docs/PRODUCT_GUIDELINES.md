@@ -34,13 +34,19 @@ This document outlines the design philosophy and user experience patterns used i
 - **Separation of Concerns:**
   - **Accounts Page:** Separated into "Spending & Cash" vs "Savings & Assets".
   - **Budgets Page:** Separated into "Monthly Expenses" (Limits) vs "Savings & Goals" (Targets) via Carousel.
-  - **Goals Page:** Dedicated view for saving targets, separated into "Active" and "Completed" tabs.
+  - **Goals Page:** Grouped by intent:
+    - **🛡️ Security & Growth:** Investments & Assets.
+    - **📅 Upcoming Obligations:** Sinking Funds (Bills).
+    - **✨ Wishlist:** Optional purchases.
   - **Categories Page:** Separated into "Goals", "Expenses", "Income", and "Archived".
 - **Closed Items:** Always hide archived/closed items inside a `Collapsible` section or filter them out by default.
 
 ### 5. Goal Achievement UX
 - **Passive Trigger:** Don't force the user to check progress. Send a **Notification** (Bell Icon).
-- **Guided Action:** When clicking the notification, launch a **Wizard** (Dialog) that guides the user through the financial implications (Transfer -> Close Account -> Mark Done). DO NOT make them do this manually.
+- **Dynamic Wizard:** When clicking the notification, launch a **Context-Aware Wizard**:
+    - **Investment:** Celebrates milestone. Offers to **Increase Target** to keep growing wealth.
+    - **Bill (Sinking Fund):** Prompts to **Pay Bill** (Disburse), then asks for **Next Due Date** to reset the cycle without closing the account.
+    - **Purchase:** Prompts to **Spend Funds** and **Archive** the goal.
 
 ### 6. Actionable Insights
 - **Safe Daily Spend:** Provide actionable daily limits (e.g., "~Rp 50k/day") instead of just static remaining budgets.

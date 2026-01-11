@@ -121,19 +121,6 @@ export function BottomNav() {
                                    </div>
                                 </Link>
                                 <Link 
-                                  href="/accounts" 
-                                  onClick={() => setOpen(false)}
-                                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
-                                >
-                                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                      <Wallet className="h-5 w-5" />
-                                   </div>
-                                   <div className="flex-1">
-                                      <p className="font-medium">Accounts</p>
-                                      <p className="text-xs text-muted-foreground">Bank, Cash, and Assets</p>
-                                   </div>
-                                </Link>
-                                <Link 
                                   href="/categories" 
                                   onClick={() => setOpen(false)}
                                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"

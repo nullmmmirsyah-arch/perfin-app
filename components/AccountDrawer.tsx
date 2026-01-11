@@ -26,6 +26,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -43,6 +50,7 @@ const AccountFormSchema = z.object({
   targetAmount: z.string().optional(),
   targetDate: z.date().optional(),
   enableGoal: z.boolean().optional(),
+  goalType: z.enum(['investment', 'bill', 'purchase']).optional(),
 });
 
 type AccountFormValues = z.infer<typeof AccountFormSchema>;
@@ -79,6 +87,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
       targetAmount: '',
       targetDate: undefined,
       enableGoal: false,
+      goalType: 'purchase',
     },
   });
 
@@ -99,6 +108,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         targetAmount: linkedCategory?.targetAmount || '',
         targetDate: linkedCategory?.targetDate ? new Date(linkedCategory.targetDate) : undefined,
         enableGoal: !!linkedCategory?.targetAmount, // Enable if target exists
+        goalType: (linkedCategory?.goalType as 'investment' | 'bill' | 'purchase') || 'purchase',
       });
     } else if (open && !isEditMode) {
       form.reset({
@@ -110,6 +120,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         targetAmount: '',
         targetDate: undefined,
         enableGoal: false,
+        goalType: 'purchase',
       });
     }
   }, [open, isEditMode, account, form, categories]);
@@ -123,6 +134,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         unit: data.unit,
         targetAmount: data.enableGoal ? data.targetAmount : undefined,
         targetDate: data.enableGoal && data.targetDate ? data.targetDate.toISOString() : undefined,
+        goalType: data.enableGoal ? data.goalType : undefined,
     };
 
     if (isEditMode && account) {
@@ -273,66 +285,93 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                       />
                       
                       {enableGoal && (
-                          <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 pt-2">
-                               <FormField
-                                    control={form.control}
-                                    name="targetAmount"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-xs">Target Amount</FormLabel>
-                                        <FormControl>
-                                        <Input 
-                                            className="h-8"
-                                            placeholder="0" 
-                                            {...field}
-                                            value={field.value || ''}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                field.onChange(formatNumber(value));
-                                            }} 
-                                        />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="targetDate"
-                                    render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel className="text-xs">Target Date</FormLabel>
-                                        <Popover>
-                                        <PopoverTrigger asChild>
+                          <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2">
+                               <div className="grid grid-cols-2 gap-4">
+                                   <FormField
+                                        control={form.control}
+                                        name="targetAmount"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs">Target Amount</FormLabel>
                                             <FormControl>
-                                            <Button
-                                                variant={"outline"}
-                                                className={cn(
-                                                "w-full h-8 pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                                )}
-                                            >
-                                                {field.value ? format(field.value, "PP") : <span>Pick date</span>}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                            </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) =>
-                                                date < new Date("1900-01-01")
-                                            }
-                                            initialFocus
+                                            <Input 
+                                                className="h-8"
+                                                placeholder="0" 
+                                                {...field}
+                                                value={field.value || ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    field.onChange(formatNumber(value));
+                                                }} 
                                             />
-                                        </PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="targetDate"
+                                        render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel className="text-xs">Target Date</FormLabel>
+                                            <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                    "w-full h-8 pl-3 text-left font-normal",
+                                                    !field.value && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {field.value ? format(field.value, "PP") : <span>Pick date</span>}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                mode="single"
+                                                selected={field.value}
+                                                onSelect={field.onChange}
+                                                disabled={(date) =>
+                                                    date < new Date("1900-01-01")
+                                                }
+                                                initialFocus
+                                                />
+                                            </PopoverContent>
+                                            </Popover>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                               </div>
+
+                               {accountType === 'SAVING' && (
+                                   <FormField
+                                        control={form.control}
+                                        name="goalType"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs">Goal Type</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="h-8">
+                                                        <SelectValue placeholder="Select type" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="purchase">✨ Purchase (Wishlist)</SelectItem>
+                                                    <SelectItem value="bill">📅 Bill (Sinking Fund)</SelectItem>
+                                                    <SelectItem value="investment">🛡️ Investment (Wealth)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                               )}
                           </div>
                       )}
                   </div>

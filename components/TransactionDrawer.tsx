@@ -664,6 +664,12 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
   
   const isAssetTransaction = fromAccount?.type === 'ASSET' || toAccount?.type === 'ASSET';
 
+  // Auto-linked category logic
+  const linkedCategory = useMemo(() => {
+      const linkedId = toAccount?.linkedCategoryId || fromAccount?.linkedCategoryId;
+      return categories.find(c => c._id === linkedId);
+  }, [toAccount, fromAccount, categories]);
+
   let amountLabel = 'Amount';
   if (fromAccount?.type !== 'ASSET' && toAccount?.type === 'ASSET') {
     amountLabel = 'Total Cost'; // Buy
@@ -761,28 +767,38 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
       />
       
       {showCategory && (
-        <FormField
-            control={form.control}
-            name="categoryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category (Saving/Goal)</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a saving category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map(category => (
-                      <SelectItem key={category._id} value={category._id}>{category.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        linkedCategory ? (
+            <div className="bg-muted/30 p-3 rounded-md border border-dashed flex flex-col gap-1">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Goal Detected</span>
+                <span className="text-sm font-medium flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    {linkedCategory.name}
+                </span>
+            </div>
+        ) : (
+            <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Category (Saving/Goal)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Select a saving category" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {categories.map(category => (
+                        <SelectItem key={category._id} value={category._id}>{category.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+        )
       )}
 
       <FormField

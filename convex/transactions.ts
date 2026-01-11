@@ -438,6 +438,31 @@ export const create = mutation({
 
     const amount = parseFloat(args.amount.replace(/,/g, ''));
 
+    // --- SMART DETECTION: Auto-flag as Goal Disbursement if applicable ---
+    let isGoalDisbursement = args.isGoalDisbursement;
+    
+    if (args.type === TRANSACTION_TYPES.TRANSFER && args.accountId && args.toAccountId && finalCategoryId) {
+        // We need to check account types to confirm pattern: Special -> Liquid
+        // Optimization: We already fetch accounts for transfer logic below, but we need types NOW.
+        // Let's fetch them here if we haven't already.
+        const [sourceAcc, destAcc] = await Promise.all([
+            ctx.db.get(args.accountId),
+            ctx.db.get(args.toAccountId)
+        ]);
+
+        if (sourceAcc && destAcc) {
+            // Helper logic from finance.ts (inlined for mutation context)
+            const isSourceSpecial = sourceAcc.type === ACCOUNT_TYPES.SAVING || sourceAcc.type === ACCOUNT_TYPES.ASSET;
+            const isDestLiquid = !destAcc.type || destAcc.type === ACCOUNT_TYPES.CASH;
+
+            if (isSourceSpecial && isDestLiquid) {
+                // This is a withdrawal from a Goal Account to a Spending Account.
+                // It is definitely a disbursement/spending of the goal funds.
+                isGoalDisbursement = true;
+            }
+        }
+    }
+
     if (args.type === TRANSACTION_TYPES.TRANSFER) {
       if (!args.toAccountId) {
         throw new Error('To account is required for transfers');
@@ -540,6 +565,7 @@ export const create = mutation({
       categoryId: finalCategoryId as Id<"categories"> | undefined,
       userId: identity.subject,
       householdId: args.householdId,
+      isGoalDisbursement, // Use the auto-detected or provided flag
     });
 
     if (args.isSplit && args.splits) {
@@ -551,7 +577,7 @@ export const create = mutation({
         const shouldIncrement = args.type === TRANSACTION_TYPES.SAVING;
         await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, shouldIncrement);
     }
-    else if (args.type === TRANSACTION_TYPES.TRANSFER && finalCategoryId) {
+    else if (args.type === TRANSACTION_TYPES.TRANSFER && finalCategoryId && !isGoalDisbursement) {
          await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, true);
     }
 
@@ -703,6 +729,22 @@ export const update = mutation({
         }
     }
 
+    // --- SMART DETECTION (Update) ---
+    let isGoalDisbursement = newTx.isGoalDisbursement;
+    if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.accountId && newTx.toAccountId && finalCategoryId) {
+         const [sourceAcc, destAcc] = await Promise.all([
+            ctx.db.get(newTx.accountId),
+            ctx.db.get(newTx.toAccountId)
+        ]);
+        if (sourceAcc && destAcc) {
+            const isSourceSpecial = sourceAcc.type === ACCOUNT_TYPES.SAVING || sourceAcc.type === ACCOUNT_TYPES.ASSET;
+            const isDestLiquid = !destAcc.type || destAcc.type === ACCOUNT_TYPES.CASH;
+            if (isSourceSpecial && isDestLiquid) {
+                isGoalDisbursement = true;
+            }
+        }
+    }
+
     const newAmount = parseFloat(newTx.amount.replace(/,/g, ''));
 
     if (newTx.type === TRANSACTION_TYPES.TRANSFER) {
@@ -783,7 +825,7 @@ export const update = mutation({
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
     }
 
-    await ctx.db.patch(id, { ...rest, categoryId: finalCategoryId });
+    await ctx.db.patch(id, { ...rest, categoryId: finalCategoryId, isGoalDisbursement });
 
     if (newTx.isSplit && newTx.splits) {
         for (const split of newTx.splits) {
@@ -793,7 +835,7 @@ export const update = mutation({
     else if ((newTx.type === TRANSACTION_TYPES.EXPENSE || newTx.type === TRANSACTION_TYPES.SAVING) && newTx.categoryId) {
         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId, false);
     }
-    else if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.categoryId) {
+    else if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.categoryId && !isGoalDisbursement) {
          await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId, false);
     }
 

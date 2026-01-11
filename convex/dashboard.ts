@@ -206,24 +206,29 @@ export const getDashboardSummary = query({
     } else {
         categories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
-    const catDetailsMap = new Map(categories.map(c => [c._id, c]));
+    const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
 
-    const budgetBreakdown = budgets
-        .filter(b => {
-            const cat = catDetailsMap.get(b.categoryId);
-            return cat && cat.status !== 'achieved' && cat.status !== 'archived' && !cat.isArchived;
+    const budgetBreakdown = categories
+        .filter(cat => {
+            // Include if it has a budget THIS month OR if it's a saving/goal type that is active
+            const hasBudget = budgetMap.has(cat._id);
+            const isGoal = cat.type === 'saving';
+            const isActive = cat.status !== 'achieved' && cat.status !== 'archived' && !cat.isArchived;
+            return (hasBudget || isGoal) && isActive;
         })
-        .map(b => {
-            const cat = catDetailsMap.get(b.categoryId);
-            const limit = parseFloat(b.amount.replace(/,/g, '') || '0');
-            const spent = spendingByCategory[b.categoryId] || 0;
-            const accumulated = accumulatedMap[b.categoryId] || 0;
+        .map(cat => {
+            const b = budgetMap.get(cat._id);
+            const limit = b ? parseFloat(b.amount.replace(/,/g, '') || '0') : 0;
+            const spent = spendingByCategory[cat._id] || 0;
+            const accumulated = accumulatedMap[cat._id] || 0;
             
             return {
                 categoryName: cat?.name || 'Unknown',
                 categoryType: cat?.type || 'expense',
                 targetAmount: cat?.targetAmount ? parseFloat(cat.targetAmount.replace(/,/g, '')) : undefined,
+                targetDate: cat?.targetDate,
                 enablePacing: cat?.enablePacing,
+                goalType: cat?.goalType,
                 accumulated,
                 limit,
                 spent,

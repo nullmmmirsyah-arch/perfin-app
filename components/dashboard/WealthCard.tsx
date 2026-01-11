@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
+import { calculateGoalStrategy } from '@/lib/finance-utils';
 
 type SummaryData = {
   budgetBreakdown: BudgetBreakdownItem[];
@@ -45,26 +47,69 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                 )}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
-                Accumulated Goal Progress
+                Total Funds in Goals
               </p>
             </div>
             <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
               {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving').length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No saving goals set.</p>
+                <p className="text-xs text-muted-foreground italic">No goals set.</p>
               )}
               {summary?.budgetBreakdown
                 ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
                 .map((item: BudgetBreakdownItem, index: number) => {
                   const target = item.targetAmount || 0;
                   const percentage = target > 0 ? (item.accumulated / target) * 100 : 0;
+                  
+                  // Strategy Insight
+                  // We need targetDate which is not currently in BudgetBreakdownItem. 
+                  // Wait, we need to add targetDate to the type first in the previous file/query.
+                  // Checking dashboard.ts... Yes, I added targetDate to the map.
+                  // But TS might complain if I don't update type definition in DailyOperationsCard.tsx first.
+                  // Let's assume it's passed (as I saw in previous diff).
+                  // Actually, I need to check if I added targetDate to the return object in dashboard.ts.
+                  // YES, I did: targetDate: cat?.targetDate... wait, looking at my memory/previous tool output
+                  // "targetAmount: cat?.targetAmount..." 
+                  // I might have missed mapping targetDate in dashboard.ts! 
+                  // Let me quickly check dashboard.ts again to be 100% sure. 
+                  // Ah, I see "targetDate: cat.targetDate" is MISSING in the dashboard.ts mapping I did previously.
+                  // I only mapped targetAmount.
+                  // So I need to update dashboard.ts FIRST to include targetDate.
+                  
+                  // But for now, let's write the code assuming it will be there, then I fix dashboard.ts immediately after.
+                  const strategy = calculateGoalStrategy(item.accumulated, target, item.targetDate);
+
+                  // Type Logic
+                  let typeLabel = "Goal";
+                  let typeIcon = Sparkles;
+                  let typeColor = "text-purple-600 bg-purple-50 dark:bg-purple-900/20";
+
+                  if (item.goalType === 'investment') {
+                      typeLabel = "Wealth";
+                      typeIcon = ShieldCheck;
+                      typeColor = "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
+                  } else if (item.goalType === 'bill') {
+                      typeLabel = "Bill";
+                      typeIcon = CalendarClock;
+                      typeColor = "text-amber-600 bg-amber-50 dark:bg-amber-900/20";
+                  }
+
+                  const Icon = typeIcon;
 
                   return (
                     <div key={index} className="flex flex-col gap-1.5 pb-2">
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground font-medium">{item.categoryName}</span>
-                        <span className="font-bold text-xs text-success">
-                          {isPrivacyMode ? '••••' : item.accumulated.toLocaleString()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={`px-1 py-0 h-4 text-[9px] border-0 gap-1 font-semibold ${typeColor}`}>
+                                <Icon className="h-2 w-2" />
+                                {typeLabel}
+                            </Badge>
+                            <span className="text-muted-foreground font-medium truncate max-w-[120px]">{item.categoryName}</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="font-bold text-xs text-success block">
+                                {isPrivacyMode ? '••••' : item.accumulated.toLocaleString()}
+                            </span>
+                        </div>
                       </div>
                       <div className="h-2 w-full bg-success/10 rounded-full overflow-hidden">
                         <div
@@ -72,9 +117,18 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                           style={{ width: `${Math.min(percentage, 100)}%` }}
                         />
                       </div>
-                      <div className="flex justify-between text-[10px] text-muted-foreground">
-                        <span>{item.targetAmount ? `${Math.round(percentage)}%` : 'No Target'}</span>
-                        <span>Goal: {isPrivacyMode ? '••••' : (item.targetAmount ? item.targetAmount.toLocaleString() : '∞')}</span>
+                      <div className="flex justify-between items-end text-[10px] text-muted-foreground">
+                        <div>
+                            <span>{item.targetAmount ? `${Math.round(percentage)}%` : 'No Target'}</span>
+                            <span className="mx-1">•</span>
+                            <span>Target: {isPrivacyMode ? '••••' : (item.targetAmount ? item.targetAmount.toLocaleString() : '∞')}</span>
+                        </div>
+                        {strategy && strategy.monthly > 0 && (
+                            <div className="flex items-center gap-1 text-primary font-medium bg-primary/5 px-1.5 py-0.5 rounded-sm">
+                                <TrendingUp className="h-3 w-3" />
+                                <span>+{new Intl.NumberFormat('en-US').format(Math.ceil(strategy.monthly))}/mo</span>
+                            </div>
+                        )}
                       </div>
                     </div>
                   );

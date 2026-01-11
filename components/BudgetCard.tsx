@@ -18,7 +18,7 @@ import {
 import { Doc, Id } from '../convex/_generated/dataModel'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
-import { calculateBudgetPace } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy } from '@/lib/finance-utils'
 
 interface BudgetStatusItem {
   category: any; // Using any for Doc<'categories'> to avoid strict import issues here
@@ -57,9 +57,14 @@ export default function BudgetCard({
   const remaining = Math.max(0, limit - spent);
   const dailySafeSpend = remaining / daysRemaining;
 
-  // Pacing Logic
+  // Pacing Logic (Expenses)
   const pacing = category.enablePacing && category.type === 'expense' && budget
     ? calculateBudgetPace(spent, limit, selectedDate.getFullYear(), selectedDate.getMonth())
+    : null;
+
+  // Goal Strategy Logic (Savings)
+  const strategy = isGoal && !isPastMonth 
+    ? calculateGoalStrategy(accumulated, targetAmount, category.targetDate) 
     : null;
 
   return (
@@ -129,7 +134,7 @@ export default function BudgetCard({
             </h3>
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground capitalize">
-                {isGoal ? 'Financial Goal' : category.type}
+                {isGoal ? (category.goalType === 'bill' ? 'Sinking Fund' : category.goalType === 'investment' ? 'Investment' : 'Goal') : category.type}
               </p>
               {!isGoal && budget && remaining > 0 && !isPastMonth && !pacing && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
@@ -147,7 +152,9 @@ export default function BudgetCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={(e) => {
                 e.stopPropagation();
-                onEdit(category, budget?.amount);
+                // Pass suggestion as default amount if editing
+                const suggestedAmount = strategy?.monthly ? strategy.monthly.toFixed(0) : undefined;
+                onEdit(category, budget?.amount || suggestedAmount);
               }}>
                 <Edit2 className="mr-2 h-4 w-4" />
                 {isGoal ? 'Set Monthly Contribution' : (budget ? 'Edit Budget' : 'Set Budget')}
@@ -184,19 +191,39 @@ export default function BudgetCard({
                 className="h-2 bg-muted [&>div]:bg-success"
               />
               <div className="flex justify-between items-center text-xs text-muted-foreground">
-                <span>{Math.round(goalPercentage)}% Completed</span>
+                <div className="flex items-center gap-1.5">
+                    <span>{Math.round(goalPercentage)}% Completed</span>
+                    {category.lastResetDate && (
+                        <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-[4px] font-medium text-[9px] uppercase tracking-wider">
+                            Current Cycle
+                        </span>
+                    )}
+                </div>
                 {category.targetDate && (
                   <span>Due: {format(new Date(category.targetDate), 'MMM yyyy')}</span>
                 )}
               </div>
               
-              <div className="pt-2 border-t mt-2">
-                <div className="flex justify-between text-xs">
-                  <span>Monthly Contribution:</span>
-                  <span className="font-medium">
-                    {spent.toLocaleString(undefined, { maximumFractionDigits: 0 })} / {budget ? limit.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'No Limit'}
-                  </span>
+              <div className="pt-3 border-t mt-2 flex justify-between items-center bg-muted/20 -mx-6 -mb-6 p-4 rounded-b-xl">
+                <div className="flex flex-col">
+                    <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">This Month</span>
+                    <span className="text-sm font-medium">
+                        {spent.toLocaleString(undefined, { maximumFractionDigits: 0 })} 
+                        {budget && <span className="text-muted-foreground font-normal"> / {limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
+                    </span>
                 </div>
+                
+                {strategy && strategy.monthly > 0 && (
+                    <div className="text-right">
+                        <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Suggested</span>
+                        <div className="flex items-center gap-1 justify-end">
+                            <Target className="h-3 w-3 text-blue-500" />
+                            <span className={cn("text-sm font-bold", spent >= strategy.monthly ? "text-success" : "text-blue-600")}>
+                                {strategy.monthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </span>
+                        </div>
+                    </div>
+                )}
               </div>
             </>
           ) : (

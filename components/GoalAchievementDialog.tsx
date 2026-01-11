@@ -1,6 +1,4 @@
-'use client'
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import { Id } from '../convex/_generated/dataModel'
@@ -22,11 +20,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Check, PartyPopper, ArrowRight, Wallet } from 'lucide-react'
+import { Check, PartyPopper, ArrowRight, Wallet, CalendarClock, TrendingUp, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { useHousehold } from './HouseholdProvider'
-import { useEffect } from 'react'
 import confetti from 'canvas-confetti'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { CalendarIcon } from 'lucide-react'
 
 type GoalAchievementDialogProps = {
   open: boolean
@@ -49,14 +51,20 @@ export default function GoalAchievementDialog({
   
   const createTransaction = useMutation(api.transactions.create)
   const markAsAchieved = useMutation(api.categories.markAsAchieved)
+  const updateCategory = useMutation(api.categories.update)
+  const resetGoal = useMutation(api.categories.resetGoal)
   const markRead = useMutation(api.notifications.markAsRead)
   const archiveAccount = useMutation(api.accounts.archiveAccount)
 
-  const [step, setStep] = useState<'intro' | 'transfer' | 'cleanup'>('intro')
+  const [step, setStep] = useState<'intro' | 'transfer' | 'cleanup' | 'reset' | 'investment_update'>('intro')
   const [sourceAccountId, setSourceAccountId] = useState<string>('')
   const [destAccountId, setDestAccountId] = useState<string>('')
   const [transferAmount, setTransferAmount] = useState<string>('')
   
+  // For Reset (Bill) & Update (Investment)
+  const [newTargetDate, setNewTargetDate] = useState<Date | undefined>(undefined)
+  const [newTargetAmount, setNewTargetAmount] = useState<string>('')
+
   // For cleanup step
   const [actionForAccount, setActionForAccount] = useState<'keep' | 'close'>('keep')
 
@@ -69,6 +77,8 @@ export default function GoalAchievementDialog({
             setDestAccountId('')
             setTransferAmount('')
             setActionForAccount('keep')
+            setNewTargetDate(undefined)
+            setNewTargetAmount('')
             
             // Trigger Confetti
             const end = Date.now() + 3 * 1000;
@@ -104,21 +114,20 @@ export default function GoalAchievementDialog({
 
   const savingAccounts = accounts.filter(a => a.type === 'SAVING' || a.type === 'ASSET')
   const liquidAccounts = accounts.filter(a => !a.type || a.type === 'CASH' || a.type === 'BANK' || a.type === 'E-WALLET')
-
-  const handleSkipToArchive = async () => {
-    // Just mark achieved and close
-    await markAsAchieved({ id: categoryId })
-    await markRead({ id: notificationId })
-    toast.success("Goal marked as achieved!")
-    onOpenChange(false)
-  }
+  const goalType = category.goalType || 'purchase'; // Default
 
   const handleStartProcess = () => {
       // Pre-fill amount with target if available
       if (category.targetAmount) {
           setTransferAmount(category.targetAmount)
+          setNewTargetAmount(category.targetAmount) // Default for next cycle too
       }
-      setStep('transfer')
+      
+      if (goalType === 'investment') {
+          setStep('investment_update')
+      } else {
+          setStep('transfer')
+      }
   }
 
   const handleTransferSubmit = async () => {
@@ -141,17 +150,63 @@ export default function GoalAchievementDialog({
           })
           
           toast.success("Funds transferred successfully!")
-          setStep('cleanup')
+          
+          if (goalType === 'bill') {
+              setStep('reset')
+          } else {
+              setStep('cleanup')
+          }
       } catch (e: unknown) {
           toast.error(e instanceof Error ? e.message : "Transfer failed")
       }
   }
 
+  const handleResetSubmit = async () => {
+      if (!newTargetDate) {
+          toast.error("Please pick a next due date");
+          return;
+      }
+      
+      try {
+          await resetGoal({
+              id: categoryId,
+              newTargetDate: newTargetDate.toISOString()
+          });
+          await markRead({ id: notificationId });
+          toast.success("Cycle reset! Ready for next payment.");
+          onOpenChange(false);
+      } catch (e) {
+          toast.error("Failed to reset cycle");
+      }
+  }
+
+  const handleInvestmentUpdateSubmit = async () => {
+      if (!newTargetAmount) return;
+      try {
+          await updateCategory({
+              id: categoryId,
+              targetAmount: newTargetAmount.replace(/,/g, '')
+          });
+          // Note: We don't mark achieved for Investment if they increase target. 
+          // We just keep going. But we should clear notification.
+          await markRead({ id: notificationId });
+          toast.success("Target updated! Keep growing.");
+          onOpenChange(false);
+      } catch (e) {
+          toast.error("Failed to update target");
+      }
+  }
+
+  const handleMarkDone = async () => {
+      await markAsAchieved({ id: categoryId });
+      await markRead({ id: notificationId });
+      toast.success("Marked as done!");
+      onOpenChange(false);
+  }
+
   const handleCleanupSubmit = async () => {
-      // 1. Mark Category Achieved
       await markAsAchieved({ id: categoryId })
       
-      // 2. Handle Account
       if (actionForAccount === 'close' && sourceAccountId) {
           try {
              await archiveAccount({ id: sourceAccountId as Id<"accounts"> })
@@ -161,59 +216,98 @@ export default function GoalAchievementDialog({
           }
       }
 
-      // 3. Mark Notification Read
       await markRead({ id: notificationId })
-
       onOpenChange(false)
   }
+
+  // --- UI PARTIALS ---
+
+  const renderIntro = () => (
+    <>
+        <DialogHeader>
+        <div className="mx-auto bg-yellow-100 p-3 rounded-full w-fit mb-2">
+            {goalType === 'investment' ? <TrendingUp className="h-8 w-8 text-blue-600" /> : 
+             goalType === 'bill' ? <CalendarClock className="h-8 w-8 text-amber-600" /> :
+             <PartyPopper className="h-8 w-8 text-yellow-600" />}
+        </div>
+        <DialogTitle className="text-center text-xl">
+            {goalType === 'investment' ? 'Milestone Reached!' :
+             goalType === 'bill' ? 'Bill Ready to Pay' : 'Goal Achieved!'}
+        </DialogTitle>
+        <DialogDescription className="text-center">
+            {goalType === 'investment' ? `You've hit your target for ${category.name}. Great job building wealth!` :
+             goalType === 'bill' ? `Funds for ${category.name} are ready. Time to pay?` :
+             `Congratulations! You've reached your target for ${category.name}.`}
+        </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 py-4">
+             <Button onClick={handleStartProcess} className="w-full">
+                {goalType === 'investment' ? 'Set New Target' :
+                 goalType === 'bill' ? 'Pay Bill & Reset' : 'Spend Funds Now'}
+             </Button>
+             
+             {goalType === 'investment' && (
+                 <Button variant="secondary" onClick={handleMarkDone} className="w-full">
+                    Mark as Milestone (Done)
+                 </Button>
+             )}
+             
+             {goalType === 'purchase' && (
+                 <Button variant="ghost" onClick={handleMarkDone} className="w-full">
+                    Just Mark as Achieved
+                 </Button>
+             )}
+        </div>
+    </>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
-        {step === 'intro' && (
+        {step === 'intro' && renderIntro()}
+
+        {step === 'investment_update' && (
             <>
                 <DialogHeader>
-                <div className="mx-auto bg-yellow-100 p-3 rounded-full w-fit mb-2">
-                    <PartyPopper className="h-8 w-8 text-yellow-600" />
-                </div>
-                <DialogTitle className="text-center text-xl">Goal Achieved!</DialogTitle>
-                <DialogDescription className="text-center">
-                    Congratulations! You&apos;ve reached your target for <strong>{category.name}</strong>.
-                    <br/>
-                    What would you like to do with the funds?
-                </DialogDescription>
+                    <DialogTitle>Grow Your Wealth</DialogTitle>
+                    <DialogDescription>Increase your target to keep the momentum going.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-3 py-4">
-                     <Button onClick={handleStartProcess} className="w-full bg-green-600 hover:bg-green-700">
-                        <Wallet className="mr-2 h-4 w-4" /> Spend Funds Now
-                     </Button>
-                     <Button variant="secondary" onClick={handleSkipToArchive} className="w-full">
-                        <Check className="mr-2 h-4 w-4" /> Just Mark as Achieved
-                     </Button>
+                <div className="py-4 space-y-4">
+                    <div className="grid gap-2">
+                        <Label>New Target Amount</Label>
+                        <Input 
+                            value={newTargetAmount}
+                            onChange={(e) => setNewTargetAmount(e.target.value)}
+                            placeholder="Amount"
+                        />
+                    </div>
                 </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setStep('intro')}>Back</Button>
+                    <Button onClick={handleInvestmentUpdateSubmit}>Update Target</Button>
+                </DialogFooter>
             </>
         )}
 
         {step === 'transfer' && (
              <>
                 <DialogHeader>
-                <DialogTitle>Disburse Funds</DialogTitle>
+                <DialogTitle>{goalType === 'bill' ? 'Pay Bill' : 'Disburse Funds'}</DialogTitle>
                 <DialogDescription>
-                    Move funds from your saving account to a spending account (e.g., Wallet/Bank).
+                    Move funds to your spending account.
                 </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Source (Saving Account)</Label>
+                        <Label>Source ({category.name})</Label>
                         <Select value={sourceAccountId} onValueChange={setSourceAccountId}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select saving account" />
+                                <SelectValue placeholder="Select account" />
                             </SelectTrigger>
                             <SelectContent>
                                 {savingAccounts.map(a => (
                                     <SelectItem key={a._id} value={a._id}>{a.name} ({new Intl.NumberFormat('en-US').format(parseFloat(a.balance.replace(/,/g, '')))})</SelectItem>
                                 ))}
-                                {savingAccounts.length === 0 && <SelectItem value="none" disabled>No saving accounts found</SelectItem>}
                             </SelectContent>
                         </Select>
                     </div>
@@ -223,7 +317,7 @@ export default function GoalAchievementDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Destination (Spending Account)</Label>
+                        <Label>Destination (Payment Source)</Label>
                         <Select value={destAccountId} onValueChange={setDestAccountId}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select spending account" />
@@ -237,7 +331,7 @@ export default function GoalAchievementDialog({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label>Amount to Disburse</Label>
+                        <Label>Amount</Label>
                         <Input 
                             value={transferAmount} 
                             onChange={(e) => setTransferAmount(e.target.value)}
@@ -248,6 +342,46 @@ export default function GoalAchievementDialog({
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setStep('intro')}>Back</Button>
                     <Button onClick={handleTransferSubmit}>Confirm Transfer</Button>
+                </DialogFooter>
+            </>
+        )}
+
+        {step === 'reset' && (
+            <>
+                <DialogHeader>
+                    <DialogTitle>Reset Cycle</DialogTitle>
+                    <DialogDescription>When is this bill due next?</DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <div className="flex flex-col gap-2">
+                        <Label>Next Due Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !newTargetDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    {newTargetDate ? format(newTargetDate, "PPP") : <span>Pick a date</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={newTargetDate}
+                                    onSelect={setNewTargetDate}
+                                    disabled={(date) => date < new Date()}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleResetSubmit}>Set & Finish</Button>
                 </DialogFooter>
             </>
         )}
