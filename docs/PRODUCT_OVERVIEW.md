@@ -55,6 +55,8 @@
     - Users can easily move funds from **Unassigned Cash** or **Other Categories** to cover overspending or assign funds.
     - **Smart Drawer:** Budget drawer now features tabs for "Set Limit" and "Move Funds" with real-time preview.
 - **Real-time Tracking:** Visual progress bars synced with Dashboard.
+    - **Expense Budget:** Tracks `Spent / Limit`.
+    - **Savings/Goals Budget:** Tracks `Monthly Contribution / Monthly Target`. Shows a **"Monthly Goal Met"** celebration badge when the monthly saving target is reached.
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
     - **Smart Auto-Budgeting:** If a transaction is made to a category without a budget, the system automatically creates a budget with the **transaction amount**. *Exception: Goal Disbursement transactions do NOT trigger auto-budgeting.*
