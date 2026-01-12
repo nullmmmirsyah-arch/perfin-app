@@ -3,7 +3,7 @@
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Edit2, Trash2, Target, Wallet } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, Target, Wallet, CheckCircle2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +67,13 @@ export default function BudgetCard({
     ? calculateGoalStrategy(accumulated, targetAmount, category.targetDate) 
     : null;
 
+  // --- NEW LOGIC FOR SAVINGS CARD ---
+  // Benchmark = Manual Budget Limit OR Calculated Strategy Suggestion
+  const monthlyTarget = budget && limit > 0 ? limit : (strategy?.monthly || 0);
+  // Progress = What we saved this month (spent) / Monthly Target
+  const monthlyProgress = monthlyTarget > 0 ? (spent / monthlyTarget) * 100 : 0;
+  const isMonthlyGoalMet = monthlyTarget > 0 && spent >= monthlyTarget;
+
   return (
     <Card 
       className={cn(
@@ -82,6 +89,11 @@ export default function BudgetCard({
           <div>
             <h3 className="font-semibold text-lg flex items-center gap-2">
               {category.name}
+              {isGoal && isMonthlyGoalMet && (
+                  <span className="flex items-center justify-center bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 p-1 rounded-full" title="Monthly Goal Met!">
+                      <CheckCircle2 className="h-4 w-4" />
+                  </span>
+              )}
               {pacing && (
                 <Popover>
                   <PopoverTrigger asChild>
@@ -178,47 +190,48 @@ export default function BudgetCard({
         <div className="space-y-4">
           {isGoal ? (
             <>
+              {/* Monthly Progress Bar for Goals */}
               <div className="flex justify-between text-sm">
                 <span className="font-medium text-primary">
-                  {accumulated.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-muted-foreground font-normal">saved</span>
+                  {spent.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-muted-foreground font-normal">saved this month</span>
                 </span>
                 <span className="text-muted-foreground">
-                  of {targetAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })} goal
+                  of {monthlyTarget.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </span>
               </div>
               <Progress 
-                value={Math.min(goalPercentage, 100)} 
-                className="h-2 bg-muted [&>div]:bg-success"
+                value={Math.min(monthlyProgress, 100)} 
+                className={cn("h-2 bg-muted", isMonthlyGoalMet ? "[&>div]:bg-success" : "[&>div]:bg-blue-500")}
               />
               <div className="flex justify-between items-center text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
-                    <span>{Math.round(goalPercentage)}% Completed</span>
-                    {category.lastResetDate && (
-                        <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-[4px] font-medium text-[9px] uppercase tracking-wider">
-                            Current Cycle
+                    {isMonthlyGoalMet ? (
+                        <span className="text-success font-medium flex items-center gap-1">
+                            Monthly Target Met! 🎉
                         </span>
+                    ) : (
+                        <span>{Math.round(monthlyProgress)}% of monthly target</span>
                     )}
                 </div>
-                {category.targetDate && (
-                  <span>Due: {format(new Date(category.targetDate), 'MMM yyyy')}</span>
-                )}
+                {/* Total Accumulated (Small Info) */}
+                <span>Total: {accumulated.toLocaleString(undefined, { notation: 'compact' })}</span>
               </div>
               
+              {/* Footer with Suggestion vs Budget Logic */}
               <div className="pt-3 border-t mt-2 flex justify-between items-center bg-muted/20 -mx-6 -mb-6 p-4 rounded-b-xl">
                 <div className="flex flex-col">
-                    <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">This Month</span>
+                    <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Set Limit</span>
                     <span className="text-sm font-medium">
-                        {spent.toLocaleString(undefined, { maximumFractionDigits: 0 })} 
-                        {budget && <span className="text-muted-foreground font-normal"> / {limit.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
+                        {budget ? limit.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'None'}
                     </span>
                 </div>
                 
-                {strategy && strategy.monthly > 0 && (
+                {strategy && strategy.monthly > 0 && !isMonthlyGoalMet && (
                     <div className="text-right">
                         <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Suggested</span>
                         <div className="flex items-center gap-1 justify-end">
                             <Target className="h-3 w-3 text-blue-500" />
-                            <span className={cn("text-sm font-bold", spent >= strategy.monthly ? "text-success" : "text-blue-600")}>
+                            <span className="text-sm font-bold text-blue-600">
                                 {strategy.monthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </span>
                         </div>
@@ -249,24 +262,30 @@ export default function BudgetCard({
                   />
                   <div className="flex justify-between items-center">
                     <p className={cn(
-                      "text-xs font-medium",
-                      isOverBudget ? "text-destructive" : 
-                      (pacing?.status === 'danger' ? "text-destructive" : 
-                       pacing?.status === 'warning' ? "text-yellow-600" : "text-muted-foreground")
+                      "text-xs font-semibold",
+                      isOverBudget ? "text-destructive" : "text-foreground"
                     )}>
                       {isOverBudget 
-                        ? `${(spent - limit).toLocaleString(undefined, { maximumFractionDigits: 0 })} over budget` 
-                        : pacing ? (
-                          pacing.status === 'danger' ? "Spending too fast!" :
-                          pacing.status === 'warning' ? "Pace is a bit fast" :
-                          "Pace is healthy"
-                        ) : `${(limit - spent).toLocaleString(undefined, { maximumFractionDigits: 0 })} remaining`
+                        ? `-${(spent - limit).toLocaleString(undefined, { maximumFractionDigits: 0 })} over budget` 
+                        : `${(limit - spent).toLocaleString(undefined, { maximumFractionDigits: 0 })} left`
                       }
                     </p>
                     <span className="text-xs text-muted-foreground">
                       {Math.round(percentage)}%
                     </span>
                   </div>
+
+                  {pacing && (
+                    <p className={cn(
+                        "text-[10px] font-medium mt-0.5",
+                        pacing.status === 'danger' ? "text-destructive" : 
+                        pacing.status === 'warning' ? "text-yellow-600" : "text-success"
+                    )}>
+                        {pacing.status === 'danger' ? "⚠️ Spending too fast!" :
+                         pacing.status === 'warning' ? "⚡ Pace is a bit fast" :
+                         "✅ Pace is healthy"}
+                    </p>
+                  )}
 
                   {pacing && pacing.dailyLimit > 0 && !isPastMonth && (
                     <div className="mt-3 pt-3 border-t border-dashed">

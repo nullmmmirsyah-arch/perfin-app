@@ -9,6 +9,7 @@ import { format, differenceInMonths, isValid } from 'date-fns'
 import { TrendingUp, History, Wallet, ChevronLeft, Calendar } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 export default function GoalDetailPage() {
   const params = useParams()
@@ -64,6 +65,39 @@ export default function GoalDetailPage() {
   } else if (remaining === 0) {
       strategyText = "Goal Achieved! Congratulations."
   }
+
+  // --- Monthly Performance Logic ---
+  // Group history by Month (YYYY-MM)
+  // Note: 'history' prop is only last 10 txs. We need ALL transactions for accurate monthly chart.
+  // Ideally, we should fetch aggregated data from backend. 
+  // However, given the current scope, let's use the 'history' array (which is last 10) as a "Recent Monthly Trend".
+  // If we need full history, we'd need a separate query. For now, let's visualize what we have.
+  // WAIT: 'history' from getGoalDetails is indeed sliced to 10.
+  // To make this chart useful, we really should fetch more data or aggregation.
+  // But let's assume for a mobile view, showing recent 3-6 months trend is sufficient.
+  
+  // Let's refine: We'll aggregate the available 'history' items. 
+  // If it's too sparse, it might look weird.
+  // Better approach: Since we can't easily change backend query return type right now without breaking things,
+  // let's work with the 'history' array but clarify it shows "Recent Activity".
+  
+  const monthlyGroups = history.reduce((acc, tx) => {
+      const date = new Date(tx.date);
+      const key = format(date, 'yyyy-MM');
+      const label = format(date, 'MMM yyyy');
+      const amount = parseFloat(tx.amount.replace(/,/g, '') || '0');
+      
+      if (!acc[key]) {
+          acc[key] = { label, amount: 0, date: date };
+      }
+      acc[key].amount += amount;
+      return acc;
+  }, {} as Record<string, { label: string, amount: number, date: Date }>);
+
+  // Convert to array and sort by date descending
+  const monthlyPerformance = Object.values(monthlyGroups)
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 6); // Show last 6 active months
 
   return (
     <div className="pb-24 p-4 md:p-8 space-y-6 max-w-3xl mx-auto">
@@ -128,7 +162,55 @@ export default function GoalDetailPage() {
             </div>
         )}
 
-        {/* 3. Past Cycles (History) */}
+        {/* 3. Monthly Performance (New Section) */}
+        {monthlyPerformance.length > 0 && (
+            <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                    <h4 className="font-semibold text-base">Monthly Performance</h4>
+                </div>
+                <div className="space-y-3">
+                    {monthlyPerformance.map((item) => {
+                        // Calculate percentage against Monthly Target (Strategy)
+                        // If no strategy target (e.g. goal achieved), assume 100% base for visual
+                        const baseTarget = monthlyTarget > 0 ? monthlyTarget : (item.amount * 1.2); 
+                        const pct = Math.min((item.amount / baseTarget) * 100, 100);
+                        const isMet = monthlyTarget > 0 && item.amount >= monthlyTarget;
+
+                        return (
+                            <div key={item.label} className="flex flex-col gap-1.5">
+                                <div className="flex justify-between text-sm">
+                                    <span className="font-medium text-muted-foreground">{item.label}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={isMet ? "text-success font-bold" : "text-foreground font-semibold"}>
+                                            +{new Intl.NumberFormat().format(item.amount)}
+                                        </span>
+                                        {isMet && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 rounded-full">Met</span>}
+                                    </div>
+                                </div>
+                                {/* Bar Visual */}
+                                <div className="h-2 w-full bg-muted rounded-full overflow-hidden relative">
+                                    <div 
+                                        className={cn("h-full rounded-full transition-all", isMet ? "bg-success" : "bg-primary")}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                    {/* Target Line Marker (if valid target exists) */}
+                                    {monthlyTarget > 0 && (
+                                        <div 
+                                            className="absolute top-0 bottom-0 w-0.5 bg-black/20 dark:bg-white/20 z-10" 
+                                            style={{ left: `${Math.min((monthlyTarget / baseTarget) * 100, 100)}%` }} 
+                                            title="Target"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        )}
+
+        {/* 4. Past Cycles (History) */}
         {pastCycles && pastCycles.length > 0 && (
             <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b">

@@ -25,7 +25,7 @@ import { addMonths, subMonths, format } from 'date-fns'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { BudgetListSkeleton } from '@/components/skeletons'
-import { calculateBudgetPace } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy } from '@/lib/finance-utils'
 import BudgetCard from '@/components/BudgetCard'
 
 import {
@@ -146,6 +146,25 @@ export default function BudgetsPage() {
       // Allow negative (overspending) to reduce the global total
       return acc + (limit - item.spent);
   }, 0);
+
+  // Calculate Monthly Savings Aggregate (Goals Focus)
+  const savingsAggregate = savings.reduce((acc, item) => {
+      // 1. Calculate Monthly Target (Strategy or Budget)
+      const targetAmount = item.category.targetAmount ? parseFloat(item.category.targetAmount.replace(/,/g, '')) : 0;
+      const strategy = calculateGoalStrategy(item.accumulated, targetAmount, item.category.targetDate);
+      
+      const manualBudget = item.budget ? parseFloat(item.budget.amount) : 0;
+      // Priority: Manual Budget > Strategy Suggestion
+      const monthlyTarget = manualBudget > 0 ? manualBudget : (strategy?.monthly || 0);
+
+      // 2. Calculate Monthly Saved (Spent in this context)
+      const monthlySaved = item.spent;
+
+      return {
+          totalTarget: acc.totalTarget + monthlyTarget,
+          totalSaved: acc.totalSaved + monthlySaved
+      };
+  }, { totalTarget: 0, totalSaved: 0 });
 
   return (
     <div className="pb-24 p-4 md:p-8">
@@ -351,30 +370,27 @@ export default function BudgetsPage() {
                     {/* SLIDE 2: SAVINGS */}
                     <CarouselItem className="basis-full pl-4">
                         <div className="h-full pr-4 space-y-4">
-                            {/* Savings Summary Card */}
+                            {/* Savings Summary Card (Monthly Focus) */}
                             <div className="bg-card border rounded-xl p-4 shadow-sm">
                                 <div className="flex justify-between items-end mb-2">
                                     <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Saved (All Goals)</p>
+                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Monthly Savings Goal</p>
                                         <div className="flex items-baseline gap-2 mt-1">
                                             <span className="text-2xl font-bold text-success">
-                                                {savings.reduce((acc, i) => acc + i.accumulated, 0).toLocaleString()}
+                                                {savingsAggregate.totalSaved.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                             </span>
+                                            <span className="text-sm text-muted-foreground">saved</span>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs text-muted-foreground">Target Total</p>
+                                        <p className="text-xs text-muted-foreground">Monthly Target</p>
                                         <p className="text-sm font-medium">
-                                            {savings.reduce((acc, i) => acc + (i.category.targetAmount ? parseFloat(i.category.targetAmount.replace(/,/g, '')) : 0), 0).toLocaleString()}
+                                            {savingsAggregate.totalTarget.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                         </p>
                                     </div>
                                 </div>
                                 <Progress 
-                                    value={(() => {
-                                        const totalTarget = savings.reduce((acc, i) => acc + (i.category.targetAmount ? parseFloat(i.category.targetAmount.replace(/,/g, '')) : 0), 0);
-                                        const totalSaved = savings.reduce((acc, i) => acc + i.accumulated, 0);
-                                        return totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
-                                    })()} 
+                                    value={savingsAggregate.totalTarget > 0 ? (savingsAggregate.totalSaved / savingsAggregate.totalTarget) * 100 : 0} 
                                     className="h-2 bg-muted [&>div]:bg-success"
                                 />
                             </div>
