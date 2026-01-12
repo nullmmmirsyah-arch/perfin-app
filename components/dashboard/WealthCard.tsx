@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
 import { calculateGoalStrategy } from '@/lib/finance-utils';
 
@@ -57,26 +58,22 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
               {summary?.budgetBreakdown
                 ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
                 .map((item: BudgetBreakdownItem, index: number) => {
-                  const target = item.targetAmount || 0;
-                  const percentage = target > 0 ? (item.accumulated / target) * 100 : 0;
+                  // Logic: Prioritize Monthly Budget if it exists (> 0), otherwise show Global Goal
+                  const hasMonthlyBudget = item.limit > 0;
                   
-                  // Strategy Insight
-                  // We need targetDate which is not currently in BudgetBreakdownItem. 
-                  // Wait, we need to add targetDate to the type first in the previous file/query.
-                  // Checking dashboard.ts... Yes, I added targetDate to the map.
-                  // But TS might complain if I don't update type definition in DailyOperationsCard.tsx first.
-                  // Let's assume it's passed (as I saw in previous diff).
-                  // Actually, I need to check if I added targetDate to the return object in dashboard.ts.
-                  // YES, I did: targetDate: cat?.targetDate... wait, looking at my memory/previous tool output
-                  // "targetAmount: cat?.targetAmount..." 
-                  // I might have missed mapping targetDate in dashboard.ts! 
-                  // Let me quickly check dashboard.ts again to be 100% sure. 
-                  // Ah, I see "targetDate: cat.targetDate" is MISSING in the dashboard.ts mapping I did previously.
-                  // I only mapped targetAmount.
-                  // So I need to update dashboard.ts FIRST to include targetDate.
+                  // Contextual Data
+                  const displayTarget = hasMonthlyBudget ? item.limit : (item.targetAmount || 0);
+                  const displayCurrent = hasMonthlyBudget ? item.spent : item.accumulated;
+                  const displayLabel = hasMonthlyBudget ? "Monthly Target" : "Global Goal";
                   
-                  // But for now, let's write the code assuming it will be there, then I fix dashboard.ts immediately after.
-                  const strategy = calculateGoalStrategy(item.accumulated, target, item.targetDate);
+                  // Percentage
+                  const percentage = displayTarget > 0 ? (displayCurrent / displayTarget) * 100 : 0;
+                  const isMet = hasMonthlyBudget && displayCurrent >= displayTarget;
+
+                  // Strategy Insight (Always based on Global Goal to guide the Monthly Budget)
+                  // We show this to help user set the CORRECT monthly budget
+                  const globalTarget = item.targetAmount || 0;
+                  const strategy = calculateGoalStrategy(item.accumulated, globalTarget, item.targetDate);
 
                   // Type Logic
                   let typeLabel = "Goal";
@@ -104,29 +101,39 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                                 {typeLabel}
                             </Badge>
                             <span className="text-muted-foreground font-medium truncate max-w-[120px]">{item.categoryName}</span>
+                            {isMet && (
+                                <Badge variant="default" className="px-1 py-0 h-4 text-[9px] bg-success hover:bg-success text-white border-0 gap-1">
+                                    Met
+                                </Badge>
+                            )}
                         </div>
                         <div className="text-right">
-                            <span className="font-bold text-xs text-success block">
-                                {isPrivacyMode ? '••••' : item.accumulated.toLocaleString()}
+                            <span className={cn("font-bold text-xs block", isMet ? "text-success" : "text-foreground")}>
+                                {isPrivacyMode ? '••••' : displayCurrent.toLocaleString()}
                             </span>
                         </div>
                       </div>
-                      <div className="h-2 w-full bg-success/10 rounded-full overflow-hidden">
+                      
+                      {/* Progress Bar */}
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-success rounded-full transition-all duration-500"
+                          className={cn("h-full rounded-full transition-all duration-500", isMet ? "bg-success" : "bg-primary")}
                           style={{ width: `${Math.min(percentage, 100)}%` }}
                         />
                       </div>
+                      
                       <div className="flex justify-between items-end text-[10px] text-muted-foreground">
                         <div>
-                            <span>{item.targetAmount ? `${Math.round(percentage)}%` : 'No Target'}</span>
+                            <span>{displayTarget ? `${Math.round(percentage)}%` : 'N/A'}</span>
                             <span className="mx-1">•</span>
-                            <span>Target: {isPrivacyMode ? '••••' : (item.targetAmount ? item.targetAmount.toLocaleString() : '∞')}</span>
+                            <span>{displayLabel}: {isPrivacyMode ? '••••' : (displayTarget ? displayTarget.toLocaleString() : '∞')}</span>
                         </div>
-                        {strategy && strategy.monthly > 0 && (
-                            <div className="flex items-center gap-1 text-primary font-medium bg-primary/5 px-1.5 py-0.5 rounded-sm">
+                        
+                        {/* Strategy Suggestion (Only if Global Goal exists and not finished) */}
+                        {strategy && strategy.monthly > 0 && !strategy.isDone && (
+                            <div className="flex items-center gap-1 text-primary font-medium bg-primary/5 px-1.5 py-0.5 rounded-sm" title="Suggested monthly saving to reach goal on time">
                                 <TrendingUp className="h-3 w-3" />
-                                <span>+{new Intl.NumberFormat('en-US').format(Math.ceil(strategy.monthly))}/mo</span>
+                                <span>Rec: +{new Intl.NumberFormat('en-US', { notation: "compact" }).format(Math.ceil(strategy.monthly))}/mo</span>
                             </div>
                         )}
                       </div>
