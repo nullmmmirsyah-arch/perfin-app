@@ -78,16 +78,17 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                   // Type Logic
                   let typeLabel = "Goal";
                   let typeIcon = Sparkles;
-                  let typeColor = "text-purple-600 bg-purple-50 dark:bg-purple-900/20";
+                  // Using Chart colors for consistent theming
+                  let typeColor = "text-chart-1 bg-chart-1/10 border-chart-1/20"; 
 
                   if (item.goalType === 'investment') {
                       typeLabel = "Wealth";
                       typeIcon = ShieldCheck;
-                      typeColor = "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
+                      typeColor = "text-chart-2 bg-chart-2/10 border-chart-2/20";
                   } else if (item.goalType === 'bill') {
                       typeLabel = "Bill";
                       typeIcon = CalendarClock;
-                      typeColor = "text-amber-600 bg-amber-50 dark:bg-amber-900/20";
+                      typeColor = "text-chart-3 bg-chart-3/10 border-chart-3/20";
                   }
 
                   const Icon = typeIcon;
@@ -96,13 +97,13 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                     <div key={index} className="flex flex-col gap-1.5 pb-2">
                       <div className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`px-1 py-0 h-4 text-[9px] border-0 gap-1 font-semibold ${typeColor}`}>
+                            <Badge variant="outline" className={`px-1 py-0 h-4 text-[9px] border gap-1 font-semibold ${typeColor}`}>
                                 <Icon className="h-2 w-2" />
                                 {typeLabel}
                             </Badge>
                             <span className="text-muted-foreground font-medium truncate max-w-[120px]">{item.categoryName}</span>
                             {isMet && (
-                                <Badge variant="default" className="px-1 py-0 h-4 text-[9px] bg-success hover:bg-success text-white border-0 gap-1">
+                                <Badge variant="default" className="px-1 py-0 h-4 text-[9px] bg-success hover:bg-success/90 text-success-foreground border-0 gap-1">
                                     Met
                                 </Badge>
                             )}
@@ -129,9 +130,9 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                             <span>{displayLabel}: {isPrivacyMode ? '••••' : (displayTarget ? displayTarget.toLocaleString() : '∞')}</span>
                         </div>
                         
-                        {/* Strategy Suggestion (Only if Global Goal exists and not finished) */}
-                        {strategy && strategy.monthly > 0 && !strategy.isDone && (
-                            <div className="flex items-center gap-1 text-primary font-medium bg-primary/5 px-1.5 py-0.5 rounded-sm" title="Suggested monthly saving to reach goal on time">
+                        {/* Strategy Suggestion (Only show if NOT met yet to avoid confusion) */}
+                        {!isMet && strategy && strategy.monthly > 0 && !strategy.isDone && (
+                            <div className="flex items-center gap-1 text-primary font-medium bg-primary/10 px-1.5 py-0.5 rounded-sm" title="Suggested monthly saving to reach goal on time">
                                 <TrendingUp className="h-3 w-3" />
                                 <span>Rec: +{new Intl.NumberFormat('en-US', { notation: "compact" }).format(Math.ceil(strategy.monthly))}/mo</span>
                             </div>

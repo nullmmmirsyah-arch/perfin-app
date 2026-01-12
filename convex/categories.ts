@@ -60,6 +60,27 @@ export const getGoalDetails = query({
         .withIndex("by_categoryId", q => q.eq("categoryId", id))
         .order("desc")
         .collect();
+    
+    // Fetch Current Month Budget (for UI "Met" status)
+    const now = new Date();
+    let currentBudget;
+    if (householdId) {
+        currentBudget = await ctx.db.query("budgets")
+            .withIndex("by_householdId_category_year_month", q => 
+                q.eq("householdId", householdId)
+                 .eq("categoryId", id)
+                 .eq("year", now.getFullYear())
+                 .eq("month", now.getMonth())
+            ).first();
+    } else {
+        currentBudget = await ctx.db.query("budgets")
+            .withIndex("by_user_category_year_month", q => 
+                q.eq("userId", identity.subject)
+                 .eq("categoryId", id)
+                 .eq("year", now.getFullYear())
+                 .eq("month", now.getMonth())
+            ).first();
+    }
 
     // Filter for transaction history list (Last 10)
     const history = transactions
@@ -78,11 +99,32 @@ export const getGoalDetails = query({
             type: t.type
         }));
 
+    // Calculate This Month Contribution
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const thisMonthContribution = transactions
+        .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
+        .reduce((acc, t) => {
+            // Logic similar to finance.ts but simplified for specific category contribution
+            let amt = 0;
+            if (t.categoryId === id) {
+                amt = parseFloat(t.amount.replace(/,/g, '') || '0');
+            } else if (t.isSplit && t.splits) {
+                const s = t.splits.find(s => s.categoryId === id);
+                if (s) amt = parseFloat(s.amount.replace(/,/g, '') || '0');
+            }
+            
+            // Handle negative for reversals if needed, but for "Contribution" usually positive.
+            // Assuming standard flow.
+            return acc + amt;
+        }, 0);
+
     return {
         category,
         currentAmount,
         history,
-        pastCycles
+        pastCycles,
+        currentBudget,
+        thisMonthContribution
     };
   }
 });
@@ -128,13 +170,25 @@ export const get = query({
         }
         const accountsMap: AccountMap = new Map(accounts.map(a => [a._id, a]));
         
-        // We calculate global spending map first for optimization
-        // BUT, we need to handle per-category reset date.
-        // Optimization: 
-        // 1. Calculate base map (all time)
-        // 2. Iterate categories. If no reset date -> use base map.
-        // 3. If reset date -> filter transactions specific to that cat and recalc.
-        
+        // --- BATCH FETCH BUDGETS ---
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const startOfThisMonth = new Date(year, month, 1).getTime();
+
+        // Optimized: Fetch all budgets for the current month for this user/household
+        let monthlyBudgets;
+        if (householdId) {
+            monthlyBudgets = await ctx.db.query("budgets")
+                .withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", year).eq("month", month))
+                .collect();
+        } else {
+            monthlyBudgets = await ctx.db.query("budgets")
+                .withIndex("by_userId_year_month", q => q.eq("userId", identity.subject).eq("year", year).eq("month", month))
+                .collect();
+        }
+        const budgetMap = new Map(monthlyBudgets.map(b => [b.categoryId, b]));
+
         const baseSpendingMap = calculateSpendingByCategory(transactions, accountsMap);
 
         return filtered.map(c => {
@@ -142,28 +196,36 @@ export const get = query({
             
             if (c.lastResetDate) {
                 const resetTime = new Date(c.lastResetDate).getTime();
-                // Filter transactions relevant to THIS category only to save perf
-                // We only care about transactions that contribute to this category
                 const relevantTx = transactions.filter(t => {
                     const isAfter = new Date(t.date).getTime() > resetTime;
                     if (!isAfter) return false;
-                    
-                    // Is this transaction related to this category?
-                    // Note: calculateSpendingByCategory handles the logic of "is related".
-                    // But here we need to filter list before passing to it.
-                    // Simple check:
                     if (t.categoryId === c._id) return true;
                     if (t.isSplit && t.splits?.some(s => s.categoryId === c._id)) return true;
                     return false;
                 });
-                
                 const cycleMap = calculateSpendingByCategory(relevantTx, accountsMap);
                 amount = cycleMap[c._id] || 0;
             }
 
+            // Calculate This Month Contribution for THIS specific goal
+            const thisMonthContribution = transactions
+                .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
+                .reduce((acc, t) => {
+                    let amt = 0;
+                    if (t.categoryId === c._id) {
+                        amt = parseFloat(t.amount.replace(/,/g, '') || '0');
+                    } else if (t.isSplit && t.splits) {
+                        const s = t.splits.find(s => s.categoryId === c._id);
+                        if (s) amt = parseFloat(s.amount.replace(/,/g, '') || '0');
+                    }
+                    return acc + amt;
+                }, 0);
+
             return {
                 ...c,
-                currentAmount: amount
+                currentAmount: amount,
+                currentBudget: budgetMap.get(c._id),
+                thisMonthContribution
             };
         });
     }

@@ -71,13 +71,13 @@ export default function GoalsPage() {
           <>
             {/* 1. WEALTH & INVESTMENTS */}
             <section>
-                <SectionHeader title="Security & Growth" icon={ShieldCheck} count={investments.length} className="text-blue-600 dark:text-blue-400" />
+                <SectionHeader title="Security & Growth" icon={ShieldCheck} count={investments.length} className="text-chart-2" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {investments.map(goal => (
                         <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} />
                     ))}
                     {investments.length === 0 && (
-                        <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-blue-50/30 dark:bg-blue-900/10">
+                        <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-2/5">
                             <p className="text-sm text-muted-foreground">No investment goals yet. Start building wealth!</p>
                         </div>
                     )}
@@ -86,13 +86,13 @@ export default function GoalsPage() {
 
             {/* 2. BILLS (SINKING FUNDS) */}
             <section>
-                <SectionHeader title="Upcoming Obligations" icon={CalendarClock} count={bills.length} className="text-amber-600 dark:text-amber-400" />
+                <SectionHeader title="Upcoming Obligations" icon={CalendarClock} count={bills.length} className="text-chart-3" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {bills.map(goal => (
                         <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} />
                     ))}
                     {bills.length === 0 && (
-                        <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-amber-50/30 dark:bg-amber-900/10">
+                        <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-3/5">
                             <p className="text-sm text-muted-foreground">No sinking funds. Use this for recurring bills like Tax or Insurance.</p>
                         </div>
                     )}
@@ -101,13 +101,13 @@ export default function GoalsPage() {
 
             {/* 3. WISHLIST (PURCHASES) */}
             <section>
-                <SectionHeader title="Wishlist" icon={Sparkles} count={purchases.length} className="text-purple-600 dark:text-purple-400" />
+                <SectionHeader title="Wishlist" icon={Sparkles} count={purchases.length} className="text-chart-1" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {purchases.map(goal => (
                         <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} />
                     ))}
                     {purchases.length === 0 && (
-                        <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-purple-50/30 dark:bg-purple-900/10">
+                        <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-1/5">
                             <p className="text-sm text-muted-foreground">No active wishlist items.</p>
                         </div>
                     )}

@@ -6,7 +6,7 @@ import { Id } from '../../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { format, differenceInMonths, isValid } from 'date-fns'
-import { TrendingUp, History, Wallet, ChevronLeft, Calendar } from 'lucide-react'
+import { TrendingUp, History, Wallet, ChevronLeft, Calendar, CheckCircle2 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -36,10 +36,14 @@ export default function GoalDetailPage() {
       )
   }
 
-  const { category, currentAmount, history, pastCycles } = data
+  const { category, currentAmount, history, pastCycles, currentBudget, thisMonthContribution } = data
   const targetAmount = category.targetAmount ? parseFloat(category.targetAmount.replace(/,/g, '')) : 0
   const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0
   const remaining = Math.max(0, targetAmount - currentAmount)
+
+  // Monthly Budget Status
+  const monthlyLimit = currentBudget ? parseFloat(currentBudget.amount.replace(/,/g, '') || '0') : 0;
+  const isMonthlyMet = monthlyLimit > 0 && (thisMonthContribution || 0) >= monthlyLimit;
 
   // Strategy Calculation
   let strategyText = "Set a target date to get a strategy."
@@ -68,19 +72,6 @@ export default function GoalDetailPage() {
 
   // --- Monthly Performance Logic ---
   // Group history by Month (YYYY-MM)
-  // Note: 'history' prop is only last 10 txs. We need ALL transactions for accurate monthly chart.
-  // Ideally, we should fetch aggregated data from backend. 
-  // However, given the current scope, let's use the 'history' array (which is last 10) as a "Recent Monthly Trend".
-  // If we need full history, we'd need a separate query. For now, let's visualize what we have.
-  // WAIT: 'history' from getGoalDetails is indeed sliced to 10.
-  // To make this chart useful, we really should fetch more data or aggregation.
-  // But let's assume for a mobile view, showing recent 3-6 months trend is sufficient.
-  
-  // Let's refine: We'll aggregate the available 'history' items. 
-  // If it's too sparse, it might look weird.
-  // Better approach: Since we can't easily change backend query return type right now without breaking things,
-  // let's work with the 'history' array but clarify it shows "Recent Activity".
-  
   const monthlyGroups = history.reduce((acc, tx) => {
       const date = new Date(tx.date);
       const key = format(date, 'yyyy-MM');
@@ -123,7 +114,7 @@ export default function GoalDetailPage() {
                     <path className="text-muted/20" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="2.5" />
                     {/* Progress Circle */}
                     <path 
-                        className="text-primary transition-all duration-1000 ease-out" 
+                        className={isMonthlyMet ? "text-success transition-all duration-1000 ease-out" : "text-primary transition-all duration-1000 ease-out"} 
                         strokeDasharray={`${Math.min(progress, 100)}, 100`} 
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
                         fill="none" 
@@ -134,6 +125,7 @@ export default function GoalDetailPage() {
                 </svg>
                 <div className="absolute flex flex-col items-center">
                     <span className="text-4xl font-bold">{Math.round(progress)}%</span>
+                    {isMonthlyMet && <span className="text-sm text-success font-medium bg-success/10 px-2 py-0.5 rounded-full mt-2">On Track</span>}
                 </div>
             </div>
             
@@ -148,19 +140,33 @@ export default function GoalDetailPage() {
         </div>
 
         {/* 2. Strategy / Insight */}
-        {remaining > 0 && (
-            <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-xl p-5 flex items-start gap-4">
-                <div className="bg-blue-100 dark:bg-blue-800 p-2.5 rounded-full mt-0.5">
-                    <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+        {remaining > 0 ? (
+            isMonthlyMet ? (
+                <div className="bg-success/10 border border-success/20 rounded-xl p-5 flex items-center gap-4">
+                    <div className="bg-success/20 p-2.5 rounded-full">
+                        <CheckCircle2 className="h-6 w-6 text-success" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-base text-success mb-1">Monthly Target Met!</h4>
+                        <p className="text-sm text-success/80 leading-relaxed">
+                            You've contributed <strong>{new Intl.NumberFormat().format(thisMonthContribution || 0)}</strong> this month. Great job staying on track.
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h4 className="font-semibold text-base text-blue-900 dark:text-blue-100 mb-1">Monthly Pace</h4>
-                    <p className="text-sm text-blue-700 dark:text-blue-200 leading-relaxed">
-                        {strategyText}
-                    </p>
+            ) : (
+                <div className="bg-primary/5 border border-primary/10 rounded-xl p-5 flex items-start gap-4">
+                    <div className="bg-primary/10 p-2.5 rounded-full mt-0.5">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-base text-primary mb-1">Monthly Pace</h4>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            {strategyText}
+                        </p>
+                    </div>
                 </div>
-            </div>
-        )}
+            )
+        ) : null}
 
         {/* 3. Monthly Performance (New Section) */}
         {monthlyPerformance.length > 0 && (
@@ -185,7 +191,7 @@ export default function GoalDetailPage() {
                                         <span className={isMet ? "text-success font-bold" : "text-foreground font-semibold"}>
                                             +{new Intl.NumberFormat().format(item.amount)}
                                         </span>
-                                        {isMet && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 rounded-full">Met</span>}
+                                        {isMet && <span className="text-[10px] bg-success/10 text-success px-1.5 rounded-full">Met</span>}
                                     </div>
                                 </div>
                                 {/* Bar Visual */}
@@ -197,7 +203,7 @@ export default function GoalDetailPage() {
                                     {/* Target Line Marker (if valid target exists) */}
                                     {monthlyTarget > 0 && (
                                         <div 
-                                            className="absolute top-0 bottom-0 w-0.5 bg-black/20 dark:bg-white/20 z-10" 
+                                            className="absolute top-0 bottom-0 w-0.5 bg-foreground/20 z-10" 
                                             style={{ left: `${Math.min((monthlyTarget / baseTarget) * 100, 100)}%` }} 
                                             title="Target"
                                         />
