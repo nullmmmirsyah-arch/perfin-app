@@ -27,7 +27,7 @@ import confetti from 'canvas-confetti'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { format } from 'date-fns'
+import { format, differenceInDays } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 
 type GoalAchievementDialogProps = {
@@ -222,7 +222,13 @@ export default function GoalAchievementDialog({
 
   // --- UI PARTIALS ---
 
-  const renderIntro = () => (
+  const renderIntro = () => {
+    const today = new Date();
+    const targetDate = category.targetDate ? new Date(category.targetDate) : null;
+    const daysEarly = targetDate ? differenceInDays(targetDate, today) : 0;
+    const isEarly = daysEarly > 0;
+
+    return (
     <>
         <DialogHeader>
         <div className="mx-auto bg-yellow-100 p-3 rounded-full w-fit mb-2">
@@ -230,6 +236,13 @@ export default function GoalAchievementDialog({
              goalType === 'bill' ? <CalendarClock className="h-8 w-8 text-amber-600" /> :
              <PartyPopper className="h-8 w-8 text-yellow-600" />}
         </div>
+        
+        {isEarly && (
+            <div className="mx-auto mb-3 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full w-fit flex items-center gap-1 animate-pulse">
+                🚀 {daysEarly} Days Ahead of Schedule!
+            </div>
+        )}
+
         <DialogTitle className="text-center text-xl">
             {goalType === 'investment' ? 'Milestone Reached!' :
              goalType === 'bill' ? 'Bill Ready to Pay' : 'Goal Achieved!'}
@@ -238,6 +251,12 @@ export default function GoalAchievementDialog({
             {goalType === 'investment' ? `You've hit your target for ${category.name}. Great job building wealth!` :
              goalType === 'bill' ? `Funds for ${category.name} are ready. Time to pay?` :
              `Congratulations! You've reached your target for ${category.name}.`}
+             
+             {isEarly && (
+                <span className="block mt-2 text-green-600 font-medium">
+                    You finished {daysEarly} days early. Amazing discipline!
+                </span>
+             )}
         </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-4">
@@ -259,7 +278,7 @@ export default function GoalAchievementDialog({
              )}
         </div>
     </>
-  );
+  )};
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

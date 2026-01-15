@@ -221,7 +221,27 @@ export const deleteAccount = mutation({
         );
 
         if (!categoryHasTx) {
-            // Safe to delete category too
+            // 2.1. CLEANUP BUDGETS (Critical for Unassigned Cash)
+            // We must delete any budgets assigned to this category so funds return to the pool.
+            let budgetsToDelete;
+            if (account.householdId) {
+                const allBudgets = await ctx.db.query("budgets")
+                    .withIndex("by_householdId_year_month", q => q.eq("householdId", account.householdId!))
+                    .collect();
+                budgetsToDelete = allBudgets.filter(b => b.categoryId === account.linkedCategoryId);
+            } else {
+                // Fetch all budgets for this user (Safe scan for personal scope)
+                const allBudgets = await ctx.db.query("budgets")
+                    .withIndex("by_userId_year_month", q => q.eq("userId", identity.subject))
+                    .collect();
+                budgetsToDelete = allBudgets.filter(b => b.categoryId === account.linkedCategoryId);
+            }
+
+            for (const budget of budgetsToDelete) {
+                await ctx.db.delete(budget._id);
+            }
+
+            // 2.2. Delete category
             await ctx.db.delete(account.linkedCategoryId);
         } else {
             // Category is used elsewhere, just unlink it? 

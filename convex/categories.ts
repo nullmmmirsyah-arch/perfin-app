@@ -41,22 +41,32 @@ export const getGoalDetails = query({
     const linkedAccount = accounts.find(a => a.linkedCategoryId === id);
     const linkedAccountId = linkedAccount?._id;
     
-    // For Goal Details, we need to manually filter transactions if lastResetDate exists
-    // to calculate the accurate 'Current Cycle Amount'.
+    // For Goal Details, we prefer the Linked Account Balance as the single source of truth.
+    // This solves the "Rollover" issue for Sinking Funds: even if we reset the cycle date,
+    // the money already in the account is still there and counts towards the goal.
     
     let currentAmount = 0;
     
-    if (category.type === CATEGORY_TYPES.SAVING && category.lastResetDate) {
-        const resetTime = new Date(category.lastResetDate).getTime();
-        
-        // Filter transactions AFTER reset date
-        const currentCycleTransactions = transactions.filter(t => new Date(t.date).getTime() > resetTime);
-        const cycleSpending = calculateSpendingByCategory(currentCycleTransactions, accountsMap);
-        currentAmount = cycleSpending[id] || 0;
+    if (linkedAccount) {
+        // PURE BALANCE STRATEGY
+        // If there is a dedicated account, its balance is the absolute truth.
+        currentAmount = parseFloat(linkedAccount.balance.replace(/,/g, '') || '0');
     } else {
-        // Fallback to standard calculation
-        const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
-        currentAmount = spendingMap[id] || 0;
+        // FALLBACK: VIRTUAL CALCULATION
+        // If no dedicated account, calculate based on transaction tagging history.
+        // Here we must respect the reset date to avoid counting old cycles.
+        if (category.type === CATEGORY_TYPES.SAVING && category.lastResetDate) {
+            const resetTime = new Date(category.lastResetDate).getTime();
+            
+            // Filter transactions AFTER reset date
+            const currentCycleTransactions = transactions.filter(t => new Date(t.date).getTime() > resetTime);
+            const cycleSpending = calculateSpendingByCategory(currentCycleTransactions, accountsMap);
+            currentAmount = cycleSpending[id] || 0;
+        } else {
+            // Fallback to standard calculation
+            const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
+            currentAmount = spendingMap[id] || 0;
+        }
     }
 
     // Fetch History (Past Cycles)
@@ -209,24 +219,34 @@ export const get = query({
         const baseSpendingMap = calculateSpendingByCategory(transactions, accountsMap);
 
         return filtered.map(c => {
-            let amount = baseSpendingMap[c._id] || 0;
+            let amount = 0;
             
-            if (c.lastResetDate) {
-                const resetTime = new Date(c.lastResetDate).getTime();
-                const relevantTx = transactions.filter(t => {
-                    const isAfter = new Date(t.date).getTime() > resetTime;
-                    if (!isAfter) return false;
-                    if (t.categoryId === c._id) return true;
-                    if (t.isSplit && t.splits?.some(s => s.categoryId === c._id)) return true;
-                    return false;
-                });
-                const cycleMap = calculateSpendingByCategory(relevantTx, accountsMap);
-                amount = cycleMap[c._id] || 0;
+            // 1. Try to find linked account balance (Single Source of Truth)
+            const cLinkedAccount = accounts.find(a => a.linkedCategoryId === c._id);
+            const cLinkedAccountId = cLinkedAccount?._id;
+
+            if (cLinkedAccount) {
+                 amount = parseFloat(cLinkedAccount.balance.replace(/,/g, '') || '0');
+            } else {
+                // 2. Fallback: Calculation based on transactions
+                amount = baseSpendingMap[c._id] || 0;
+            
+                if (c.lastResetDate) {
+                    const resetTime = new Date(c.lastResetDate).getTime();
+                    const relevantTx = transactions.filter(t => {
+                        const isAfter = new Date(t.date).getTime() > resetTime;
+                        if (!isAfter) return false;
+                        if (t.categoryId === c._id) return true;
+                        if (t.isSplit && t.splits?.some(s => s.categoryId === c._id)) return true;
+                        return false;
+                    });
+                    const cycleMap = calculateSpendingByCategory(relevantTx, accountsMap);
+                    amount = cycleMap[c._id] || 0;
+                }
             }
 
             // Calculate This Month Contribution for THIS specific goal
-            const cLinkedAccount = accounts.find(a => a.linkedCategoryId === c._id);
-            const cLinkedAccountId = cLinkedAccount?._id;
+            // (cLinkedAccount and cLinkedAccountId are already defined above)
 
             const thisMonthContribution = transactions
                 .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
@@ -420,18 +440,12 @@ export const deleteCategory = mutation({
         throw new Error("Cannot delete category with transaction history. Please use Archive instead to keep your data safe.");
     }
 
-    // 2. Check for Budgets with allocated amount > 0
+    // 2. Check for Budgets (Auto-Cleanup)
     const budgets = await ctx.db.query("budgets")
         .withIndex("by_user_category_year_month", q => q.eq("userId", identity.subject).eq("categoryId", args.id))
         .collect();
     
-    const hasActiveBudgets = budgets.some(b => parseFloat(b.amount.replace(/,/g, '') || '0') > 0);
-
-    if (hasActiveBudgets) {
-        throw new Error("This category has active budget allocations. Please remove the budgets or archive the category instead.");
-    }
-
-    // 3. Cleanup: Delete any associated budget records (orphans or zero-budgets)
+    // Instead of blocking, we delete the budgets to release funds to Unassigned Cash
     for (const budget of budgets) {
         await ctx.db.delete(budget._id);
     }

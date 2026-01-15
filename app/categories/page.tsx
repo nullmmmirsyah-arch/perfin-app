@@ -47,6 +47,9 @@ export default function CategoriesPage() {
     showArchived: true
   })
 
+  // Fetch Budgets for Warning Check
+  const allBudgets = useQuery(api.budgets.get, { householdId: householdId ?? undefined })
+
   // 2. Fetch Budget Status to get "Accumulated" values for Goals
   const now = new Date()
   const budgetStatus = useQuery(api.budgets.getBudgetStatus, { 
@@ -71,8 +74,12 @@ export default function CategoriesPage() {
 
   const handleDeleteConfirm = async () => {
     if (categoryToDelete) {
-      await deleteCategory({ id: categoryToDelete._id })
-      toast.success("Category deleted")
+      try {
+        await deleteCategory({ id: categoryToDelete._id })
+        toast.success("Category deleted")
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to delete category")
+      }
       setCategoryToDelete(undefined)
     }
   }
@@ -88,6 +95,29 @@ export default function CategoriesPage() {
   const handleUnarchive = async (category: Doc<'categories'>) => {
       await unarchiveCategory({ id: category._id })
       toast.success("Category restored")
+  }
+
+  const getCategoryBudgetWarning = (category: Doc<'categories'>) => {
+      if (!allBudgets) return null;
+      
+      const hasBudget = allBudgets.some(b => 
+          b.categoryId === category._id && parseFloat(b.amount.replace(/,/g, '') || '0') > 0
+      );
+
+      if (hasBudget) {
+          return (
+              <div className="mt-4 p-3 bg-amber-50 text-amber-800 rounded-md text-sm border border-amber-200">
+                  <p className="font-semibold flex items-center gap-2">
+                    ⚠️ Active Budget Detected
+                  </p>
+                  <p className="mt-1">
+                      This category has funds assigned to it. 
+                      Deleting it will <strong>return these funds to Unassigned Cash</strong>.
+                  </p>
+              </div>
+          );
+      }
+      return null;
   }
 
   if (categories === undefined) {
@@ -202,11 +232,15 @@ export default function CategoriesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Category?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete <strong>{categoryToDelete?.name}</strong>? 
-              <br/>
-              Note: Transactions linked to this category will lose their category association. 
-              Use <strong>Archive</strong> instead if you just want to hide it.
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                Are you sure you want to permanently delete <strong>{categoryToDelete?.name}</strong>? 
+                <br/>
+                Note: Transactions linked to this category will lose their category association. 
+                Use <strong>Archive</strong> instead if you just want to hide it.
+                
+                {categoryToDelete && getCategoryBudgetWarning(categoryToDelete)}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

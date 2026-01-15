@@ -51,6 +51,9 @@ export default function AccountsPage() {
   
   const deleteAccount = useMutation(api.accounts.deleteAccount)
   const archiveAccount = useMutation(api.accounts.archiveAccount)
+  
+  // Fetch Budgets to check for linked funds before deletion
+  const allBudgets = useQuery(api.budgets.get, { householdId: householdId ?? undefined })
 
   const handleCreate = () => {
     setSelectedAccount(undefined)
@@ -67,8 +70,8 @@ export default function AccountsPage() {
       try {
         await deleteAccount({ id: accountToDelete._id })
         toast.success("Account deleted")
-      } catch {
-        toast.error("Failed to delete account")
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to delete account")
       }
       setAccountToDelete(undefined)
     }
@@ -84,6 +87,33 @@ export default function AccountsPage() {
         }
         setAccountToClose(undefined)
     }
+  }
+
+  // Helper to check for linked funds
+  const getLinkedBudgetWarning = (account: Doc<'accounts'>) => {
+      if (!account.linkedCategoryId || !allBudgets) return null;
+      
+      const hasBudget = allBudgets.some(b => 
+          b.categoryId === account.linkedCategoryId && parseFloat(b.amount.replace(/,/g, '') || '0') > 0
+      );
+
+      if (hasBudget) {
+          return (
+              <div className="mt-4 p-3 bg-amber-50 text-amber-800 rounded-md text-sm border border-amber-200">
+                  <p className="font-semibold flex items-center gap-2">
+                    ⚠️ Active Budget Detected
+                  </p>
+                  <p className="mt-1">
+                      This account has funds assigned to it in your Budget. 
+                      Deleting it will <strong>return these funds to Unassigned Cash</strong>.
+                  </p>
+                  <p className="mt-2 text-xs italic">
+                      Tip: If you want to move these funds to another category, do that in the Budget page first.
+                  </p>
+              </div>
+          );
+      }
+      return null;
   }
 
   if (accounts === undefined) {
@@ -188,11 +218,15 @@ export default function AccountsPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Account?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to <strong>permanently delete</strong> the account <strong>{accountToDelete?.name}</strong>? 
-              This will remove all transaction history associated with it. 
-              <br/><br/>
-              To preserve history, use <strong>Close Account</strong> instead.
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                Are you sure you want to <strong>permanently delete</strong> the account <strong>{accountToDelete?.name}</strong>? 
+                This will remove all transaction history associated with it. 
+                <br/><br/>
+                To preserve history, use <strong>Close Account</strong> instead.
+                
+                {accountToDelete && getLinkedBudgetWarning(accountToDelete)}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
