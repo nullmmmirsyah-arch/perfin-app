@@ -132,7 +132,7 @@ export const getDashboardSummary = query({
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
     const accounts = allAccounts.filter(a => !a.isArchived);
-    const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
     // 1. Split Balances
     const liquidCash = accounts

@@ -34,12 +34,15 @@ export const getGoalDetails = query({
         accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
     }
 
-    const accountsMap: AccountMap = new Map(accounts.map(a => [a._id, a]));
-    const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
+    const accountsMap: AccountMap = new Map(accounts.map(a => [String(a._id), a]));
+    // const spendingMap = calculateSpendingByCategory(transactions, accountsMap); // Unused variable removed
+    
+    // Find the linked account ID for this goal (Critical for Deposit/Withdraw features)
+    const linkedAccount = accounts.find(a => a.linkedCategoryId === id);
+    const linkedAccountId = linkedAccount?._id;
     
     // For Goal Details, we need to manually filter transactions if lastResetDate exists
-    // to calculate the accurate 'Current Cycle Amount', because calculateSpendingByCategory
-    // aggregates everything by default.
+    // to calculate the accurate 'Current Cycle Amount'.
     
     let currentAmount = 0;
     
@@ -51,6 +54,8 @@ export const getGoalDetails = query({
         const cycleSpending = calculateSpendingByCategory(currentCycleTransactions, accountsMap);
         currentAmount = cycleSpending[id] || 0;
     } else {
+        // Fallback to standard calculation
+        const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
         currentAmount = spendingMap[id] || 0;
     }
 
@@ -99,23 +104,34 @@ export const getGoalDetails = query({
             type: t.type
         }));
 
-    // Calculate This Month Contribution
+    // Calculate This Month Contribution (Net Flow)
     const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    
     const thisMonthContribution = transactions
         .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
         .reduce((acc, t) => {
-            // Logic similar to finance.ts but simplified for specific category contribution
-            let amt = 0;
-            if (t.categoryId === id) {
-                amt = parseFloat(t.amount.replace(/,/g, '') || '0');
-            } else if (t.isSplit && t.splits) {
-                const s = t.splits.find(s => s.categoryId === id);
-                if (s) amt = parseFloat(s.amount.replace(/,/g, '') || '0');
+            const amt = parseFloat(t.amount.replace(/,/g, '') || '0');
+            
+            // Check Direction if linkedAccount is known
+            if (linkedAccountId) {
+                if (t.toAccountId === linkedAccountId) {
+                    return acc + amt; // Deposit
+                }
+                if (t.accountId === linkedAccountId) {
+                    // Withdraw / Reversal
+                    if (t.isGoalDisbursement) return acc; // Netral
+                    return acc - amt; // Negative Contribution
+                }
+            }
+
+            // Fallback (Only if we can't identify direction via Account ID)
+            if (t.categoryId === id) return acc + amt;
+            if (t.isSplit && t.splits?.some(s => s.categoryId === id)) {
+                 const s = t.splits.find(s => s.categoryId === id);
+                 return acc + (s ? parseFloat(s.amount.replace(/,/g, '') || '0') : 0);
             }
             
-            // Handle negative for reversals if needed, but for "Contribution" usually positive.
-            // Assuming standard flow.
-            return acc + amt;
+            return acc;
         }, 0);
 
     return {
@@ -124,7 +140,8 @@ export const getGoalDetails = query({
         history,
         pastCycles,
         currentBudget,
-        thisMonthContribution
+        thisMonthContribution,
+        linkedAccountId
     };
   }
 });
@@ -168,7 +185,7 @@ export const get = query({
             transactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
             accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
         }
-        const accountsMap: AccountMap = new Map(accounts.map(a => [a._id, a]));
+        const accountsMap: AccountMap = new Map(accounts.map(a => [String(a._id), a]));
         
         // --- BATCH FETCH BUDGETS ---
         const now = new Date();
@@ -208,17 +225,28 @@ export const get = query({
             }
 
             // Calculate This Month Contribution for THIS specific goal
+            const cLinkedAccount = accounts.find(a => a.linkedCategoryId === c._id);
+            const cLinkedAccountId = cLinkedAccount?._id;
+
             const thisMonthContribution = transactions
                 .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
                 .reduce((acc, t) => {
-                    let amt = 0;
-                    if (t.categoryId === c._id) {
-                        amt = parseFloat(t.amount.replace(/,/g, '') || '0');
-                    } else if (t.isSplit && t.splits) {
-                        const s = t.splits.find(s => s.categoryId === c._id);
-                        if (s) amt = parseFloat(s.amount.replace(/,/g, '') || '0');
+                    const amt = parseFloat(t.amount.replace(/,/g, '') || '0');
+                    
+                    if (cLinkedAccountId) {
+                        if (t.toAccountId === cLinkedAccountId) return acc + amt;
+                        if (t.accountId === cLinkedAccountId) {
+                            if (t.isGoalDisbursement) return acc;
+                            return acc - amt;
+                        }
                     }
-                    return acc + amt;
+
+                    if (t.categoryId === c._id) return acc + amt;
+                    if (t.isSplit && t.splits) {
+                        const s = t.splits.find(s => s.categoryId === c._id);
+                        if (s) return acc + parseFloat(s.amount.replace(/,/g, '') || '0');
+                    }
+                    return acc;
                 }, 0);
 
             return {
@@ -243,6 +271,7 @@ export const create = mutation({
     targetDate: v.optional(v.string()),
     enablePacing: v.optional(v.boolean()),
     goalType: v.optional(v.string()),
+    monthlyBudget: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -252,8 +281,10 @@ export const create = mutation({
         await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
     }
 
+    const { monthlyBudget, ...rest } = args;
+
     const categoryId = await ctx.db.insert("categories", {
-      ...args,
+      ...rest,
       userId: identity.subject,
       status: GOAL_STATUS.ACTIVE,
       goalType: args.goalType as any,
@@ -269,6 +300,19 @@ export const create = mutation({
             type: ACCOUNT_TYPES.SAVING,
             linkedCategoryId: categoryId
         });
+
+        // AUTO-CREATE BUDGET if monthlyBudget provided
+        if (monthlyBudget) {
+            const now = new Date();
+            await ctx.db.insert("budgets", {
+                userId: identity.subject,
+                householdId: args.householdId,
+                categoryId,
+                amount: monthlyBudget,
+                year: now.getFullYear(),
+                month: now.getMonth(),
+            });
+        }
     }
 
     return categoryId;
@@ -284,12 +328,13 @@ export const update = mutation({
     targetDate: v.optional(v.string()),
     enablePacing: v.optional(v.boolean()),
     goalType: v.optional(v.string()),
+    monthlyBudget: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, goalType, ...rest } = args;
+    const { id, goalType, monthlyBudget, ...rest } = args;
     const category = await ctx.db.get(id);
     if (!category) throw new Error("Category not found");
 
@@ -300,6 +345,34 @@ export const update = mutation({
     }
 
     await ctx.db.patch(id, { ...rest, goalType: goalType as any });
+
+    // Handle Budget Update
+    if (monthlyBudget !== undefined && category.type === 'saving') {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+
+        const existingBudget = await ctx.db.query("budgets")
+            .withIndex("by_user_category_year_month", q => 
+                q.eq("userId", identity.subject)
+                 .eq("categoryId", id)
+                 .eq("year", year)
+                 .eq("month", month)
+            ).first();
+
+        if (existingBudget) {
+            await ctx.db.patch(existingBudget._id, { amount: monthlyBudget });
+        } else if (monthlyBudget) {
+            await ctx.db.insert("budgets", {
+                userId: identity.subject,
+                householdId: category.householdId,
+                categoryId: id,
+                amount: monthlyBudget,
+                year,
+                month,
+            });
+        }
+    }
 
     // Sync Name to linked Account if category name changed
     if (args.name) {
@@ -482,7 +555,7 @@ export const resetGoal = mutation({
         (category.householdId && a.householdId === category.householdId) || 
         (!category.householdId && a.userId === identity.subject)
     );
-    const accountsMap: AccountMap = new Map(userAccounts.map(a => [a._id, a]));
+    const accountsMap: AccountMap = new Map(userAccounts.map(a => [String(a._id), a]));
 
     const spendingMap = calculateSpendingByCategory(relevantTx, accountsMap);
     const finalAmount = spendingMap[category._id] || 0;

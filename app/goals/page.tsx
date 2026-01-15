@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 export default function GoalsPage() {
   const [openCreate, setOpenCreate] = useState(false)
+  const [categoryToEdit, setCategoryToEdit] = useState<Doc<'categories'> | undefined>(undefined)
   const [showCompleted, setShowCompleted] = useState(false)
   const { householdId } = useHousehold()
   const router = useRouter()
@@ -40,6 +41,16 @@ export default function GoalsPage() {
 
   const handleGoalClick = (id: Id<"categories">) => {
       router.push(`/goals/${id}`)
+  }
+
+  const handleEditGoal = (category: Doc<'categories'>) => {
+      setCategoryToEdit(category)
+      setOpenCreate(true)
+  }
+
+  const handleOpenChange = (open: boolean) => {
+      setOpenCreate(open)
+      if (!open) setCategoryToEdit(undefined)
   }
 
   const SectionHeader = ({ title, icon: Icon, count, className }: { title: string, icon: any, count: number, className?: string }) => (
@@ -74,7 +85,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Security & Growth" icon={ShieldCheck} count={investments.length} className="text-chart-2" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {investments.map(goal => (
-                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} />
+                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                     ))}
                     {investments.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-2/5">
@@ -89,7 +100,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Upcoming Obligations" icon={CalendarClock} count={bills.length} className="text-chart-3" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {bills.map(goal => (
-                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} />
+                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                     ))}
                     {bills.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-3/5">
@@ -104,7 +115,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Wishlist" icon={Sparkles} count={purchases.length} className="text-chart-1" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {purchases.map(goal => (
-                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} />
+                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                     ))}
                     {purchases.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-1/5">
@@ -131,7 +142,7 @@ export default function GoalsPage() {
                     <CollapsibleContent>
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4">
                             {completedGoals.map(goal => (
-                                <GoalCard key={goal._id} goal={goal as any} isCompleted onClick={() => handleGoalClick(goal._id)} />
+                                <GoalCard key={goal._id} goal={goal as any} isCompleted onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                             ))}
                         </div>
                     </CollapsibleContent>
@@ -142,7 +153,8 @@ export default function GoalsPage() {
 
       <CategoryDrawer 
         open={openCreate} 
-        onOpenChange={setOpenCreate} 
+        onOpenChange={handleOpenChange} 
+        category={categoryToEdit}
         defaultType="saving"
       />
     </div>

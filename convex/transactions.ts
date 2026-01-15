@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { calculateSpendingByCategory, AccountMap } from "./lib/finance";
+import { calculateSpendingByCategory, AccountMap, analyzeTransactionFlow } from "./lib/finance";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
 import { 
   TRANSACTION_TYPES, 
@@ -61,54 +61,54 @@ async function ensureBudgetExists(
         });
     } else if (shouldIncrement) {
         // Smart Auto-Adjust: Only increment if the new transaction would exceed the current budget.
-        // This prevents budget ballooning when users delete and re-add transactions.
         
         // 1. Calculate current spending for this category in this month
         const startOfMonth = new Date(year, month, 1).toISOString();
         const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
         
         let monthTransactions;
+        let accounts; // We need accounts to determine flow direction
+
         if (householdId) {
             monthTransactions = await ctx.db.query("transactions")
                 .withIndex("by_householdId_date", q => q.eq("householdId", householdId))
                 .filter(q => q.gte(q.field("date"), startOfMonth) && q.lte(q.field("date"), endOfMonth))
                 .collect();
+            accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
         } else {
             monthTransactions = await ctx.db.query("transactions")
                 .withIndex("by_userId_date", q => q.eq("userId", userId))
                 .filter(q => q.gte(q.field("date"), startOfMonth) && q.lte(q.field("date"), endOfMonth))
                 .collect();
+            accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
         }
 
-        // Simple calc: Sum of transactions linked to this category
-        // Note: We don't need full AccountMap logic here because 'Transfer to Goal' is explicit in this context.
-        // We just sum 'spending' type transactions or transfers to this goal.
-        // But reusing calculateSpendingByCategory is safer if we want to be exact.
-        // For performance/simplicity here, we just sum amounts where categoryId matches.
-        
+        // Identify the account linked to this category (if any)
+        const accountsMap: AccountMap = new Map(accounts.map(a => [String(a._id), a]));
+
+        // Calculate NET Spent/Contribution using the centralized finance helper
         const currentSpent = monthTransactions.reduce((acc, t) => {
-            // Check main category
-            if (t.categoryId === categoryId) {
-                return acc + parseFloat(t.amount.replace(/,/g, '') || '0');
-            }
-            // Check splits
-            if (t.isSplit && t.splits) {
-                const split = t.splits.find(s => s.categoryId === categoryId);
-                if (split) return acc + parseFloat(split.amount.replace(/,/g, '') || '0');
-            }
-            return acc;
+            const flows = analyzeTransactionFlow(t, accountsMap);
+            const targetCatId = String(categoryId);
+            
+            // Sum up all spending effects for THIS specific category
+            const netEffect = flows.reduce((fAcc, flow) => {
+                if (flow.type === 'SPENDING' && String(flow.categoryId) === targetCatId) {
+                    return fAcc + flow.amount;
+                }
+                return fAcc;
+            }, 0);
+
+            return acc + netEffect;
         }, 0);
 
         const currentLimit = parseFloat(existingBudget.amount.replace(/,/g, '') || '0');
         
-        // Fix: Since we insert the transaction BEFORE calling this function in 'create',
-        // currentSpent (queried from DB) ALREADY INCLUDES the new transaction amount.
-        // So projectedTotal is simply currentSpent.
+        // projectedTotal is now the accurate Net Flow including the current transaction
         const projectedTotal = currentSpent;
 
         if (projectedTotal > currentLimit) {
-            // Only update if we strictly need more room
-            // We set the new limit to exactly match the projected total (Tight Fit)
+            // Only update if we strictly need more room (actual overspending)
             await ctx.db.patch(existingBudget._id, {
                 amount: projectedTotal.toString()
             });
@@ -441,7 +441,8 @@ export const create = mutation({
     // --- SMART DETECTION: Auto-flag as Goal Disbursement if applicable ---
     let isGoalDisbursement = args.isGoalDisbursement;
     
-    if (args.type === TRANSACTION_TYPES.TRANSFER && args.accountId && args.toAccountId && finalCategoryId) {
+    // Only run auto-detection if the frontend didn't specify a preference (undefined)
+    if (isGoalDisbursement === undefined && args.type === TRANSACTION_TYPES.TRANSFER && args.accountId && args.toAccountId && finalCategoryId) {
         // We need to check account types to confirm pattern: Special -> Liquid
         // Optimization: We already fetch accounts for transfer logic below, but we need types NOW.
         // Let's fetch them here if we haven't already.
@@ -457,7 +458,7 @@ export const create = mutation({
 
             if (isSourceSpecial && isDestLiquid) {
                 // This is a withdrawal from a Goal Account to a Spending Account.
-                // It is definitely a disbursement/spending of the goal funds.
+                // Default behavior: Assume it's spending the goal (Disbursement) unless told otherwise.
                 isGoalDisbursement = true;
             }
         }
@@ -578,7 +579,16 @@ export const create = mutation({
         await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, shouldIncrement);
     }
     else if (args.type === TRANSACTION_TYPES.TRANSFER && finalCategoryId && !isGoalDisbursement) {
-         await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, true);
+         const fromAccount = await ctx.db.get(args.accountId);
+         const toAccount = await ctx.db.get(args.toAccountId as Id<"accounts">);
+         
+         const fromIsLiquid = fromAccount && (!fromAccount.type || fromAccount.type.toUpperCase() === ACCOUNT_TYPES.CASH);
+         const toIsSpecial = toAccount && (toAccount.type?.toUpperCase() === ACCOUNT_TYPES.SAVING || toAccount.type?.toUpperCase() === ACCOUNT_TYPES.ASSET);
+
+         // ONLY auto-budget if it's a Deposit (Liquid Cash -> Special Goal)
+         if (fromIsLiquid && toIsSpecial) {
+            await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, true);
+         }
     }
 
     if (args.householdId) {
@@ -632,6 +642,7 @@ export const update = mutation({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
     })),
+    isGoalDisbursement: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -731,7 +742,16 @@ export const update = mutation({
 
     // --- SMART DETECTION (Update) ---
     let isGoalDisbursement = newTx.isGoalDisbursement;
-    if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.accountId && newTx.toAccountId && finalCategoryId) {
+    
+    // If user explicitly changed the flag in this update, trust them. 
+    // If not (undefined in args), but accounts changed, we might need to re-evaluate or trust previous state.
+    // For safety in this specific flow: If explicit false is sent, newTx has it.
+    // We only auto-flag if it's currently false/undefined AND pattern matches.
+    // But wait, if user unchecks the box, args.isGoalDisbursement is false. newTx.isGoalDisbursement is false.
+    // The previous logic was overwriting it to true.
+    
+    // Fix: Only overwrite if args.isGoalDisbursement was NOT provided (undefined).
+    if (args.isGoalDisbursement === undefined && newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.accountId && newTx.toAccountId && finalCategoryId) {
          const [sourceAcc, destAcc] = await Promise.all([
             ctx.db.get(newTx.accountId),
             ctx.db.get(newTx.toAccountId)
@@ -836,7 +856,16 @@ export const update = mutation({
         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId, false);
     }
     else if (newTx.type === TRANSACTION_TYPES.TRANSFER && newTx.categoryId && !isGoalDisbursement) {
-         await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId, false);
+         const fromAccount = await ctx.db.get(newTx.accountId);
+         const toAccount = await ctx.db.get(newTx.toAccountId as Id<"accounts">);
+         
+         const fromIsLiquid = fromAccount && (!fromAccount.type || fromAccount.type.toUpperCase() === ACCOUNT_TYPES.CASH);
+         const toIsSpecial = toAccount && (toAccount.type?.toUpperCase() === ACCOUNT_TYPES.SAVING || toAccount.type?.toUpperCase() === ACCOUNT_TYPES.ASSET);
+
+         // ONLY auto-budget if it's a Deposit (Liquid Cash -> Special Goal)
+         if (fromIsLiquid && toIsSpecial) {
+            await ensureBudgetExists(ctx, newTx.categoryId, newTx.date, identity.subject, newTx.amount, newTx.householdId, false);
+         }
     }
 
     if (newTx.categoryId) {
@@ -969,7 +998,7 @@ async function checkGoalProgress(ctx: MutationCtx, categoryId: Id<"categories">,
     } else {
         accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
     }
-    const accountsMap: AccountMap = new Map(accounts.map(a => [a._id, a]));
+    const accountsMap: AccountMap = new Map(accounts.map(a => [String(a._id), a]));
 
     const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
     const accumulated = spendingMap[categoryId] || 0;

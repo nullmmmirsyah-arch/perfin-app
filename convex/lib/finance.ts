@@ -24,15 +24,17 @@ export function parseAmount(value: string | undefined | null): number {
 export function isLiquidAccount(account?: Doc<"accounts"> | null): boolean {
   if (!account) return false; // Safety for missing accounts
   // Default to Liquid if type is missing (Legacy data support)
-  return !account.type || account.type === ACCOUNT_TYPES.CASH;
+  // CRITICAL FIX: Use toUpperCase() to handle different casing in DB (e.g. "Cash" vs "CASH")
+  return !account.type || account.type.toUpperCase() === ACCOUNT_TYPES.CASH;
 }
 
 /**
  * Checks if an account is "Special" (Non-Liquid: Savings/Assets).
  */
 export function isSpecialAccount(account?: Doc<"accounts"> | null): boolean {
-  if (!account) return false;
-  return account.type === ACCOUNT_TYPES.SAVING || account.type === ACCOUNT_TYPES.ASSET;
+  if (!account || !account.type) return false;
+  const type = account.type.toUpperCase();
+  return type === ACCOUNT_TYPES.SAVING || type === ACCOUNT_TYPES.ASSET;
 }
 
 /**
@@ -53,17 +55,10 @@ export function analyzeTransactionFlow(
   if (t.isSplit && t.splits && t.splits.length > 0) {
     t.splits.forEach(split => {
       const splitAmount = parseFloat(split.amount.replace(/,/g, '') || '0');
-      // Treat splits as mini-transactions of the same type
-      // NOTE: Splits currently only support 'expense' type logic effectively.
-      // Transfers usually aren't split in this app model yet, but if they were, logic applies.
       if (t.type === TRANSACTION_TYPES.EXPENSE || t.type === TRANSACTION_TYPES.SAVING) {
         if (split.categoryId) {
-          effects.push({ categoryId: split.categoryId, amount: splitAmount, type: 'SPENDING' });
+          effects.push({ categoryId: String(split.categoryId), amount: splitAmount, type: 'SPENDING' });
         }
-      }
-      // Income splits
-      if (t.type === TRANSACTION_TYPES.INCOME) {
-         // Income splits logic...
       }
     });
     return effects;
@@ -71,14 +66,15 @@ export function analyzeTransactionFlow(
 
   // 2. Handle Standard Expense / Saving
   if ((t.type === TRANSACTION_TYPES.EXPENSE || t.type === TRANSACTION_TYPES.SAVING) && t.categoryId) {
-    effects.push({ categoryId: t.categoryId, amount: baseAmount, type: 'SPENDING' });
+    effects.push({ categoryId: String(t.categoryId), amount: baseAmount, type: 'SPENDING' });
     return effects;
   }
 
   // 3. Handle Transfers
   if (t.type === TRANSACTION_TYPES.TRANSFER && t.accountId && t.toAccountId) {
-    const source = accountsMap.get(t.accountId);
-    const dest = accountsMap.get(t.toAccountId);
+    // CRITICAL FIX: Always use String() for Map access to handle Convex ID objects correctly
+    const source = accountsMap.get(String(t.accountId));
+    const dest = accountsMap.get(String(t.toAccountId));
     const sourceIsLiquid = isLiquidAccount(source);
     const destIsLiquid = isLiquidAccount(dest);
 
@@ -89,27 +85,19 @@ export function analyzeTransactionFlow(
     // Scenario B: Liquid -> Special (Nabung / Beli Aset)
     // Effect: Spending (Allocated to Goal).
     if (sourceIsLiquid && !destIsLiquid && t.categoryId) {
-      effects.push({ categoryId: t.categoryId, amount: baseAmount, type: 'SPENDING' });
+      effects.push({ categoryId: String(t.categoryId), amount: baseAmount, type: 'SPENDING' });
       return effects;
     }
 
     // Scenario C: Special -> Liquid (Tarik Tabungan / Jual Aset)
     // Effect: Income (New Available Cash) OR Negative Spending (Reversal).
     if (!sourceIsLiquid && destIsLiquid && t.categoryId) {
-      // FIX: Check if this is a Goal Disbursement (Completion/Reset)
-      // If yes, it's NOT Negative Spending (which means "I returned the item").
-      // Instead, it's "Release of Funds" which should increase Unassigned Cash naturally 
-      // without affecting the 'Spent' history of the category negatively.
       if (t.isGoalDisbursement) {
-          // It's neutral/income effectively because Liquid Cash increases, 
-          // and we DO NOT want to reduce the 'spent' amount of the category 
-          // because that would increase the 'remaining obligation'.
           return []; 
       }
 
       // We mark this as NEGATIVE SPENDING to reduce the "Spent" amount of that category.
-      // Useful for reversals or mistakes.
-      effects.push({ categoryId: t.categoryId, amount: -baseAmount, type: 'SPENDING' });
+      effects.push({ categoryId: String(t.categoryId), amount: -baseAmount, type: 'SPENDING' });
       return effects;
     }
   }
@@ -158,14 +146,12 @@ export function calculateUnassignedCash(
   }
 
   // 2. Group Spending by Month & Category
-  // Map<"YYYY-MM", Map<CategoryId, Amount>>
   const monthlySpending = new Map<string, Map<string, number>>();
 
   allTransactions.forEach(t => {
-    // Only care about spending flows
     const flows = analyzeTransactionFlow(t, accountsMap);
     const date = new Date(t.date);
-    const key = `${date.getFullYear()}-${date.getMonth()}`; // "2024-0" for Jan
+    const key = `${date.getFullYear()}-${date.getMonth()}`; 
 
     if (!monthlySpending.has(key)) {
         monthlySpending.set(key, new Map());
@@ -174,8 +160,9 @@ export function calculateUnassignedCash(
 
     flows.forEach(flow => {
       if (flow.type === 'SPENDING') {
-        const current = categoryMap.get(flow.categoryId) || 0;
-        categoryMap.set(flow.categoryId, current + flow.amount);
+        const catId = String(flow.categoryId);
+        const current = categoryMap.get(catId) || 0;
+        categoryMap.set(catId, current + flow.amount);
       }
     });
   });
@@ -186,11 +173,9 @@ export function calculateUnassignedCash(
   allBudgets.forEach(b => {
     const key = `${b.year}-${b.month}`;
     const categoryMap = monthlySpending.get(key);
-    const spent = categoryMap?.get(b.categoryId) || 0;
+    const spent = categoryMap?.get(String(b.categoryId)) || 0;
     const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
     
-    // Obligation is what's left to be spent. 
-    // If we overspent, obligation is 0 (we don't owe the envelope anymore, we owe the bank/unassigned).
     const remaining = Math.max(0, allocated - spent);
     totalRemainingObligations += remaining;
   });

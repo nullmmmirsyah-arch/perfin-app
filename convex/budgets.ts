@@ -110,7 +110,7 @@ export const getBudgetStatus = query({
     } else {
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
-    const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
     // 6. Calculate Spending using Helper
     const spendingByCategory = calculateSpendingByCategory(transactionsInMonth, accountsMap);
@@ -279,7 +279,7 @@ export const getBudgetAssistance = query({
     } else {
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
-    const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
     // 2. Calculate Unassigned Cash (Helper)
     const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap);
@@ -411,7 +411,7 @@ export const upsertBudget = mutation({
     } else {
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
-    const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
     const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap);
 
@@ -528,7 +528,7 @@ export const moveBudgetFunds = mutation({
         } else {
             allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
         }
-        const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
+        const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
         const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
         const sourceSpent = spendingMap[fromCategoryId] || 0;
@@ -633,7 +633,7 @@ export const sweepBudgets = mutation({
     } else {
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", identity.subject)).collect();
     }
-    const accountsMap: AccountMap = new Map(allAccounts.map(a => [a._id, a]));
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
     const spendingByCategory = calculateSpendingByCategory(monthTransactions, accountsMap);
 
