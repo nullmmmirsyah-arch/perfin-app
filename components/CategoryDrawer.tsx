@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
   SelectContent,
@@ -54,85 +55,6 @@ type CategoryDrawerProps = {
   onOpenChange: (open: boolean) => void;
   category?: Doc<'categories'>;
   defaultType?: 'income' | 'expense' | 'saving';
-};
-
-// Internal Component for Date Input
-const DateInput = ({ value, onChange }: { value: Date | undefined, onChange: (date: Date | undefined) => void }) => {
-    const [inputValue, setInputValue] = useState("");
-
-    // Sync input value when external value (calendar selection) changes
-    useEffect(() => {
-        if (value) {
-            setInputValue(format(value, "dd/MM/yyyy"));
-        } else {
-            setInputValue("");
-        }
-    }, [value]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value.replace(/\D/g, ""); // Keep only digits
-        
-        // Apply mask: DD/MM/YYYY
-        if (val.length > 2 && val.length <= 4) {
-            val = `${val.slice(0, 2)}/${val.slice(2)}`;
-        } else if (val.length > 4) {
-            val = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4, 8)}`;
-        }
-        
-        // Limit to 10 chars (DD/MM/YYYY)
-        const finalVal = val.slice(0, 10);
-        setInputValue(finalVal);
-
-        // Try parsing only when we have enough data (at least MM/YYYY or DD/MM/YYYY)
-        const parts = finalVal.split("/");
-        if (parts.length >= 2) {
-            let d = 1, m = 0, y = 0;
-            const lastPart = parts[parts.length - 1];
-            
-            // Only sync to form if the year part is complete (4 digits)
-            if (lastPart.length === 4) {
-                const year = parseInt(lastPart);
-                if (parts.length === 2) {
-                    // MM/YYYY format
-                    m = parseInt(parts[0]) - 1;
-                    y = year;
-                } else if (parts.length === 3) {
-                    // DD/MM/YYYY format
-                    d = parseInt(parts[0]);
-                    m = parseInt(parts[1]) - 1;
-                    y = year;
-                }
-                
-                const newDate = new Date(y, m, d);
-                if (isValid(newDate) && y > 1900 && y < 2100) {
-                    onChange(newDate);
-                }
-            }
-        } else if (finalVal === "") {
-            onChange(undefined);
-        }
-    };
-
-    return (
-        <div className="relative flex-1">
-            <Input 
-                placeholder="DD/MM/YYYY"
-                value={inputValue}
-                onChange={handleInputChange}
-                className="pr-10 font-mono"
-                maxLength={10}
-            />
-            <PopoverTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full w-10 text-muted-foreground hover:text-foreground"
-                >
-                    <CalendarIcon className="h-4 w-4" />
-                </Button>
-            </PopoverTrigger>
-        </div>
-    );
 };
 
 const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryDrawerProps) => {
@@ -379,31 +301,16 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
                         render={({ field }) => (
                         <FormItem className="flex flex-col">
                             <FormLabel>Target Date</FormLabel>
-                            <Popover>
-                            <div className="flex gap-2">
-                                <FormControl>
-                                    <DateInput 
-                                        value={field.value} 
-                                        onChange={field.onChange} 
-                                    />
-                                </FormControl>
-                            </div>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                    date < new Date("1900-01-01")
-                                }
-                                initialFocus
-                                captionLayout="dropdown"
-                                fromYear={new Date().getFullYear()}
-                                toYear={new Date().getFullYear() + 30}
-                                fixedWeeks
+                            <FormControl>
+                                <DatePicker 
+                                    date={field.value} 
+                                    setDate={field.onChange}
+                                    disabled={(date) => date < new Date("1900-01-01")}
+                                    captionLayout="dropdown"
+                                    fromDate={new Date()}
+                                    toDate={new Date(new Date().getFullYear() + 30, 11, 31)}
                                 />
-                            </PopoverContent>
-                            </Popover>
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                         )}

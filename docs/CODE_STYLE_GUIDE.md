@@ -38,6 +38,23 @@ export default function ComponentName({ ... }: Props) {
 }
 ```
 
+## Reusable Components
+
+Certain UI patterns are standardized to ensure consistency.
+
+1.  **Date Picker:**
+    - **Do NOT** implement manual `Popover` + `Calendar` logic.
+    - **ALWAYS** use the standardized component: `import { DatePicker } from '@/components/ui/date-picker'`.
+    - Features: Includes Year/Month dropdown navigation by default.
+    - Usage:
+      ```tsx
+      <DatePicker 
+        date={field.value} 
+        setDate={field.onChange} 
+        disabled={(date) => date > new Date()} 
+      />
+      ```
+
 ## Backend (Convex) Best Practices
 
 1.  **Validation is Mandatory:**

@@ -24,8 +24,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
   SelectContent,
@@ -33,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -169,7 +170,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                     <FormControl>
                         <Tabs 
                             value={field.value} 
-                            onValueChange={(val) => field.onChange(val as 'CASH' | 'ASSET' | 'SAVING')} 
+                            onValueChange={(val: string) => field.onChange(val as 'CASH' | 'ASSET' | 'SAVING')} 
                             className="w-full"
                         >
                             <TabsList className="grid w-full grid-cols-3">
@@ -315,33 +316,14 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                                         render={({ field }) => (
                                         <FormItem className="flex flex-col">
                                             <FormLabel className="text-xs">Target Date</FormLabel>
-                                            <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                    "w-full h-8 pl-3 text-left font-normal",
-                                                    !field.value && "text-muted-foreground"
-                                                    )}
-                                                >
-                                                    {field.value ? format(field.value, "PP") : <span>Pick date</span>}
-                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar
-                                                mode="single"
-                                                selected={field.value}
-                                                onSelect={field.onChange}
-                                                disabled={(date) =>
-                                                    date < new Date("1900-01-01")
-                                                }
-                                                initialFocus
+                                            <FormControl>
+                                                <DatePicker
+                                                    date={field.value}
+                                                    setDate={field.onChange}
+                                                    disabled={(date) => date < new Date("1900-01-01")}
+                                                    className="h-8 pl-3"
                                                 />
-                                            </PopoverContent>
-                                            </Popover>
+                                            </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                         )}

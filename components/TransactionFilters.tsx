@@ -13,12 +13,12 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { CalendarIcon, Filter, X } from 'lucide-react'
-import { format } from 'date-fns'
 import { Calendar } from './ui/calendar'
 import { cn } from '@/lib/utils'
 import { Label } from './ui/label'
 import { useState } from 'react'
 import { MultiSelect, Option } from './ui/multi-select'
+import { format } from 'date-fns'
 
 type TransactionFiltersProps = {
   filters: {

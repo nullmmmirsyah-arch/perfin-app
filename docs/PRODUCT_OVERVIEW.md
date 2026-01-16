@@ -30,7 +30,7 @@
   - **🛡️ Wealth (Investment):** Long-term accumulation (e.g., Emergency Fund, Gold, Stocks).
     - *Achievement Flow:* Increase Target (Growth).
   - **📅 Bill (Sinking Fund):** Recurring obligations (e.g., Annual Tax, Insurance).
-    - *Achievement Flow:* Pay & Reset Cycle. Uses **Cycle Tracking** to reset progress to 0% after payment without losing history.
+    - *Achievement Flow:* Pay & Reset Cycle. Uses **Cycle Tracking** to reset the target period. Any **surplus funds** remaining after payment are automatically carried over (rolled over) to jumpstart the next cycle's progress.
   - **✨ Goal (Purchase/Wishlist):** One-off purchases (e.g., Vacation, Gadget).
     - *Achievement Flow:* Spend & Archive.
 - **Account-Goal Mirroring (Atomic):**
@@ -41,6 +41,10 @@
   - **Accumulation:** Calculated dynamically based on net transfers into the account/category.
   - **Cycle Tracking:** For Bills, accumulation is calculated only for transactions *after* the last reset date.
   - **History:** Completed cycles are stored in `goalHistory` for audit trails.
+- **Fund Management:**
+  - **Add Funds (Deposit):** Dedicated wizard to transfer money from a Liquid Account (Wallet) to a Goal/Asset. For Assets, it prompts for quantity bought.
+  - **Withdraw Funds:** Wizard to transfer money back to Liquid.
+    - **Smart Disbursement:** Includes a toggle to flag withdrawal as "Spending the Goal" (Disbursement). This prevents the withdrawal from being counted as negative spending (reversal), preserving your saving history while freeing up the cash.
 
 ### 4. Labels (Tagging)
 - **Purpose:** flexible tagging system for transactions, independent of Categories.
@@ -59,6 +63,7 @@
     - **Savings/Goals Budget:** Tracks `Monthly Contribution / Monthly Target`. Shows a **"Monthly Goal Met"** celebration badge when the monthly saving target is reached.
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
+    - **Flexible Overspending:** Overspending in a category results in a **Negative Available** balance for that category. It does **NOT** automatically deduct from Unassigned Cash. This preserves the user's original allocation plan ("Envelope Budgeting") while highlighting the deficit that needs to be covered.
     - **Smart Auto-Budgeting:** If a transaction is made to a category without a budget, the system automatically creates a budget with the **transaction amount**. *Exception: Goal Disbursement transactions do NOT trigger auto-budgeting.*
 - **Smart Budget Pace (New):**
     - **Concept:** Proactive warning system for variable expenses.
