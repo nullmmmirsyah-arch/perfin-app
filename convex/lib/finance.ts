@@ -176,7 +176,11 @@ export function calculateUnassignedCash(
     const spent = categoryMap?.get(String(b.categoryId)) || 0;
     const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
     
-    const remaining = Math.max(0, allocated - spent);
+    // Fix: Allow negative remaining (overspending) so Unassigned Cash isn't reduced automatically.
+    // Logic: Liquid (3) = Unassigned (5) + Available (-2).
+    // To get Unassigned = 5, we need: 5 = 3 - (-2).
+    // So remaining MUST be allowed to be negative.
+    const remaining = allocated - spent;
     totalRemainingObligations += remaining;
   });
 
