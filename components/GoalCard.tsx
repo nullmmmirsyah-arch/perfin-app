@@ -4,9 +4,9 @@ import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Doc } from '../convex/_generated/dataModel'
 import { format } from 'date-fns'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { calculateGoalStrategy } from '@/lib/finance-utils'
-import { TrendingUp, CheckCircle2, MoreVertical, Pencil } from 'lucide-react'
+import { MoreVertical, Pencil } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -106,7 +106,7 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }:
           <div className="flex flex-col">
              <span className="text-xs text-muted-foreground">Collected</span>
              <span className={cn("font-bold", isCompleted ? "text-success" : "text-foreground")}>
-                {new Intl.NumberFormat().format(displayCurrent)}
+                {formatCurrency(displayCurrent)}
              </span>
           </div>
 
@@ -115,7 +115,7 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }:
               <div className="flex flex-col items-center px-2 py-1 rounded-lg bg-primary/5 border border-primary/10 animate-in fade-in zoom-in-95 duration-500">
                   <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter">Required</span>
                   <span className="text-[10px] font-black text-primary leading-none">
-                      +{new Intl.NumberFormat('en-US', { notation: "compact" }).format(Math.ceil(strategy.monthly))}/mo
+                      +{formatCurrency(Math.ceil(strategy.monthly), { notation: "compact" })}/mo
                   </span>
               </div>
           )}
@@ -123,7 +123,7 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }:
           <div className="flex flex-col items-end">
              <span className="text-xs text-muted-foreground">Target</span>
              <span className="font-medium">
-                {new Intl.NumberFormat().format(displayTarget)}
+                {formatCurrency(displayTarget)}
              </span>
           </div>
         </div>

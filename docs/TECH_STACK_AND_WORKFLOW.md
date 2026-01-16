@@ -53,6 +53,8 @@
     - **`convex/lib/finance.ts`:** Contains pure functions for calculating Spending, Unassigned Cash, and Transaction Analysis. **ALWAYS** use these helpers instead of re-writing logic in queries.
     - **`convex/lib/auth.ts`:** Centralized authorization checks (`ensureHouseholdAccess`).
     - **`convex/lib/constants.ts`:** Constants for Transaction Types, Category Types, Account Types, etc. **NEVER** use string literals (e.g., "expense") directly; import from constants.
+    - **`lib/utils.ts` (Frontend):**
+        - `formatCurrency`: Centralizes currency formatting and **Privacy Mode** logic. Handles standard bullet masking (`••••`).
 
 4.  **Triggers & Automation:**
     - We don't have DB triggers (like SQL). We use **Application-Level Triggers**.

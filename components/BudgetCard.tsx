@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Doc, Id } from '../convex/_generated/dataModel'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
 import { calculateBudgetPace, calculateGoalStrategy } from '@/lib/finance-utils'
 
@@ -132,13 +132,12 @@ export default function BudgetCard({
                       </div>
 
                       <div className="bg-muted/50 p-2 rounded text-xs italic">
-                        {pacing.status === 'safe' 
-                          ? "You are saving money compared to the monthly timeline. Keep it up!" 
-                          : pacing.status === 'warning'
-                          ? `You're spending slightly faster than time passes. Try to limit daily spending to ~${pacing.dailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                          : `Whoa! You've used a lot of budget early. Reduce spending to ${pacing.dailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day to survive the month.`
-                        }
-                      </div>
+                                                {pacing.status === 'safe'
+                                                  ? "You are saving money compared to the monthly timeline. Keep it up!"
+                                                  : pacing.status === 'warning'
+                                                  ? `You're spending slightly faster than time passes. Try to limit daily spending to ~${formatCurrency(pacing.dailyLimit)}`
+                                                  : `Whoa! You've used a lot of budget early. Reduce spending to ${formatCurrency(pacing.dailyLimit)}/day to survive the month.`
+                                                }                      </div>
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -148,12 +147,11 @@ export default function BudgetCard({
               <p className="text-sm text-muted-foreground capitalize">
                 {isGoal ? (category.goalType === 'bill' ? 'Sinking Fund' : category.goalType === 'investment' ? 'Investment' : 'Goal') : category.type}
               </p>
-              {!isGoal && budget && remaining > 0 && !isPastMonth && !pacing && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
-                  ~{dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day
-                </span>
-              )}
-            </div>
+                            {!isGoal && budget && remaining > 0 && !isPastMonth && !pacing && (        
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                                ~{formatCurrency(dailySafeSpend)}/day
+                              </span>
+                            )}            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -193,10 +191,10 @@ export default function BudgetCard({
               {/* Monthly Progress Bar for Goals */}
               <div className="flex justify-between text-sm">
                 <span className="font-medium text-primary">
-                  {spent.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-muted-foreground font-normal">saved this month</span>
+                  {formatCurrency(spent)} <span className="text-muted-foreground font-normal">saved this month</span>
                 </span>
                 <span className="text-muted-foreground">
-                  of {monthlyTarget.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  of {formatCurrency(monthlyTarget)}
                 </span>
               </div>
               <Progress 
@@ -214,7 +212,7 @@ export default function BudgetCard({
                     )}
                 </div>
                 {/* Total Accumulated (Small Info) */}
-                <span>Total: {accumulated.toLocaleString(undefined, { notation: 'compact' })}</span>
+                <span>Total: {formatCurrency(accumulated, { notation: 'compact' })}</span>
               </div>
               
               {/* Footer with Suggestion vs Budget Logic */}
@@ -222,7 +220,7 @@ export default function BudgetCard({
                 <div className="flex flex-col">
                     <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Set Limit</span>
                     <span className="text-sm font-medium">
-                        {budget ? limit.toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'None'}
+                        {budget ? formatCurrency(limit) : 'None'}
                     </span>
                 </div>
                 
@@ -232,7 +230,7 @@ export default function BudgetCard({
                         <div className="flex items-center gap-1 justify-end">
                             <Target className="h-3 w-3 text-blue-500" />
                             <span className="text-sm font-bold text-blue-600">
-                                {strategy.monthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                {formatCurrency(strategy.monthly)}
                             </span>
                         </div>
                     </div>
@@ -243,10 +241,10 @@ export default function BudgetCard({
             <>
               <div className="flex justify-between text-sm">
                 <span className="font-medium">
-                  {spent.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-muted-foreground font-normal">spent</span>
+                  {formatCurrency(spent)} <span className="text-muted-foreground font-normal">spent</span>
                 </span>
                 <span className="text-muted-foreground">
-                  {budget ? `${limit.toLocaleString(undefined, { maximumFractionDigits: 0 })} limit` : 'No limit set'}
+                  {budget ? `${formatCurrency(limit)} limit` : 'No limit set'}
                 </span>
               </div>
 
@@ -265,12 +263,11 @@ export default function BudgetCard({
                       "text-xs font-semibold",
                       isOverBudget ? "text-destructive" : "text-foreground"
                     )}>
-                      {isOverBudget 
-                        ? `-${(spent - limit).toLocaleString(undefined, { maximumFractionDigits: 0 })} over budget` 
-                        : `${(limit - spent).toLocaleString(undefined, { maximumFractionDigits: 0 })} left`
-                      }
-                    </p>
-                    <span className="text-xs text-muted-foreground">
+                                            {isOverBudget
+                                              ? `-${formatCurrency(spent - limit)} over budget`
+                                              : `${formatCurrency(limit - spent)} left`
+                                            }
+                                          </p>                    <span className="text-xs text-muted-foreground">
                       {Math.round(percentage)}%
                     </span>
                   </div>
@@ -293,7 +290,7 @@ export default function BudgetCard({
                         Daily Allowance
                       </p>
                       <p className="text-sm font-semibold">
-                        {pacing.dailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        {formatCurrency(pacing.dailyLimit)}
                         <span className="text-muted-foreground font-normal text-xs ml-1">
                           / day left
                         </span>

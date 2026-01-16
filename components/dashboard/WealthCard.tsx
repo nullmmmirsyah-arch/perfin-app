@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
 import { calculateGoalStrategy } from '@/lib/finance-utils';
 
@@ -40,11 +40,11 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
           <TabsContent value="goals" className="space-y-4 animate-in fade-in-5">
             <div>
               <div className="text-2xl font-bold text-success">
-                {isPrivacyMode ? '••••' : (
+                {formatCurrency(
                   summary?.budgetBreakdown
                     ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
-                    .reduce((acc: number, item: BudgetBreakdownItem) => acc + item.accumulated, 0)
-                    .toLocaleString() ?? '0'
+                    .reduce((acc: number, item: BudgetBreakdownItem) => acc + item.accumulated, 0),
+                  { isPrivacyMode }
                 )}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
@@ -110,7 +110,7 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                         </div>
                         <div className="text-right">
                             <span className={cn("font-bold text-xs block", isMet ? "text-success" : "text-foreground")}>
-                                {isPrivacyMode ? '••••' : displayCurrent.toLocaleString()}
+                                {formatCurrency(displayCurrent, { isPrivacyMode })}
                             </span>
                         </div>
                       </div>
@@ -127,14 +127,14 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                         <div>
                             <span>{displayTarget ? `${Math.round(percentage)}%` : 'N/A'}</span>
                             <span className="mx-1">•</span>
-                            <span>{displayLabel}: {isPrivacyMode ? '••••' : (displayTarget ? displayTarget.toLocaleString() : '∞')}</span>
+                            <span>{displayLabel}: {formatCurrency(displayTarget, { isPrivacyMode })}</span>
                         </div>
                         
                         {/* Strategy Suggestion (Only show if NOT met yet to avoid confusion) */}
                         {!isMet && strategy && strategy.monthly > 0 && !strategy.isDone && (
                             <div className="flex items-center gap-1 text-primary font-medium bg-primary/10 px-1.5 py-0.5 rounded-sm" title="Suggested monthly saving to reach goal on time">
                                 <TrendingUp className="h-3 w-3" />
-                                <span>Rec: +{new Intl.NumberFormat('en-US', { notation: "compact" }).format(Math.ceil(strategy.monthly))}/mo</span>
+                                <span>Rec: +{formatCurrency(Math.ceil(strategy.monthly), { notation: "compact" })}/mo</span>
                             </div>
                         )}
                       </div>
@@ -145,10 +145,10 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
           </TabsContent>
 
           {/* SAVINGS TAB */}
-          <TabsContent value="savings" className="space-y-4 animate-in fade-in-5">
+          <TabsContent value="savings" className="space-y-4 animate-in fade-in-5">       
             <div>
               <div className="text-2xl font-bold text-success">
-                {isPrivacyMode ? '••••' : (summary?.totalSavingsOnly.toLocaleString() ?? '...')}
+                {formatCurrency(summary?.totalSavingsOnly, { isPrivacyMode })}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                 Total In Savings Accounts
@@ -159,17 +159,17 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
               {summary?.savingAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-success/10 text-success">
                   <span className="font-medium">{account.name}</span>
-                  <span>{isPrivacyMode ? '••••' : account.balance.toLocaleString()}</span>
+                  <span>{formatCurrency(account.balance, { isPrivacyMode })}</span>
                 </div>
               ))}
             </div>
           </TabsContent>
 
           {/* ASSETS TAB */}
-          <TabsContent value="assets" className="space-y-4 animate-in fade-in-5">
+          <TabsContent value="assets" className="space-y-4 animate-in fade-in-5">        
             <div>
               <div className="text-2xl font-bold text-primary">
-                {isPrivacyMode ? '••••' : (summary?.totalAssetsOnly.toLocaleString() ?? '...')}
+                {formatCurrency(summary?.totalAssetsOnly, { isPrivacyMode })}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                 Total Assets Value
@@ -180,7 +180,7 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
               {summary?.assetAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-primary/10 text-primary">
                   <span className="font-medium">{account.name}</span>
-                  <span>{isPrivacyMode ? '••••' : account.balance.toLocaleString()}</span>
+                  <span>{formatCurrency(account.balance, { isPrivacyMode })}</span>
                 </div>
               ))}
             </div>

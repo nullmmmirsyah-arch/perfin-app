@@ -104,6 +104,11 @@ Certain UI patterns are standardized to ensure consistency.
     - **Directory Structure:** If a feature requires multiple specific sub-components (e.g., Dashboard widgets), group them in a subdirectory: `components/dashboard/WidgetName.tsx`.
     - Keep "Presentation" separate from "Logic" where possible, or use Custom Hooks.
 
-3.  **Notifications:**
+3.  **Formatting Standard:**
+    - **Currency:** ALWAYS use `formatCurrency(value, { isPrivacyMode })` from `@/lib/utils`.
+        - **Do NOT** manually implement `Intl.NumberFormat` or `.toLocaleString()` in components.
+        - This ensures consistent styling (e.g., no decimals) and handles **Privacy Mode** masking (`••••`) centrally.
+
+4.  **Notifications:**
     - **In-App:** Use `sonner` (`toast.success(...)`).
     - **Push:** Use `web-push` logic via Convex Actions.

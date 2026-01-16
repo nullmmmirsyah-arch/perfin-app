@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
+import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react';      
+import { cn, formatCurrency } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { calculateBudgetPace } from '@/lib/finance-utils';
 
@@ -74,15 +73,14 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode }: { item: BudgetBreakdo
                                              pacing.status === 'warning' ? "Spending Alert" : "Critical"}
                                         </h4>
                                     </div>
-                                    <p className="text-[10px] text-muted-foreground">
-                                        {pacing.status === 'safe' 
-                                            ? "Pace is healthy." 
-                                            : pacing.status === 'warning'
-                                            ? `Spending fast! Limit: ~${pacing.dailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`
-                                            : `Too fast! Reduce to ~${pacing.dailyLimit.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`
-                                        }
-                                    </p>
-                                </div>
+                                                                        <p className="text-[10px] text-muted-foreground">    
+                                                                            {pacing.status === 'safe'
+                                                                                ? "Pace is healthy."
+                                                                                : pacing.status === 'warning'
+                                                                                ? `Spending fast! Limit: ~${formatCurrency(pacing.dailyLimit)}/day`
+                                                                                : `Too fast! Reduce to ~${formatCurrency(pacing.dailyLimit)}/day`
+                                                                            }
+                                                                        </p>                                </div>
                             </PopoverContent>
                         </Popover>
                     )}
@@ -91,7 +89,7 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode }: { item: BudgetBreakdo
                 {/* Safe Daily Badge - Always Visible if applicable */}
                 {!isOver && item.remaining > 0 && safeSpend > 0 ? (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-primary/5 text-primary border-primary/20 shrink-0">
-                        {isPrivacyMode ? '••••' : `~${safeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`}
+                        ~{formatCurrency(safeSpend, { isPrivacyMode })}/day
                     </Badge>
                 ) : isOver ? (
                     <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 font-normal shrink-0">
@@ -116,13 +114,13 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode }: { item: BudgetBreakdo
             
             <div className="flex justify-between items-center text-[10px] text-muted-foreground">
                 <span>
-                    {isPrivacyMode ? '••••' : item.spent.toLocaleString()} / {isPrivacyMode ? '••••' : item.limit.toLocaleString()}
+                    {formatCurrency(item.spent, { isPrivacyMode })} / {formatCurrency(item.limit, { isPrivacyMode })}
                 </span>
                 <span className={isOver ? "text-destructive font-bold" : "text-foreground font-medium"}>
-                    {isPrivacyMode ? '••••' : (isOver 
-                        ? `-${(item.spent - item.limit).toLocaleString()}` 
-                        : `${item.remaining.toLocaleString()} left`
-                    )}
+                    {isOver
+                        ? `-${formatCurrency(item.spent - item.limit, { isPrivacyMode })}`
+                        : `${formatCurrency(item.remaining, { isPrivacyMode })} left`
+                    }
                 </span>
             </div>
         </div>
@@ -155,24 +153,23 @@ export function DailyOperationsCard({ summary, isPrivacyMode }: Props) {
           </TabsList>
 
           {/* BUDGET TAB */}
-          <TabsContent value="budget" className="space-y-4 animate-in fade-in-5">
-            <div className="flex items-start justify-between mb-2">
-                <div>
-                    <div className="text-2xl font-bold text-primary">
-                        {isPrivacyMode ? '••••' : (remainingBudget.toLocaleString() ?? '...')}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
-                            Monthly Budget Left
-                        </p>
-                        {remainingBudget > 0 && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20 cursor-help" title="Safe to spend daily">
-                                {isPrivacyMode ? '••••' : `~${dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}/day`}
-                            </Badge>
-                        )}
-                    </div>
-                </div>
-                <Popover>
+                    <TabsContent value="budget" className="space-y-4 animate-in fade-in-5">        
+                      <div className="flex items-start justify-between mb-2">
+                          <div>
+                              <div className="text-2xl font-bold text-primary">
+                                  {formatCurrency(remainingBudget, { isPrivacyMode })}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                  <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                                      Monthly Budget Left
+                                  </p>
+                                  {remainingBudget > 0 && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20 cursor-help" title="Safe to spend daily"> 
+                                          ~{formatCurrency(dailySafeSpend, { isPrivacyMode })}/day
+                                      </Badge>
+                                  )}
+                              </div>
+                          </div>                <Popover>
                     <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground -mt-1">
                             <Info className="h-4 w-4" />
@@ -191,10 +188,10 @@ export function DailyOperationsCard({ summary, isPrivacyMode }: Props) {
                                         "font-bold",
                                         (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
                                     )}>
-                                        {isPrivacyMode ? '••••' : (summary?.unassignedCash.toLocaleString() ?? '...')}
+                                        {formatCurrency(summary?.unassignedCash, { isPrivacyMode })}
                                     </span>
                                 </div>
-                                
+
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted-foreground flex items-center gap-1.5">
                                         <CalendarClock className="h-3 w-3" /> Time Remaining
@@ -206,7 +203,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode }: Props) {
                             </div>
 
                             <div className="text-[10px] text-muted-foreground bg-muted/50 p-2 rounded space-y-1">
-                                <p>• <strong>Safe Spend:</strong> You can spend <strong>{isPrivacyMode ? '••••' : dailySafeSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong> today globally to stay on track.</p>
+                                <p>• <strong>Safe Spend:</strong> You can spend <strong>{formatCurrency(dailySafeSpend, { isPrivacyMode })}</strong> today globally to stay on track.</p>
                                 <p>• <strong>Tip:</strong> Tap on any category below to see its specific daily limit.</p>
                             </div>
                         </div>
@@ -253,7 +250,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode }: Props) {
           <TabsContent value="cash" className="space-y-4 animate-in fade-in-5">
             <div>
               <div className="text-2xl font-bold">
-                {isPrivacyMode ? '••••' : (summary?.liquidCash.toLocaleString() ?? '...')}
+                {formatCurrency(summary?.liquidCash, { isPrivacyMode })}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                 Total Liquid Cash
@@ -264,7 +261,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode }: Props) {
               {summary?.cashAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-muted/20">
                   <span className="font-medium">{account.name}</span>
-                  <span>{isPrivacyMode ? '••••' : account.balance.toLocaleString()}</span>
+                  <span>{formatCurrency(account.balance, { isPrivacyMode })}</span>
                 </div>
               ))}
             </div>

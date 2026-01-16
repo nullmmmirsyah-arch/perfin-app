@@ -18,6 +18,26 @@ export function parseAmount(value: string | undefined | null): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+/**
+ * Formats a number or string into a standardized currency display.
+ * Supports Privacy Mode masking.
+ */
+export function formatCurrency(
+  value: number | string | undefined | null,
+  options?: Intl.NumberFormatOptions & { isPrivacyMode?: boolean }
+): string {
+  if (options?.isPrivacyMode) {
+    return "••••"; // 4 standard bullets
+  }
+
+  const numericValue = typeof value === 'string' ? parseAmount(value) : (value ?? 0);
+  
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 0,
+    ...options,
+  }).format(numericValue);
+}
+
 interface TransactionMinimal {
   date: string;
   [key: string]: unknown;

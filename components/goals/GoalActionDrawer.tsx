@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/drawer'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useHousehold } from '@/components/HouseholdProvider'
-import { parseAmount } from '@/lib/utils'
+import { parseAmount, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ArrowRightLeft, PiggyBank, Wallet } from 'lucide-react'
 import { ACCOUNT_TYPES, TRANSACTION_TYPES } from '@/convex/lib/constants'
@@ -205,7 +205,7 @@ export function GoalActionDrawer({
                     <SelectContent>
                         {liquidAccounts.map(acc => (
                             <SelectItem key={acc._id} value={acc._id}>
-                                {acc.name} ({new Intl.NumberFormat().format(parseFloat(acc.balance.replace(/,/g, '')))})
+                                {acc.name} ({formatCurrency(acc.balance)})
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -234,7 +234,7 @@ export function GoalActionDrawer({
                             onClick={() => setAmount(suggestionAmount.toString())}
                             className="text-[10px] bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded-full transition-colors font-medium"
                         >
-                            Suggestion: {new Intl.NumberFormat('en-US').format(suggestionAmount)}
+                            Suggestion: {formatCurrency(suggestionAmount)}
                         </button>
                     </div>
                 )}
