@@ -9,8 +9,10 @@
  */
 
 import type * as accounts from "../accounts.js";
+import type * as automations from "../automations.js";
 import type * as budgets from "../budgets.js";
 import type * as categories from "../categories.js";
+import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as households from "../households.js";
 import type * as labels from "../labels.js";
@@ -29,8 +31,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accounts: typeof accounts;
+  automations: typeof automations;
   budgets: typeof budgets;
   categories: typeof categories;
+  crons: typeof crons;
   dashboard: typeof dashboard;
   households: typeof households;
   labels: typeof labels;

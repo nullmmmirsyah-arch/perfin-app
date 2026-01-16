@@ -41,13 +41,17 @@
   - **Accumulation:** Calculated dynamically based on net transfers into the account/category.
   - **Cycle Tracking:** For Bills, accumulation is calculated only for transactions *after* the last reset date.
   - **History:** Completed cycles are stored in `goalHistory` for audit trails.
-- **Fund Management:**
+  - **Fund Management:**
   - **Add Funds (Deposit):** Dedicated wizard to transfer money from a Liquid Account (Wallet) to a Goal/Asset. For Assets, it prompts for quantity bought.
   - **Withdraw Funds:** Wizard to transfer money back to Liquid.
     - **Smart Disbursement:** Includes a toggle to flag withdrawal as "Spending the Goal" (Disbursement). This prevents the withdrawal from being counted as negative spending (reversal), preserving your saving history while freeing up the cash.
+  - **⚡ Auto-Save (Scheduled Transfers):**
+    - **Concept:** "Set and Forget" funding for goals. Users can enable automatic monthly transfers from a Liquid Account to a Goal.
+    - **Goal-Centric Control:** Managed directly within the Goal Creation wizard or the Goal Detail page (via a dedicated status card).
+    - **Safety Mechanisms:** System checks for sufficient funds in the source account before execution. If funds are insufficient, the run is skipped, flagged as "Failed", and the user is notified.
+    - **Lifecycle:** Archiving or Deleting a goal automatically pauses or removes the associated schedule.
 
-### 4. Labels (Tagging)
-- **Purpose:** flexible tagging system for transactions, independent of Categories.
+### 4. Labels (Tagging)- **Purpose:** flexible tagging system for transactions, independent of Categories.
 - **Usage:** Useful for tracking specific events (e.g., "Holiday 2024", "Reimbursable") across different categories.
 - **Visuals:** Labels have names and custom colors.
 - **Splits:** Can be applied to individual splits within a split transaction.

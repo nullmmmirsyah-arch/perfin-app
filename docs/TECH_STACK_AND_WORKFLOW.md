@@ -66,6 +66,11 @@
     - **Smart Auto-Budgeting:** Transaction mutations explicitly call `ensureBudgetExists`. *Enhancement:* It now checks for `isGoalDisbursement` flag to prevent inflating budget during goal withdrawals.
     - **Smart Disbursement Detection:** In `convex/transactions.ts`, system automatically detects Transfer from Special Account -> Liquid Account and flags it as `isGoalDisbursement`. This ensures accurate accounting (Neutral/Income effect instead of Negative Spending).
     - **Goal Progress:** Inside `create` and `update` transaction mutations, we explicitly call `checkGoalProgress` to trigger notifications.
+    - **Cron Jobs (Auto-Save):**
+        - Uses **Native Convex Crons** defined in `convex/crons.ts`.
+        - Runs hourly to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).
+        - Logic located in `convex/automations.ts` (`processDueSchedules`).
+        - Performs ACID transactions: deducts source, adds to destination, records transaction, and reschedules next run.
 
 5.  **Performance Optimization:**
     - **Avoid N+1 Queries:** When fetching lists of items with related data (e.g., Transactions with Accounts/Categories), always use **Batch Fetching**.
@@ -91,6 +96,8 @@
 │   ├── budgets.ts       # Budget logic
 │   ├── labels.ts        # Label logic
 │   ├── households.ts    # Household logic
+│   ├── automations.ts   # Auto-Save & Scheduling logic (NEW)
+│   ├── crons.ts         # Cron Job definitions (NEW)
 │   ├── lib/             # Shared Business Logic & Helpers (Finance, Auth, Constants)
 │   ├── push.ts          # Web Push Actions
 │   ├── notifications.ts # In-app notification logic

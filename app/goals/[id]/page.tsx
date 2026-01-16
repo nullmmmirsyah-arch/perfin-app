@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Id } from '../../../convex/_generated/dataModel'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { GoalActionDrawer } from '@/components/goals/GoalActionDrawer'
+import { Zap, Settings2 } from 'lucide-react'
+import CategoryDrawer from '@/components/CategoryDrawer'
+import { toast } from 'sonner'
+import { Switch } from '@/components/ui/switch'
 
 export default function GoalDetailPage() {
   const params = useParams()
@@ -21,6 +25,7 @@ export default function GoalDetailPage() {
   const [actionDrawerOpen, setActionDrawerOpen] = useState(false)
   const [actionType, setActionType] = useState<'deposit' | 'withdraw'>('deposit')
   const [suggestionAmount, setSuggestionAmount] = useState<number | undefined>(undefined)
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   
   const goalId = params.id as Id<"categories">
 
@@ -28,6 +33,26 @@ export default function GoalDetailPage() {
       id: goalId, 
       householdId: householdId ?? undefined 
   })
+
+  const automation = useQuery(api.automations.getScheduleByGoal, {
+      linkedEntityId: goalId,
+      householdId: householdId ?? undefined
+  })
+
+  const toggleAutomation = useMutation(api.automations.toggleSchedule)
+
+  const handleToggleAutoSave = async (checked: boolean) => {
+      if (!automation) {
+          setEditDrawerOpen(true);
+          return;
+      }
+      try {
+          await toggleAutomation({ id: automation._id, isEnabled: checked });
+          toast.success(checked ? "Auto-Save enabled" : "Auto-Save disabled");
+      } catch (error) {
+          toast.error("Failed to update Auto-Save");
+      }
+  }
 
   const openAction = (type: 'deposit' | 'withdraw', amount?: number) => {
       setActionType(type)
@@ -56,6 +81,9 @@ export default function GoalDetailPage() {
   // Monthly Budget Status
   const monthlyLimit = currentBudget ? parseFloat(currentBudget.amount.replace(/,/g, '') || '0') : 0;
   const isMonthlyMet = monthlyLimit > 0 && (thisMonthContribution || 0) >= monthlyLimit;
+
+  // Source Account for automation display
+  const automationSource = automation ? data.linkedAccountId && automation.fromAccountId === data.linkedAccountId ? "Another Account" : "Source Account" : null;
 
   // Strategy Calculation
   let strategyText = "Set a target date to get a strategy."
@@ -197,6 +225,83 @@ export default function GoalDetailPage() {
             )}
         </div>
 
+        {/* 1.5. Auto-Save Status Card */}
+        <div className={cn(
+            "border rounded-xl p-5 flex flex-col gap-4 transition-all duration-300",
+            automation?.isEnabled 
+                ? "bg-primary/5 border-primary/20 shadow-sm" 
+                : "bg-muted/30 border-dashed"
+        )}>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className={cn(
+                        "p-2 rounded-lg",
+                        automation?.isEnabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    )}>
+                        <Zap className="h-5 w-5 fill-current" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-sm">Monthly Auto-Save</h4>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
+                            {automation?.isEnabled ? `Next: ${format(new Date(automation.nextRunAt), 'dd MMM')}` : "Paused or Not Set"}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    {automation && (
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => setEditDrawerOpen(true)}
+                        >
+                            <Settings2 className="h-4 w-4" />
+                        </Button>
+                    )}
+                    <Switch 
+                        checked={automation?.isEnabled || false} 
+                        onCheckedChange={handleToggleAutoSave}
+                    />
+                </div>
+            </div>
+
+            {automation?.isEnabled ? (
+                <div className="flex items-end justify-between pt-1 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="space-y-1">
+                        <span className="text-2xl font-black text-primary">
+                            Rp {new Intl.NumberFormat().format(parseFloat(automation.amount.replace(/,/g, '')))}
+                        </span>
+                        <p className="text-xs text-muted-foreground">
+                            Automatically saved every month
+                        </p>
+                    </div>
+                    {automation.lastRunStatus === 'failed' && (
+                         <div className="flex items-center gap-1.5 text-destructive bg-destructive/10 px-2 py-1 rounded-md animate-pulse">
+                            <span className="text-[10px] font-bold">LATEST RUN FAILED</span>
+                         </div>
+                    )}
+                </div>
+            ) : (
+                <div className="py-2">
+                    <p className="text-sm text-muted-foreground italic leading-relaxed">
+                        {automation 
+                            ? "Auto-save is currently paused. Switch it on to resume automated saving." 
+                            : "Set up automated monthly transfers to reach this goal faster without thinking about it."
+                        }
+                    </p>
+                    {!automation && (
+                        <Button 
+                            variant="link" 
+                            className="p-0 h-auto text-primary font-bold text-xs mt-2"
+                            onClick={() => setEditDrawerOpen(true)}
+                        >
+                            Set Up Automation &rarr;
+                        </Button>
+                    )}
+                </div>
+            )}
+        </div>
+
         {linkedAccountId && (
             <GoalActionDrawer 
                 open={actionDrawerOpen} 
@@ -219,7 +324,7 @@ export default function GoalDetailPage() {
                     <div>
                         <h4 className="font-semibold text-base text-success mb-1">Monthly Target Met!</h4>
                         <p className="text-sm text-success/80 leading-relaxed">
-                            You've contributed <strong>{new Intl.NumberFormat().format(thisMonthContribution || 0)}</strong> this month. Great job staying on track.
+                            You&apos;ve contributed <strong>{new Intl.NumberFormat().format(thisMonthContribution || 0)}</strong> this month. Great job staying on track.
                         </p>
                     </div>
                 </div>
@@ -294,7 +399,7 @@ export default function GoalDetailPage() {
                     <h4 className="font-semibold text-base">History / Past Cycles</h4>
                 </div>
                 <div className="space-y-3">
-                    {pastCycles.map((cycle: any) => (
+                    {pastCycles.map((cycle) => (
                         <div key={cycle._id} className="bg-muted/30 border border-dashed rounded-lg p-4 flex justify-between items-center">
                             <div>
                                 <p className="font-medium text-sm">Cycle Completed</p>
@@ -374,6 +479,12 @@ export default function GoalDetailPage() {
                 </div>
             )}
         </div>
+        
+        <CategoryDrawer 
+            open={editDrawerOpen}
+            onOpenChange={setEditDrawerOpen}
+            category={category}
+        />
     </div>
   )
 }

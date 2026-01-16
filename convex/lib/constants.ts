@@ -50,3 +50,12 @@ export const NOTIFICATION_TYPES = {
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
+
+export const AUTOMATION_FREQUENCIES = {
+  DAILY: "daily",
+  WEEKLY: "weekly",
+  MONTHLY: "monthly",
+  YEARLY: "yearly",
+} as const;
+
+export type AutomationFrequency = typeof AUTOMATION_FREQUENCIES[keyof typeof AUTOMATION_FREQUENCIES];

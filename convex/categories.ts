@@ -180,7 +180,7 @@ export const get = query({
 
     const categories = await query.collect();
 
-    let filtered = showArchived 
+    const filtered = showArchived 
         ? categories 
         : categories.filter(c => !c.isArchived && c.status !== GOAL_STATUS.ARCHIVED);
 
@@ -463,6 +463,16 @@ export const deleteCategory = mutation({
     if (linkedAccount) {
         await ctx.db.delete(linkedAccount._id);
     }
+
+    // 6. Delete linked automation schedule if exists
+    const automation = await ctx.db
+        .query("scheduledTransactions")
+        .withIndex("by_linkedEntityId", q => q.eq("linkedEntityId", args.id))
+        .first();
+    
+    if (automation) {
+        await ctx.db.delete(automation._id);
+    }
   },
 });
 
@@ -482,6 +492,16 @@ export const archiveCategory = mutation({
     }
 
     await ctx.db.patch(args.id, { isArchived: true, status: GOAL_STATUS.ARCHIVED });
+
+    // Also disable any automation linked to this goal
+    const automation = await ctx.db
+        .query("scheduledTransactions")
+        .withIndex("by_linkedEntityId", q => q.eq("linkedEntityId", args.id))
+        .first();
+    
+    if (automation) {
+        await ctx.db.patch(automation._id, { isEnabled: false });
+    }
   },
 });
 

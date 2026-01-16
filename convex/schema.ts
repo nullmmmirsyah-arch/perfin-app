@@ -147,4 +147,28 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_endpoint", ["endpoint"]),
+
+  scheduledTransactions: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    name: v.string(),
+    amount: v.string(),
+    fromAccountId: v.id("accounts"),
+    toAccountId: v.optional(v.id("accounts")),
+    linkedEntityId: v.optional(v.id("categories")),
+    frequency: v.union(
+      v.literal("daily"),
+      v.literal("weekly"),
+      v.literal("monthly"),
+      v.literal("yearly")
+    ),
+    nextRunAt: v.number(),
+    isEnabled: v.boolean(),
+    lastRunStatus: v.optional(v.union(v.literal("success"), v.literal("failed"))),
+    failureReason: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"])
+    .index("by_nextRun", ["isEnabled", "nextRunAt"])
+    .index("by_linkedEntityId", ["linkedEntityId"]),
 });

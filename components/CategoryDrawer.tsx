@@ -4,7 +4,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { Doc } from '../convex/_generated/dataModel';
+import { Doc, Id } from '../convex/_generated/dataModel';
 import { useHousehold } from '@/components/HouseholdProvider';
 import {
   Drawer,
@@ -38,6 +38,7 @@ import { CalendarIcon, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { format, differenceInMonths, addMonths, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 
 const CategoryFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -46,6 +47,12 @@ const CategoryFormSchema = z.object({
   targetDate: z.date().optional(),
   enablePacing: z.boolean(),
   goalType: z.enum(['investment', 'bill', 'purchase']).optional(),
+  // Auto-Save Fields
+  enableAutoSave: z.boolean(),
+  autoSaveSourceAccountId: z.string().optional(),
+  autoSaveAmount: z.string().optional(),
+  autoSaveFrequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
+  autoSaveDay: z.string().optional(),
 });
 
 type CategoryFormValues = z.infer<typeof CategoryFormSchema>;
@@ -61,17 +68,26 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
   const { householdId } = useHousehold();
   const createCategory = useMutation(api.categories.create);
   const updateCategory = useMutation(api.categories.update);
+  const upsertSchedule = useMutation(api.automations.upsertSchedule);
 
   const isEditMode = !!category;
+
+  // Fetch Existing Schedule
+  const existingSchedule = useQuery(api.automations.getScheduleByGoal, 
+    open && isEditMode && category ? { 
+        linkedEntityId: category._id,
+        householdId: householdId ?? undefined 
+    } : "skip"
+  );
+
+  const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
+  const liquidAccounts = React.useMemo(() => 
+    accounts?.filter(a => !a.type || a.type === 'CASH') || [], 
+  [accounts]);
 
   // Local State for Calculator
   const [monthlyContribution, setMonthlyContribution] = useState<string>('');
   const [isManuallyEdited, setIsManuallyEdited] = useState(false);
-
-  // Fetch Existing Budgets to fill the calculator in Edit Mode
-  const allBudgets = useQuery(api.budgets.get, open && isEditMode ? { 
-      householdId: householdId ?? undefined 
-  } : "skip");
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(CategoryFormSchema),
@@ -81,12 +97,57 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
       targetAmount: '',
       enablePacing: false,
       goalType: 'purchase',
+      enableAutoSave: false,
+      autoSaveFrequency: 'monthly',
+      autoSaveDay: '25',
+      autoSaveAmount: '',
+      autoSaveSourceAccountId: '',
     }
   });
 
   const categoryType = useWatch({ control: form.control, name: 'type' });
   const targetAmountStr = useWatch({ control: form.control, name: 'targetAmount' });
   const targetDate = useWatch({ control: form.control, name: 'targetDate' });
+  const enableAutoSave = useWatch({ control: form.control, name: 'enableAutoSave' });
+
+  // Sync Form with Category & Schedule Data
+  useEffect(() => {
+    if (open && isEditMode && category) {
+        // Find existing budget for monthlyContribution prefill
+        // We rely on getGoalDetails if needed, but for simplicity we skip prefilling contrib here if not found.
+        form.reset({
+            name: category.name,
+            type: category.type,
+            targetAmount: category.targetAmount || '',
+            targetDate: category.targetDate ? new Date(category.targetDate) : undefined,
+            enablePacing: category.enablePacing || false,
+            goalType: (category.goalType as any) || 'purchase',
+            enableAutoSave: !!existingSchedule?.isEnabled,
+            autoSaveSourceAccountId: existingSchedule?.fromAccountId || '',
+            autoSaveAmount: existingSchedule?.amount || '',
+            autoSaveFrequency: (existingSchedule?.frequency as any) || 'monthly',
+            autoSaveDay: existingSchedule?.nextRunAt ? new Date(existingSchedule.nextRunAt).getDate().toString() : '25',
+        });
+        
+        if (existingSchedule?.amount) {
+            setMonthlyContribution(existingSchedule.amount);
+        }
+    } else if (open && !isEditMode) {
+        form.reset({
+            name: '',
+            type: defaultType || '',
+            targetAmount: '',
+            enablePacing: false,
+            goalType: 'purchase',
+            enableAutoSave: false,
+            autoSaveFrequency: 'monthly',
+            autoSaveDay: '25',
+            autoSaveAmount: '',
+            autoSaveSourceAccountId: '',
+        });
+        setMonthlyContribution('');
+    }
+  }, [open, isEditMode, category, existingSchedule, form, defaultType]);
 
   const formatNumber = (value: string | undefined) => {
     if (!value) return '';
@@ -174,32 +235,85 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
 
   const handleApplyContrib = (amount: number) => {
       setMonthlyContribution(new Intl.NumberFormat('en-US').format(Math.ceil(amount)));
-      setIsManuallyEdited(true);
+      // Also sync to auto-save if enabled
+      if (enableAutoSave) {
+          form.setValue('autoSaveAmount', new Intl.NumberFormat('en-US').format(Math.ceil(amount)));
+      }
   };
 
-  const onSubmit = (data: CategoryFormValues) => {
-    const payload = {
-        name: data.name,
-        type: data.type,
-        targetAmount: data.targetAmount,
-        targetDate: data.targetDate ? data.targetDate.toISOString() : undefined,
-        enablePacing: data.enablePacing,
-        goalType: data.type === 'saving' ? data.goalType : undefined,
-        monthlyBudget: monthlyContribution ? monthlyContribution.replace(/,/g, '') : undefined,
-    };
+  const onSubmit = async (data: CategoryFormValues) => {
+    try {
+        const payload = {
+            name: data.name,
+            type: data.type,
+            targetAmount: data.targetAmount,
+            targetDate: data.targetDate ? data.targetDate.toISOString() : undefined,
+            enablePacing: data.enablePacing,
+            goalType: data.type === 'saving' ? data.goalType : undefined,
+            monthlyBudget: monthlyContribution ? monthlyContribution.replace(/,/g, '') : undefined,
+        };
 
-    if (isEditMode) {
-      updateCategory({
-        id: category._id,
-        ...payload,
-      });
-    } else {
-      createCategory({
-        ...payload,
-        householdId: householdId ?? undefined,
-      });
+        let finalCategoryId: Id<'categories'>;
+
+        if (isEditMode && category) {
+          await updateCategory({
+            id: category._id,
+            ...payload,
+          });
+          finalCategoryId = category._id;
+        } else {
+          finalCategoryId = await createCategory({
+            ...payload,
+            householdId: householdId ?? undefined,
+          });
+        }
+
+        // --- Handle Auto-Save Schedule ---
+        if (data.type === 'saving') {
+            const destAccount = accounts?.find(a => a.linkedCategoryId === finalCategoryId);
+            
+            if (data.enableAutoSave) {
+                if (!data.autoSaveSourceAccountId) throw new Error("Please select a source account for Auto-Save");
+                
+                // Calculate next run date
+                const now = new Date();
+                let nextRun = new Date(now.getFullYear(), now.getMonth(), parseInt(data.autoSaveDay || '25'));
+                if (nextRun < now) {
+                    nextRun = addMonths(nextRun, 1);
+                }
+
+                await upsertSchedule({
+                    id: existingSchedule?._id,
+                    householdId: householdId ?? undefined,
+                    name: `Auto-Save: ${data.name}`,
+                    amount: data.autoSaveAmount || monthlyContribution || '0',
+                    fromAccountId: data.autoSaveSourceAccountId as Id<'accounts'>,
+                    toAccountId: destAccount?._id,
+                    linkedEntityId: finalCategoryId,
+                    frequency: data.autoSaveFrequency || 'monthly',
+                    nextRunAt: nextRun.getTime(),
+                    isEnabled: true,
+                });
+            } else if (existingSchedule) {
+                // Disable existing schedule if toggle was turned off
+                await upsertSchedule({
+                    id: existingSchedule._id,
+                    isEnabled: false,
+                    // Re-pass required fields for patch
+                    name: existingSchedule.name,
+                    amount: existingSchedule.amount,
+                    fromAccountId: existingSchedule.fromAccountId,
+                    frequency: existingSchedule.frequency as any,
+                    nextRunAt: existingSchedule.nextRunAt,
+                });
+            }
+        }
+
+        toast.success(isEditMode ? "Category updated" : "Category created");
+        onOpenChange(false);
+    } catch (error: any) {
+        toast.error(error.message || "Failed to save category");
     }
-    onOpenChange(false);
   };
 
   return (
@@ -328,8 +442,10 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
                             placeholder="e.g. 500,000" 
                             value={monthlyContribution}
                             onChange={(e) => {
-                                setMonthlyContribution(formatNumber(e.target.value));
+                                const val = formatNumber(e.target.value);
+                                setMonthlyContribution(val);
                                 setIsManuallyEdited(true); // User explicitly typing -> Manual Mode
+                                if (enableAutoSave) form.setValue('autoSaveAmount', val);
                             }}
                         />
                         {/* Feedback Alert */}
@@ -367,6 +483,99 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
                                         )}
                                     </div>
                                 )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* AUTO-SAVE SECTION */}
+                    <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-dashed border-primary/30">
+                        <FormField
+                            control={form.control}
+                            name="enableAutoSave"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between space-y-0">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-sm font-bold flex items-center gap-2">
+                                            ⚡ Enable Auto-Save
+                                        </FormLabel>
+                                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                            Automated monthly transfers
+                                        </div>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+
+                        {enableAutoSave && (
+                            <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-1">
+                                <FormField
+                                    control={form.control}
+                                    name="autoSaveSourceAccountId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs">Source Account</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger className="h-8 text-xs">
+                                                        <SelectValue placeholder="Select source" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {liquidAccounts.map(account => (
+                                                        <SelectItem key={account._id} value={account._id}>{account.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <FormField
+                                        control={form.control}
+                                        name="autoSaveAmount"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs">Amount</FormLabel>
+                                                <FormControl>
+                                                    <Input 
+                                                        className="h-8 text-xs"
+                                                        placeholder="0"
+                                                        {...field}
+                                                        onChange={(e) => field.onChange(formatNumber(e.target.value))}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="autoSaveDay"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs">Day of Month</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger className="h-8 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {Array.from({ length: 28 }, (_, i) => (
+                                                            <SelectItem key={i + 1} value={(i + 1).toString()}>{i + 1}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>
