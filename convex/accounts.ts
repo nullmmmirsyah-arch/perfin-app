@@ -39,6 +39,7 @@ export const create = mutation({
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
     goalType: v.optional(v.string()),
+    monthlyBudget: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -68,6 +69,33 @@ export const create = mutation({
             targetDate: args.targetDate,
             goalType: finalGoalType as any, // Cast to avoid strict typing issues with string vs union in mutation args
         });
+
+        // AUTO-CREATE BUDGET if monthlyBudget provided
+        if (args.monthlyBudget) {
+            const now = new Date();
+            // Check existing budget first (Paranoid Check)
+            const existingBudget = await ctx.db.query("budgets")
+                .withIndex(args.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
+                    let builder = q.eq(args.householdId ? "householdId" : "userId", args.householdId || identity.subject)
+                                   .eq("categoryId", linkedCategoryId!)
+                                   .eq("year", now.getFullYear())
+                                   .eq("month", now.getMonth());
+                    return builder;
+                }).first();
+
+            if (existingBudget) {
+                await ctx.db.patch(existingBudget._id, { amount: args.monthlyBudget });
+            } else {
+                await ctx.db.insert("budgets", {
+                    userId: identity.subject,
+                    householdId: args.householdId,
+                    categoryId: linkedCategoryId,
+                    amount: args.monthlyBudget,
+                    year: now.getFullYear(),
+                    month: now.getMonth(),
+                });
+            }
+        }
     }
 
     const accountId = await ctx.db.insert("accounts", {
@@ -116,7 +144,7 @@ export const create = mutation({
         });
     }
 
-    return accountId;
+    return { accountId, linkedCategoryId };
   },
 });
 
@@ -130,12 +158,13 @@ export const update = mutation({
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
     goalType: v.optional(v.string()),
+    monthlyBudget: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, targetAmount, targetDate, goalType, ...rest } = args;
+    const { id, targetAmount, targetDate, goalType, monthlyBudget, ...rest } = args;
     const account = await ctx.db.get(id);
     if (!account) throw new Error("Account not found");
 
@@ -160,6 +189,45 @@ export const update = mutation({
         });
     }
 
+    // Handle Budget Update
+    if (monthlyBudget !== undefined && account.linkedCategoryId) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+
+        let existingBudget;
+        if (account.householdId) {
+            existingBudget = await ctx.db.query("budgets")
+                .withIndex("by_householdId_category_year_month", q => 
+                    q.eq("householdId", account.householdId!)
+                     .eq("categoryId", account.linkedCategoryId!)
+                     .eq("year", year)
+                     .eq("month", month)
+                ).first();
+        } else {
+            existingBudget = await ctx.db.query("budgets")
+                .withIndex("by_user_category_year_month", q => 
+                    q.eq("userId", identity.subject)
+                     .eq("categoryId", account.linkedCategoryId!)
+                     .eq("year", year)
+                     .eq("month", month)
+                ).first();
+        }
+
+        if (existingBudget) {
+            await ctx.db.patch(existingBudget._id, { amount: monthlyBudget });
+        } else if (monthlyBudget) {
+            await ctx.db.insert("budgets", {
+                userId: identity.subject,
+                householdId: account.householdId,
+                categoryId: account.linkedCategoryId,
+                amount: monthlyBudget,
+                year,
+                month,
+            });
+        }
+    }
+
     // If type changed to SAVING/ASSET and no category linked yet, create it
     let newLinkedCategoryId = account.linkedCategoryId;
     const newType = args.type || account.type;
@@ -178,6 +246,33 @@ export const update = mutation({
             targetDate: targetDate,
             goalType: finalGoalType as any,
         });
+
+        // Also create budget here if provided
+        if (monthlyBudget) {
+            const now = new Date();
+            // Check existing budget (Just in case, though unlikely for new category)
+             const existingBudget = await ctx.db.query("budgets")
+                .withIndex(account.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
+                    let builder = q.eq(account.householdId ? "householdId" : "userId", account.householdId || identity.subject)
+                                   .eq("categoryId", newLinkedCategoryId!)
+                                   .eq("year", now.getFullYear())
+                                   .eq("month", now.getMonth());
+                    return builder;
+                }).first();
+            
+            if (existingBudget) {
+                 await ctx.db.patch(existingBudget._id, { amount: monthlyBudget });
+            } else {
+                await ctx.db.insert("budgets", {
+                    userId: identity.subject,
+                    householdId: account.householdId,
+                    categoryId: newLinkedCategoryId,
+                    amount: monthlyBudget,
+                    year: now.getFullYear(),
+                    month: now.getMonth(),
+                });
+            }
+        }
     }
 
     await ctx.db.patch(id, { ...rest, linkedCategoryId: newLinkedCategoryId });

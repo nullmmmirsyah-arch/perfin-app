@@ -77,6 +77,9 @@
         - Runs hourly to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).
         - Logic located in `convex/automations.ts` (`processDueSchedules`).
         - Performs ACID transactions: deducts source, adds to destination, records transaction, and reschedules next run.
+    - **Duplicate Prevention (Upsert Strategy):**
+        - **Budgets:** When creating/updating Savings via Account logic, the system checks for existing budget entries for the same month/category before inserting. If found, it updates the amount to prevent duplicates.
+        - **Auto-Save:** The `upsertSchedule` mutation enforces a "One Schedule Per Goal" rule by checking `linkedEntityId`. It updates the existing schedule instead of creating a new one if a schedule for that goal already exists.
 
 5.  **Performance Optimization:**
     - **Avoid N+1 Queries:** When fetching lists of items with related data (e.g., Transactions with Accounts/Categories), always use **Batch Fetching**.

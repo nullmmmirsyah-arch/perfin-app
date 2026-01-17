@@ -82,13 +82,30 @@ export const upsertSchedule = mutation({
 
     const { id, ...data } = args;
 
-    if (id) {
-      const existing = await ctx.db.get(id);
+    // 1. Try to find existing schedule by ID (Explicit Update)
+    let targetId = id;
+
+    // 2. If no ID provided, check if one exists for this Linked Entity (Smart Upsert)
+    // This prevents double-scheduling for the same goal.
+    if (!targetId && data.linkedEntityId) {
+        const existingByGoal = await ctx.db
+            .query("scheduledTransactions")
+            .withIndex("by_linkedEntityId", q => q.eq("linkedEntityId", data.linkedEntityId!))
+            .filter(q => q.eq(q.field("userId"), identity.subject))
+            .first();
+        
+        if (existingByGoal) {
+            targetId = existingByGoal._id;
+        }
+    }
+
+    if (targetId) {
+      const existing = await ctx.db.get(targetId);
       if (!existing || existing.userId !== identity.subject) {
         throw new Error("Schedule not found or unauthorized");
       }
-      await ctx.db.patch(id, data);
-      return id;
+      await ctx.db.patch(targetId, data);
+      return targetId;
     } else {
       return await ctx.db.insert("scheduledTransactions", {
         ...data,

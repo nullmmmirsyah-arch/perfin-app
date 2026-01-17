@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { Doc } from '../convex/_generated/dataModel';
+import { Doc, Id } from '../convex/_generated/dataModel';
 import { useHousehold } from '@/components/HouseholdProvider';
 import {
   Drawer,
@@ -36,9 +36,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { format, addMonths, differenceInMonths, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const AccountFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -52,6 +53,13 @@ const AccountFormSchema = z.object({
   targetDate: z.date().optional(),
   enableGoal: z.boolean().optional(),
   goalType: z.enum(['investment', 'bill', 'purchase']).optional(),
+  // New Fields
+  monthlyBudget: z.string().optional(),
+  enableAutoSave: z.boolean().optional(),
+  autoSaveSourceAccountId: z.string().optional(),
+  autoSaveAmount: z.string().optional(),
+  autoSaveFrequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
+  autoSaveDay: z.string().optional(),
 });
 
 type AccountFormValues = z.infer<typeof AccountFormSchema>;
@@ -73,9 +81,34 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
   const { householdId } = useHousehold();
   const createAccount = useMutation(api.accounts.create);
   const updateAccount = useMutation(api.accounts.update);
+  const upsertSchedule = useMutation(api.automations.upsertSchedule);
+
   const categories = useQuery(api.categories.get, { householdId: householdId ?? undefined, showArchived: true });
+  
+  // Fetch Liquid Accounts for Auto-Save Source
+  const allAccounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
+  const liquidAccounts = useMemo(() => 
+    allAccounts?.filter(a => !a.type || a.type === 'CASH') || [], 
+  [allAccounts]);
 
   const isEditMode = !!account;
+
+  // Fetch Existing Schedule and Goal Details (for budget)
+  const linkedCategoryId = account?.linkedCategoryId;
+  
+  const existingSchedule = useQuery(api.automations.getScheduleByGoal, 
+    open && isEditMode && linkedCategoryId ? { 
+        linkedEntityId: linkedCategoryId,
+        householdId: householdId ?? undefined 
+    } : "skip"
+  );
+
+  const goalDetails = useQuery(api.categories.getGoalDetails,
+    open && isEditMode && linkedCategoryId ? {
+        id: linkedCategoryId,
+        householdId: householdId ?? undefined
+    } : "skip"
+  );
 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(AccountFormSchema),
@@ -89,11 +122,21 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
       targetDate: undefined,
       enableGoal: false,
       goalType: 'purchase',
+      monthlyBudget: '',
+      enableAutoSave: false,
+      autoSaveFrequency: 'monthly',
+      autoSaveDay: '25',
+      autoSaveAmount: '',
+      autoSaveSourceAccountId: '',
     },
   });
 
   const accountType = useWatch({ control: form.control, name: 'type' });
   const enableGoal = useWatch({ control: form.control, name: 'enableGoal' });
+  const enableAutoSave = useWatch({ control: form.control, name: 'enableAutoSave' });
+  const targetAmountStr = useWatch({ control: form.control, name: 'targetAmount' });
+  const targetDate = useWatch({ control: form.control, name: 'targetDate' });
+  const monthlyBudgetStr = useWatch({ control: form.control, name: 'monthlyBudget' });
 
   useEffect(() => {
     if (open && isEditMode && account) {
@@ -110,6 +153,13 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         targetDate: linkedCategory?.targetDate ? new Date(linkedCategory.targetDate) : undefined,
         enableGoal: !!linkedCategory?.targetAmount, // Enable if target exists
         goalType: (linkedCategory?.goalType as 'investment' | 'bill' | 'purchase') || 'purchase',
+        // New Fields Pre-fill
+        monthlyBudget: goalDetails?.currentBudget?.amount || '',
+        enableAutoSave: !!existingSchedule?.isEnabled,
+        autoSaveSourceAccountId: existingSchedule?.fromAccountId || '',
+        autoSaveAmount: existingSchedule?.amount || '',
+        autoSaveFrequency: (existingSchedule?.frequency as any) || 'monthly',
+        autoSaveDay: existingSchedule?.nextRunAt ? new Date(existingSchedule.nextRunAt).getDate().toString() : '25',
       });
     } else if (open && !isEditMode) {
       form.reset({
@@ -122,34 +172,179 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         targetDate: undefined,
         enableGoal: false,
         goalType: 'purchase',
+        monthlyBudget: '',
+        enableAutoSave: false,
+        autoSaveFrequency: 'monthly',
+        autoSaveDay: '25',
+        autoSaveAmount: '',
+        autoSaveSourceAccountId: '',
       });
     }
-  }, [open, isEditMode, account, form, categories]);
+  }, [open, isEditMode, account, form, categories, existingSchedule, goalDetails]);
 
-  const onSubmit = (data: AccountFormValues) => {
-    const payload = {
-        name: data.name,
-        balance: data.balance,
-        type: data.type,
-        initialQuantity: data.initialQuantity,
-        unit: data.unit,
-        targetAmount: data.enableGoal ? data.targetAmount : undefined,
-        targetDate: data.enableGoal && data.targetDate ? data.targetDate.toISOString() : undefined,
-        goalType: data.enableGoal ? data.goalType : undefined,
-    };
+  // Derived Calculation for Alert Box
+  const getCalculationFeedback = () => {
+    if (!targetAmountStr) return null;
+    
+    const amount = parseFloat(targetAmountStr.replace(/,/g, ''));
+    const contrib = monthlyBudgetStr ? parseFloat(monthlyBudgetStr.replace(/,/g, '')) : 0;
+    
+    if (isNaN(amount)) return null;
 
-    if (isEditMode && account) {
-      updateAccount({
-        id: account._id,
-        ...payload,
-      });
-    } else {
-      createAccount({
-        householdId: householdId ?? undefined,
-        ...payload,
-      });
+    // Scenario 1: User set Date & Amount, but Contribution is empty (or 0)
+    if (targetDate && contrib <= 0) {
+        const selectedMonths = differenceInMonths(targetDate, new Date()) + (targetDate.getDate() >= new Date().getDate() ? 0 : 1);
+        const divisor = Math.max(1, selectedMonths);
+        const required = amount / divisor;
+        
+        return {
+            status: 'suggestion',
+            message: `To reach this by ${format(targetDate, 'MMM yyyy')}, set contribution to:`,
+            requiredContrib: required
+        };
     }
-    onOpenChange(false);
+
+    // Scenario 2: User set Contribution (Calculated projection)
+    if (contrib > 0) {
+      const monthsNeeded = Math.ceil(amount / contrib);
+      // Safety cap for months to prevent Date overflow (approx 270k years limit)
+      // If monthsNeeded is absurdly high, projectedDate will be Invalid Date.
+      const projectedDate = addMonths(new Date(), monthsNeeded);
+      
+      if (!isValid(projectedDate)) {
+          return {
+              status: 'late',
+              message: "Contribution is too low to reach the goal in a reasonable time.",
+              // No projectedDate implies we can't show "Change date to..."
+          };
+      }
+
+      // 2. Compare with Selected Date (if any)
+      if (targetDate) {
+          const selectedMonths = differenceInMonths(targetDate, new Date()) + (targetDate.getDate() >= new Date().getDate() ? 0 : 1);
+          const diff = selectedMonths - monthsNeeded;
+
+          if (diff >= 1) { 
+              return {
+                  status: 'early',
+                  message: "You'll finish this goal early!",
+                  projectedDate,
+                  requiredContrib: amount / Math.max(1, selectedMonths)
+              };
+          }
+          
+          if (diff <= -1) {
+              return {
+                  status: 'late',
+                  message: "You won't make it by the target date.",
+                  projectedDate,
+                  requiredContrib: amount / Math.max(1, selectedMonths)
+              };
+          }
+      } else {
+          // If no date selected yet, just show projection with Action
+          return {
+              status: 'info',
+              message: "Based on this contribution, you'll finish by:",
+              projectedDate // Pass the date so UI can render a button
+          };
+      }
+    }
+    return null;
+  };
+
+  const feedback = getCalculationFeedback();
+
+  const handleApplyDate = (date: Date) => {
+    form.setValue('targetDate', date);
+  };
+
+  const handleApplyContrib = (amount: number) => {
+    const val = new Intl.NumberFormat('en-US').format(Math.ceil(amount));
+    form.setValue('monthlyBudget', val);
+    // Also sync to auto-save if enabled
+    if (enableAutoSave) {
+        form.setValue('autoSaveAmount', val);
+    }
+  };
+
+  const onSubmit = async (data: AccountFormValues) => {
+    try {
+        const payload = {
+            name: data.name,
+            balance: data.balance,
+            type: data.type,
+            initialQuantity: data.initialQuantity,
+            unit: data.unit,
+            targetAmount: data.enableGoal ? data.targetAmount : undefined,
+            targetDate: data.enableGoal && data.targetDate ? data.targetDate.toISOString() : undefined,
+            goalType: data.enableGoal ? data.goalType : undefined,
+            monthlyBudget: data.monthlyBudget ? data.monthlyBudget.replace(/,/g, '') : undefined,
+        };
+
+        let result;
+        if (isEditMode && account) {
+          await updateAccount({
+            id: account._id,
+            ...payload,
+          });
+          result = { linkedCategoryId: account.linkedCategoryId }; 
+        } else {
+          result = await createAccount({
+            householdId: householdId ?? undefined,
+            ...payload,
+          });
+        }
+
+        let targetCategoryId: Id<'categories'> | undefined;
+        if (isEditMode) {
+             // @ts-ignore
+            targetCategoryId = result?.linkedCategoryId ?? account?.linkedCategoryId; 
+        } else {
+             // @ts-ignore
+            targetCategoryId = result?.linkedCategoryId;
+        }
+
+        if ((data.type === 'SAVING' || data.type === 'ASSET') && data.enableGoal && targetCategoryId) {
+            if (data.enableAutoSave) {
+                if (!data.autoSaveSourceAccountId) throw new Error("Please select a source account for Auto-Save");
+                
+                const now = new Date();
+                let nextRun = new Date(now.getFullYear(), now.getMonth(), parseInt(data.autoSaveDay || '25'));
+                if (nextRun < now) {
+                    nextRun = addMonths(nextRun, 1);
+                }
+
+                await upsertSchedule({
+                    id: existingSchedule?._id,
+                    householdId: householdId ?? undefined,
+                    name: `Auto-Save: ${data.name}`,
+                    amount: data.autoSaveAmount || data.monthlyBudget || '0',
+                    fromAccountId: data.autoSaveSourceAccountId as Id<'accounts'>,
+                    toAccountId: isEditMode ? account?._id : (result as any).accountId,
+                    linkedEntityId: targetCategoryId,
+                    frequency: data.autoSaveFrequency || 'monthly',
+                    nextRunAt: nextRun.getTime(),
+                    isEnabled: true,
+                });
+            } else if (existingSchedule) {
+                await upsertSchedule({
+                    id: existingSchedule._id,
+                    isEnabled: false,
+                    name: existingSchedule.name,
+                    amount: existingSchedule.amount,
+                    fromAccountId: existingSchedule.fromAccountId,
+                    frequency: existingSchedule.frequency as any,
+                    nextRunAt: existingSchedule.nextRunAt,
+                });
+            }
+        }
+        
+        toast.success(isEditMode ? "Account updated" : "Account created");
+        onOpenChange(false);
+    } catch (error: any) {
+        toast.error(error.message || "Failed to save account");
+    }
   };
 
   return (
@@ -330,6 +525,77 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                                     />
                                </div>
 
+                               {/* Monthly Contribution (Budget) */}
+                               <div className="pt-2">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <FormLabel className="text-primary font-semibold flex items-center gap-1 text-xs">
+                                            <CheckCircle2 className="h-3 w-3" /> Monthly Contribution (Budget)
+                                        </FormLabel>
+                                    </div>
+                                    <FormField
+                                        control={form.control}
+                                        name="monthlyBudget"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                <Input 
+                                                    className="h-8"
+                                                    placeholder="e.g. 500,000" 
+                                                    {...field}
+                                                    onChange={(e) => {
+                                                        const val = formatNumber(e.target.value);
+                                                        field.onChange(val);
+                                                        // Auto-sync to auto-save amount if empty
+                                                        if (enableAutoSave && !form.getValues('autoSaveAmount')) {
+                                                            form.setValue('autoSaveAmount', val);
+                                                        }
+                                                    }}
+                                                />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    
+                                    {/* Feedback Alert */}
+                                    {feedback && (
+                                        <div className={cn(
+                                            "mt-3 p-3 rounded-md text-sm flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-300",
+                                            feedback.status === 'early' ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" : 
+                                            feedback.status === 'suggestion' ? "bg-primary/5 text-primary border border-primary/10" : 
+                                            feedback.status === 'info' ? "bg-primary/5 text-primary border border-primary/10" :
+                                            "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+                                        )}>
+                                            <div className="flex items-start gap-2 font-medium">
+                                                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                                <span>{feedback.message}</span>
+                                            </div>
+                                            {(feedback.projectedDate || feedback.requiredContrib) && (
+                                                <div className="flex flex-col gap-1.5 pl-6 mt-1">
+                                                    {feedback.projectedDate && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => handleApplyDate(feedback.projectedDate!)}
+                                                            className="text-xs text-left hover:underline font-semibold flex items-center gap-1"
+                                                        >
+                                                            <span>👉 {feedback.status === 'info' ? "Set target date to" : "Change date to"} {format(feedback.projectedDate, 'MMMM yyyy')}</span>
+                                                        </button>
+                                                    )}
+                                                    {feedback.requiredContrib && feedback.status !== 'info' && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => handleApplyContrib(feedback.requiredContrib!)}
+                                                            className="text-xs text-left hover:underline font-semibold flex items-center gap-1"
+                                                        >
+                                                            <span>👉 {feedback.status === 'suggestion' ? "Apply Suggestion:" : "Change contribution to"} {new Intl.NumberFormat('en-US').format(Math.ceil(feedback.requiredContrib))}</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                               </div>
+
                                {accountType === 'SAVING' && (
                                    <FormField
                                         control={form.control}
@@ -354,6 +620,96 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                                         )}
                                     />
                                )}
+
+                               {/* AUTO-SAVE SECTION */}
+                                <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-dashed border-primary/30">
+                                    <FormField
+                                        control={form.control}
+                                        name="enableAutoSave"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between space-y-0">
+                                                <div className="space-y-0.5">
+                                                    <FormLabel className="text-xs font-bold flex items-center gap-2">
+                                                        ⚡ Enable Auto-Save
+                                                    </FormLabel>
+                                                </div>
+                                                <FormControl>
+                                                    <Switch
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    {enableAutoSave && (
+                                        <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-1">
+                                            <FormField
+                                                control={form.control}
+                                                name="autoSaveSourceAccountId"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs">Source Account</FormLabel>
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl>
+                                                                <SelectTrigger className="h-8 text-xs">
+                                                                    <SelectValue placeholder="Select source" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                {liquidAccounts.map(account => (
+                                                                    <SelectItem key={account._id} value={account._id}>{account.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="autoSaveAmount"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs">Amount</FormLabel>
+                                                            <FormControl>
+                                                                <Input 
+                                                                    className="h-8 text-xs"
+                                                                    placeholder="0"
+                                                                    {...field}
+                                                                    onChange={(e) => field.onChange(formatNumber(e.target.value))}
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="autoSaveDay"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-xs">Day of Month</FormLabel>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl>
+                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent>
+                                                                    {Array.from({ length: 28 }, (_, i) => (
+                                                                        <SelectItem key={i + 1} value={(i + 1).toString()}>{i + 1}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                           </div>
                       )}
                   </div>

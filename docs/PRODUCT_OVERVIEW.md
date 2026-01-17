@@ -19,7 +19,9 @@
   - **Savings:** Non-liquid funds reserved for specific goals.
   - **Assets:** Track value of non-monetary items (Gold, Stocks) with Quantity/Unit support.
 - **Linked Goals:** Creating a **Saving** or **Asset** account automatically creates a linked category (Goal) with the same name.
-- **Unified Management:** Goal targets (amount and date) are managed directly within the Account management UI.
+- **Unified Management:**
+  - **Full Control:** Goal targets (amount/date), **Monthly Contribution (Budget)**, and **Auto-Save** schedules can be managed directly from *either* the Account Drawer or the Category Drawer.
+  - **Synchronization:** Changes made in one view (e.g., enabling Auto-Save in Account settings) are immediately reflected in the other (Category settings).
 - **Lifecycle:** Supports **Archiving/Closing** accounts.
   - *Rule:* Accounts can only be closed if Balance is 0. Closing an account automatically archives its linked goal.
 - **Separation:** UI separates Liquid Assets vs Long-term Assets.
