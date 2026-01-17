@@ -11,6 +11,7 @@ import {
   NOTIFICATION_TYPES,
   GOAL_STATUS
 } from "./lib/constants";
+import { generateSearchTags } from "./lib/transactions";
 
 import { paginationOptsValidator } from "convex/server";
 
@@ -163,24 +164,26 @@ export const getExpensesTrend = query({
 
         // JS Filter for Category/Label & Summation
         return transactions.reduce((acc, t) => {
-            // JS Filter Check
-            const mainMatchesLabel = !labelId || labelId.length === 0 || (t.labelId && labelId.includes(t.labelId));
-            const mainMatchesCat = !categoryId || categoryId.length === 0 || (t.categoryId && categoryId.includes(t.categoryId));
+            // New Optimized Check using helper fields
+            const matchesCat = !categoryId || categoryId.length === 0 || 
+                t.searchCategoryIds?.some(id => categoryId.includes(id));
+            const matchesLabel = !labelId || labelId.length === 0 || 
+                t.searchLabelIds?.some(id => labelId.includes(id));
+
+            if (!matchesCat || !matchesLabel) return acc;
             
-            // Note: For trend, we simplify split logic. We sum the main amount if matches, 
-            // OR if it's split, we sum the matching splits.
-            
+            // Note: For trend, we sum matching splits or main amount
             let amountToAdd = 0;
-            if (t.isSplit && t.splits) {
+            if (t.isSplit && t.splits && categoryId && categoryId.length > 0) {
                  amountToAdd = t.splits.reduce((sAcc, s) => {
                     const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelId && labelId.includes(s.labelId));
-                    const splitMatchesCat = !categoryId || categoryId.length === 0 || (s.categoryId && categoryId.includes(s.categoryId));
+                    const splitMatchesCat = categoryId.includes(s.categoryId);
                     if (splitMatchesLabel && splitMatchesCat) {
                         return sAcc + parseFloat(s.amount.replace(/,/g, '') || '0');
                     }
                     return sAcc;
                  }, 0);
-            } else if (mainMatchesLabel && mainMatchesCat) {
+            } else {
                  amountToAdd = parseFloat(t.amount.replace(/,/g, '') || '0');
             }
 
@@ -305,19 +308,13 @@ export const get = query({
     // JS Filtering for Category & Label (handling Splits & Multi-Select)
     if ((labelId && labelId.length > 0) || (categoryId && categoryId.length > 0)) {
         filteredResults = allCandidates.filter(t => {
-            // Check Main Transaction
-            const mainMatchesLabel = !labelId || labelId.length === 0 || (t.labelId && labelId.includes(t.labelId));
-            const mainMatchesCat = !categoryId || categoryId.length === 0 || (t.categoryId && categoryId.includes(t.categoryId));
-            const isMainMatch = mainMatchesLabel && mainMatchesCat;
+            const matchesCat = !categoryId || categoryId.length === 0 || 
+                t.searchCategoryIds?.some(id => categoryId.includes(id));
+            
+            const matchesLabel = !labelId || labelId.length === 0 || 
+                t.searchLabelIds?.some(id => labelId.includes(id));
 
-            // Check Splits
-            const hasMatchingSplit = t.splits?.some(s => {
-                const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelId && labelId.includes(s.labelId));
-                const splitMatchesCat = !categoryId || categoryId.length === 0 || (s.categoryId && categoryId.includes(s.categoryId));
-                return splitMatchesLabel && splitMatchesCat;
-            });
-
-            return isMainMatch || hasMatchingSplit;
+            return matchesCat && matchesLabel;
         });
     }
 
@@ -561,12 +558,19 @@ export const create = mutation({
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
     }
 
+    const { searchCategoryIds, searchLabelIds } = generateSearchTags({
+        ...args,
+        categoryId: finalCategoryId as string | undefined,
+    });
+
     const transaction = await ctx.db.insert("transactions", {
       ...args,
       categoryId: finalCategoryId as Id<"categories"> | undefined,
       userId: identity.subject,
       householdId: args.householdId,
       isGoalDisbursement, // Use the auto-detected or provided flag
+      searchCategoryIds,
+      searchLabelIds,
     });
 
     if (args.isSplit && args.splits) {
@@ -845,7 +849,18 @@ export const update = mutation({
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
     }
 
-    await ctx.db.patch(id, { ...rest, categoryId: finalCategoryId, isGoalDisbursement });
+    const { searchCategoryIds, searchLabelIds } = generateSearchTags({
+        ...newTx,
+        categoryId: finalCategoryId as string | undefined,
+    });
+
+    await ctx.db.patch(id, { 
+        ...rest, 
+        categoryId: finalCategoryId, 
+        isGoalDisbursement,
+        searchCategoryIds,
+        searchLabelIds,
+    });
 
     if (newTx.isSplit && newTx.splits) {
         for (const split of newTx.splits) {

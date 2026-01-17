@@ -19,6 +19,8 @@ import type * as labels from "../labels.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_finance from "../lib/finance.js";
+import type * as lib_transactions from "../lib/transactions.js";
+import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as push from "../push.js";
 import type * as transactions from "../transactions.js";
@@ -41,6 +43,8 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/constants": typeof lib_constants;
   "lib/finance": typeof lib_finance;
+  "lib/transactions": typeof lib_transactions;
+  migrations: typeof migrations;
   notifications: typeof notifications;
   push: typeof push;
   transactions: typeof transactions;

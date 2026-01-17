@@ -50,11 +50,17 @@ export default defineSchema({
       unitPrice: v.optional(v.number()),
     })),
     isGoalDisbursement: v.optional(v.boolean()),
+    searchCategoryIds: v.optional(v.array(v.string())),
+    searchLabelIds: v.optional(v.array(v.string())),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"])
     .index("by_householdId", ["householdId"])
-    .index("by_householdId_date", ["householdId", "date"]),
+    .index("by_householdId_date", ["householdId", "date"])
+    .index("by_search_category", ["userId", "searchCategoryIds"])
+    .index("by_search_label", ["userId", "searchLabelIds"])
+    .index("by_household_search_category", ["householdId", "searchCategoryIds"])
+    .index("by_household_search_label", ["householdId", "searchLabelIds"]),
   accounts: defineTable({
     userId: v.string(),
     householdId: v.optional(v.id("households")),

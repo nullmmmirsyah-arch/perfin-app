@@ -66,6 +66,12 @@
     - **Smart Auto-Budgeting:** Transaction mutations explicitly call `ensureBudgetExists`. *Enhancement:* It now checks for `isGoalDisbursement` flag to prevent inflating budget during goal withdrawals.
     - **Smart Disbursement Detection:** In `convex/transactions.ts`, system automatically detects Transfer from Special Account -> Liquid Account and flags it as `isGoalDisbursement`. This ensures accurate accounting (Neutral/Income effect instead of Negative Spending).
     - **Goal Progress:** Inside `create` and `update` transaction mutations, we explicitly call `checkGoalProgress` to trigger notifications.
+    - **Split Transaction Optimization (Search Indexing):**
+        - To improve filtering performance, we use a **Denormalized Indexing** strategy.
+        - **Schema:** Added `searchCategoryIds` and `searchLabelIds` (Array of Strings) to `transactions` table.
+        - **Helper:** `generateSearchTags` in `convex/lib/transactions.ts` extracts all IDs from the main transaction and splits.
+        - **Logic:** This helper is called automatically during `create` and `update` mutations to ensure the index is always in sync with the data.
+        - **Migration:** A one-off script `convex/migrations.ts:backfillSearchTags` is available to populate this index for existing data.
     - **Cron Jobs (Auto-Save):**
         - Uses **Native Convex Crons** defined in `convex/crons.ts`.
         - Runs hourly to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).
