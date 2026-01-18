@@ -53,7 +53,8 @@ import {
   ArrowRight,
   ChevronDown,
   Tag,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { Doc, Id } from '../convex/_generated/dataModel';
@@ -323,6 +324,8 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   const updateTransaction = useMutation(api.transactions.update);
   
   const [splitDrawerOpen, setSplitDrawerOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const submitLock = useRef(false);
 
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
   const isEditMode = !!transaction;
@@ -343,6 +346,8 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
       assetDetails: { quantity: '', unitPrice: undefined },
     }
   });
+
+  const { formState: { isSubmitting } } = form;
 
   const transactionType = useWatch({ control: form.control, name: 'type' });
   const transactionDate = useWatch({ control: form.control, name: 'date' });
@@ -453,11 +458,16 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   [accounts]);
 
   const onSubmit = async (data: TransactionFormValues) => {
+    if (submitLock.current || isProcessing) return;
+    
     const assetDetails = data.assetDetails?.quantity 
       ? { quantity: data.assetDetails.quantity, unitPrice: data.assetDetails.unitPrice }
       : undefined;
 
     try {
+        submitLock.current = true;
+        setIsProcessing(true);
+
         if (isEditMode && transaction) {
             await updateTransaction({
               id: transaction._id,
@@ -505,6 +515,8 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
     } catch (error) {
         console.error(error);
         toast.error("Failed to save transaction");
+        setIsProcessing(false);
+        submitLock.current = false;
     }
   };
 
@@ -602,16 +614,48 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
            {/* Footer Rendering */}
            {isMobile ? (
               <div className="mt-auto pt-6 pb-2">
-                <Button type="submit" size="lg" className="w-full rounded-full h-14 text-base font-semibold shadow-lg">
-                    Save Transaction <ArrowRight className="ml-2 h-5 w-5" />
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  disabled={isProcessing}
+                  onClick={() => {
+                    if (navigator.vibrate) navigator.vibrate(10);
+                  }}
+                  className="w-full rounded-full h-14 text-base font-semibold shadow-lg"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      Save Transaction <ArrowRight className="ml-2 h-5 w-5" />
+                    </>
+                  )}
                 </Button>
               </div>
            ) : (
               <div className="flex justify-end gap-2 border-t -mx-6 pt-4 px-6 mt-6">
                  <DialogClose asChild>
-                    <Button variant="outline" type="button">Cancel</Button>
+                    <Button variant="outline" type="button" disabled={isProcessing}>Cancel</Button>
                  </DialogClose>
-                 <Button type="submit">Save changes</Button>
+                 <Button 
+                   type="submit" 
+                   disabled={isProcessing}
+                   onClick={() => {
+                     if (navigator.vibrate) navigator.vibrate(10);
+                   }}
+                 >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save changes"
+                    )}
+                 </Button>
               </div>
            )}
         </form>

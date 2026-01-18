@@ -34,6 +34,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2 } from 'lucide-react';
 
 const BudgetFormSchema = z.object({
   categoryId: z.string().min(1, 'Category is required'),
@@ -73,6 +74,8 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
   });
 
   const [activeTab, setActiveTab] = React.useState('set-limit');
+  const [isProcessing, setIsProcessing] = React.useState(false);
+  const submitLock = React.useRef(false);
 
   const form = useForm<BudgetFormValues>({
     resolver: zodResolver(BudgetFormSchema),
@@ -82,6 +85,8 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
       fromCategoryId: 'unassigned',
     },
   });
+
+  const { formState: { isSubmitting } } = form;
 
   const categoryId = useWatch({ control: form.control, name: 'categoryId' });
   const amountValue = useWatch({ control: form.control, name: 'amount' });
@@ -102,7 +107,12 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
   }, [open, defaultCategory, currentAmount, form, activeTab]);
 
   const onSubmit = async (data: BudgetFormValues) => {
+    if (submitLock.current || isProcessing) return;
+
     try {
+      submitLock.current = true;
+      setIsProcessing(true);
+
       if (activeTab === 'set-limit') {
           await upsertBudget({
             householdId: householdId ?? undefined,
@@ -135,6 +145,8 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
       } else {
           form.setError('root', { type: 'manual', message: "An unexpected error occurred." });
       }
+      setIsProcessing(false);
+      submitLock.current = false;
     }
   };
 
@@ -331,11 +343,24 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                 </TabsContent>
 
                 <div className="flex flex-col gap-2">
-                    <Button type="submit">
-                        {activeTab === 'set-limit' ? 'Save Budget' : 'Move Funds'}
+                    <Button 
+                      type="submit" 
+                      disabled={isProcessing}
+                      onClick={() => {
+                        if (navigator.vibrate) navigator.vibrate(10);
+                      }}
+                    >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {activeTab === 'set-limit' ? 'Saving Budget...' : 'Moving Funds...'}
+                          </>
+                        ) : (
+                          activeTab === 'set-limit' ? 'Save Budget' : 'Move Funds'
+                        )}
                     </Button>
                     <DrawerClose asChild>
-                        <Button variant="outline">Cancel</Button>
+                        <Button variant="outline" disabled={isProcessing}>Cancel</Button>
                     </DrawerClose>
                 </div>
                 </form>

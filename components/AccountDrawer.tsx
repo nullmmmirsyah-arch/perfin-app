@@ -36,7 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { format, addMonths, differenceInMonths, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -92,6 +92,8 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
   [allAccounts]);
 
   const isEditMode = !!account;
+  const [isProcessing, setIsProcessing] = useState(false);
+  const submitLock = React.useRef(false);
 
   // Fetch Existing Schedule and Goal Details (for budget)
   const linkedCategoryId = account?.linkedCategoryId;
@@ -130,6 +132,8 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
       autoSaveSourceAccountId: '',
     },
   });
+
+  const { formState: { isSubmitting } } = form;
 
   const accountType = useWatch({ control: form.control, name: 'type' });
   const enableGoal = useWatch({ control: form.control, name: 'enableGoal' });
@@ -269,7 +273,12 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
   };
 
   const onSubmit = async (data: AccountFormValues) => {
+    if (submitLock.current || isProcessing) return;
+
     try {
+        submitLock.current = true;
+        setIsProcessing(true);
+
         const payload = {
             name: data.name,
             balance: data.balance,
@@ -344,6 +353,8 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         onOpenChange(false);
     } catch (error: any) {
         toast.error(error.message || "Failed to save account");
+        setIsProcessing(false);
+        submitLock.current = false;
     }
   };
 
@@ -720,9 +731,24 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
           </Form>
         </div>
         <DrawerFooter className="border-t bg-background pt-4 pb-safe px-4">
-            <Button onClick={form.handleSubmit(onSubmit)}>Save changes</Button>
+            <Button 
+                onClick={() => {
+                  if (navigator.vibrate) navigator.vibrate(10);
+                  form.handleSubmit(onSubmit)();
+                }}
+                disabled={isProcessing}
+            >
+                {isProcessing ? (
+                    <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                    </>
+                ) : (
+                    "Save changes"
+                )}
+            </Button>
             <DrawerClose asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline" disabled={isProcessing}>Cancel</Button>
             </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 
 const LabelFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -59,10 +59,14 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
   const updateLabel = useMutation(api.labels.update);
 
   const isEditMode = !!label;
+  const [isProcessing, setIsProcessing] = React.useState(false);
+  const submitLock = React.useRef(false);
 
   const form = useForm<LabelFormValues>({
     resolver: zodResolver(LabelFormSchema),
   });
+
+  const { formState: { isSubmitting } } = form;
 
   useEffect(() => {
     if (open && isEditMode) {
@@ -75,19 +79,30 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
     }
   }, [open, isEditMode, label, form]);
 
-  const onSubmit = (data: LabelFormValues) => {
-    if (isEditMode) {
-      updateLabel({
-        id: label._id,
-        ...data,
-      });
-    } else {
-      createLabel({
-        ...data,
-        householdId: householdId ?? undefined,
-      });
+  const onSubmit = async (data: LabelFormValues) => {
+    if (submitLock.current || isProcessing) return;
+
+    try {
+        submitLock.current = true;
+        setIsProcessing(true);
+
+        if (isEditMode) {
+          await updateLabel({
+            id: label._id,
+            ...data,
+          });
+        } else {
+          await createLabel({
+            ...data,
+            householdId: householdId ?? undefined,
+          });
+        }
+        onOpenChange(false);
+    } catch (error) {
+        console.error(error);
+        setIsProcessing(false);
+        submitLock.current = false;
     }
-    onOpenChange(false);
   };
 
   return (
@@ -143,9 +158,24 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
                 )}
               />
               <DrawerFooter className="px-0 pt-2">
-                <Button type="submit">Save changes</Button>
+                <Button 
+                  type="submit" 
+                  disabled={isProcessing}
+                  onClick={() => {
+                    if (navigator.vibrate) navigator.vibrate(10);
+                  }}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save changes"
+                  )}
+                </Button>
                 <DrawerClose asChild>
-                  <Button variant="outline">Cancel</Button>
+                  <Button variant="outline" disabled={isProcessing}>Cancel</Button>
                 </DrawerClose>
               </DrawerFooter>
             </form>

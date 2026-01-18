@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CalendarIcon, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { format, differenceInMonths, addMonths, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
@@ -71,6 +71,8 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
   const upsertSchedule = useMutation(api.automations.upsertSchedule);
 
   const isEditMode = !!category;
+  const [isProcessing, setIsProcessing] = useState(false);
+  const submitLock = React.useRef(false);
 
   // Fetch Existing Schedule
   const existingSchedule = useQuery(api.automations.getScheduleByGoal, 
@@ -104,6 +106,8 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
       autoSaveSourceAccountId: '',
     }
   });
+
+  const { formState: { isSubmitting } } = form;
 
   const categoryType = useWatch({ control: form.control, name: 'type' });
   const targetAmountStr = useWatch({ control: form.control, name: 'targetAmount' });
@@ -242,7 +246,12 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
   };
 
   const onSubmit = async (data: CategoryFormValues) => {
+    if (submitLock.current || isProcessing) return;
+
     try {
+        submitLock.current = true;
+        setIsProcessing(true);
+
         const payload = {
             name: data.name,
             type: data.type,
@@ -313,6 +322,8 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         onOpenChange(false);
     } catch (error: any) {
         toast.error(error.message || "Failed to save category");
+        setIsProcessing(false);
+        submitLock.current = false;
     }
   };
 
@@ -606,9 +617,24 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
               )}
 
               <div className="flex flex-col gap-2 pt-4">
-                <Button type="submit" onClick={form.handleSubmit(onSubmit)}>Save changes</Button>
+                <Button 
+                  type="submit" 
+                  disabled={isProcessing}
+                  onClick={() => {
+                    if (navigator.vibrate) navigator.vibrate(10);
+                  }}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save changes"
+                  )}
+                </Button>
                 <DrawerClose asChild>
-                  <Button variant="outline">Cancel</Button>
+                  <Button variant="outline" disabled={isProcessing}>Cancel</Button>
                 </DrawerClose>
               </div>
             </form>
