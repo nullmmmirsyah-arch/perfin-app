@@ -17,7 +17,8 @@
 ```tsx
 'use client' // If using hooks
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { Loader2 } from 'lucide-react'
 // Imports...
 
 // 1. Types
@@ -27,13 +28,32 @@ type Props = { ... }
 export default function ComponentName({ ... }: Props) {
   // 3. Hooks (Query/Mutation/State)
   const data = useQuery(...)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const submitLock = useRef(false)
   
   // 4. Handlers
-  const handleSubmit = () => { ... }
+  const handleSubmit = async () => {
+    // Synchronous Lock (Double-click prevention)
+    if (submitLock.current || isProcessing) return;
+    
+    try {
+        submitLock.current = true;
+        setIsProcessing(true);
+        if (navigator.vibrate) navigator.vibrate(10); // Haptics
+        
+        // ... Logic ...
+    } catch (e) {
+        // Reset on error
+        submitLock.current = false;
+        setIsProcessing(false);
+    }
+  }
 
   // 5. Render
   return (
-    <div>...</div>
+    <Button disabled={isProcessing}>
+        {isProcessing ? <Loader2 className="animate-spin" /> : "Save"}
+    </Button>
   )
 }
 ```
@@ -73,6 +93,7 @@ Certain UI patterns are standardized to ensure consistency.
     - **ALWAYS import auth helpers** from `convex/lib/auth.ts`.
         - `await ensureHouseholdAccess(ctx, householdId, userId)` (Throws Error)
         - `await checkHouseholdAccess(ctx, householdId, userId)` (Returns Boolean)
+    - **Internal Mutations:** For Cron jobs or background tasks that run without a user session, use `internalMutation`.
 
 4.  **Constants & Types:**
     - **Do NOT use magic strings** like `'expense'`, `'saving'`, `'ASSET'`.
@@ -83,6 +104,7 @@ Certain UI patterns are standardized to ensure consistency.
 5.  **Date Handling:**
     - Store dates as ISO Strings (`v.string()`) in the database (e.g., `2023-12-25T10:00:00Z`).
     - Manipulate dates in TS using `Date` object or `date-fns`.
+    - **Budgeting Logic:** Be aware that the server uses UTC. Frontend must send "safe" dates (e.g. Noon) if budget period allocation relies on server-side `getMonth()`.
 
 6.  **Number Handling:**
     - We currently store Amounts as `v.string()` to prevent float precision issues in the DB (Legacy decision).

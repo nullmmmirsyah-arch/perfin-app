@@ -50,7 +50,7 @@
   - **⚡ Auto-Save (Scheduled Transfers):**
     - **Concept:** "Set and Forget" funding for goals. Users can enable automatic monthly transfers from a Liquid Account to a Goal.
     - **Goal-Centric Control:** Managed directly within the Goal Creation wizard or the Goal Detail page (via a dedicated status card).
-    - **Safety Mechanisms:** System checks for sufficient funds in the source account before execution. If funds are insufficient, the run is skipped, flagged as "Failed", and the user is notified.
+    - **Safety Mechanisms:** System checks for sufficient funds in the source account before execution. If funds are insufficient, the run is skipped, flagged as "Failed", and the user is notified via **System Notification**.
     - **Lifecycle:** Archiving or Deleting a goal automatically pauses or removes the associated schedule.
 
 ### 4. Labels (Tagging)- **Purpose:** flexible tagging system for transactions, independent of Categories.
@@ -88,6 +88,12 @@
   - **Member:** Can view and add transactions.
 - **Invites:** Invite system via email/code with expiration.
 - **Context Switching:** Users can switch between "Personal" view and "Household" view. Data is siloed by `householdId`.
+
+### 7. Privacy Mode
+- **Purpose:** Protect sensitive financial data when using the app in public spaces.
+- **Default Behavior:** Privacy Mode defaults to **ON (Active)** every time the application is loaded or the user navigates back to the Dashboard. It does not persist the "OFF" state across sessions/navigation to ensure security.
+- **Visuals:** Sensitive amounts (Balances, Totals) are masked using bullet characters (`••••`) instead of asterisks.
+- **Interaction:** Toggled via the **Eye Icon** in the Dashboard Page Header.
 
 ## Business Logic Rules
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is blocked if transactions exist.

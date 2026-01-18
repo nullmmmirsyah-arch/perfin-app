@@ -20,7 +20,8 @@
   - `query`: Read data (Reactive, auto-subscribe).
   - `mutation`: Write data (ACID transactions).
   - `action`: Third-party API calls (e.g., Web Push).
-  - `internalMutation`: Privileged functions not exposed to client.
+  - `internalMutation`: Privileged functions not exposed to client (Used for Crons).
+  - `cronJobs`: Scheduled tasks (Hourly/Daily).
 - **Scheduling:** `ctx.scheduler` for async tasks (e.g., sending notifications after transaction).
 
 ### Authentication
@@ -30,6 +31,7 @@
 ### PWA (Progressive Web App)
 - **Manifest:** `app/manifest.ts`.
 - **Service Worker:** `public/custom-sw.js` (for Push Notifications).
+- **Library:** `@ducanh2912/next-pwa`.
 - **Push:** `web-push` library for VAPID notifications.
 
 ---
@@ -74,9 +76,9 @@
         - **Migration:** A one-off script `convex/migrations.ts:backfillSearchTags` is available to populate this index for existing data.
     - **Cron Jobs (Auto-Save):**
         - Uses **Native Convex Crons** defined in `convex/crons.ts`.
-        - Runs hourly to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).
-        - Logic located in `convex/automations.ts` (`processDueSchedules`).
-        - Performs ACID transactions: deducts source, adds to destination, records transaction, and reschedules next run.
+        - Runs **Hourly** to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).
+        - **Logic:** `convex/automations.ts:processDueSchedules`.
+        - **Safety:** Checks source account balance before execution. If insufficient funds, it skips the transaction, flags as "failed", sends a **System Notification** to the user, and reschedules for the next period.
     - **Duplicate Prevention (Upsert Strategy):**
         - **Budgets:** When creating/updating Savings via Account logic, the system checks for existing budget entries for the same month/category before inserting. If found, it updates the amount to prevent duplicates.
         - **Auto-Save:** The `upsertSchedule` mutation enforces a "One Schedule Per Goal" rule by checking `linkedEntityId`. It updates the existing schedule instead of creating a new one if a schedule for that goal already exists.

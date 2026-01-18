@@ -7,6 +7,7 @@ This document outlines the design philosophy and user experience patterns used i
 2.  **Zero-Latency Feel:** UI should feel instant. We use Convex's optimistic updates and reactive queries.
 3.  **Focus & Context:** Avoid clutter. Use drawers to drill down into complex tasks.
 4.  **Swipe Navigation:** Prioritize gestures (Swipe Left/Right) for switching contexts (e.g., List vs Analytics, Expenses vs Savings).
+5.  **Data Integrity:** Ensure robust data handling, especially regarding dates and preventing duplicate submissions.
 
 ## UX Patterns
 
@@ -23,6 +24,15 @@ This document outlines the design philosophy and user experience patterns used i
 - **Nested Drawers:** For complex sub-forms (like **Split Transactions**), DO NOT expand the form inline. Open a second, nested Drawer. This prevents keyboard occlusion issues on mobile.
 - **Unified Account & Goal:** For Saving/Asset accounts, provide optional "Goal Settings" directly in the `AccountDrawer`. This allows users to set targets without leaving the account context.
 - **Auto-Save/Validation:** Use `react-hook-form` + `zod` for instant validation.
+- **Submission Safety:**
+    - **Double-Click Prevention:** Implement strict "Synchronous Locking" (`useRef` + `isProcessing` state) on all submit buttons to prevent duplicate data creation.
+    - **Visual Feedback:** Buttons must show a "Loading/Saving..." state with a Spinner (`Loader2`) and be disabled during processing.
+    - **Haptic Feedback:** Trigger a small vibration (`navigator.vibrate(10)`) on submit for tactile confirmation (Mobile).
+- **Date Handling:**
+    - **Timezone Safety:** When sending dates to the backend (e.g., Transaction Date, Goal Target Date), **always normalize the time**.
+        - If "Today": Use current local time.
+        - If "Manual Date": Set time to **12:00 PM (Noon)** local time.
+        - This prevents UTC conversion shifts (e.g., 00:00 WIB -> 17:00 UTC previous day) from causing data to appear in the wrong budget period.
 
 ### 3. Feedback System
 - **Toasts:** Use `sonner` for all success/error feedback.
