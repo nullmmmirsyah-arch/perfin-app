@@ -460,6 +460,22 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   const onSubmit = async (data: TransactionFormValues) => {
     if (submitLock.current || isProcessing) return;
     
+    // Date Normalization Logic:
+    // 1. If date is Today, use current time to keep the natural order of entries.
+    // 2. If date is NOT Today (manual pick), set to 12:00 PM to avoid timezone shift bugs (e.g. 00:00 WIB -> 17:00 UTC prev day).
+    const now = new Date();
+    const selectedDate = new Date(data.date);
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    
+    if (isToday) {
+        // Keep current hours/mins/secs
+        selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    } else {
+        // Set to safe noon
+        selectedDate.setHours(12, 0, 0, 0);
+    }
+    const dateStr = selectedDate.toISOString();
+
     const assetDetails = data.assetDetails?.quantity 
       ? { quantity: data.assetDetails.quantity, unitPrice: data.assetDetails.unitPrice }
       : undefined;
@@ -473,7 +489,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
               id: transaction._id,
               type: data.type,
               amount: data.amount,
-              date: data.date.toISOString(),
+              date: dateStr,
               description: data.description,
               accountId: data.accountId as Id<'accounts'>,
               categoryId: data.categoryId as Id<'categories'> | undefined,
@@ -494,7 +510,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
               householdId: householdId ?? undefined,
               type: data.type,
               amount: data.amount,
-              date: data.date.toISOString(),
+              date: dateStr,
               description: data.description,
               accountId: data.accountId as Id<'accounts'>,
               categoryId: data.categoryId as Id<'categories'> | undefined,

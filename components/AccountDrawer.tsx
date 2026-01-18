@@ -279,6 +279,21 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         submitLock.current = true;
         setIsProcessing(true);
 
+        // Normalize target date to prevent timezone shifts
+        let targetDateStr: string | undefined = undefined;
+        if (data.enableGoal && data.targetDate) {
+            const now = new Date();
+            const selectedDate = new Date(data.targetDate);
+            const isToday = selectedDate.toDateString() === now.toDateString();
+            
+            if (isToday) {
+                selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+            } else {
+                selectedDate.setHours(12, 0, 0, 0);
+            }
+            targetDateStr = selectedDate.toISOString();
+        }
+
         const payload = {
             name: data.name,
             balance: data.balance,
@@ -286,7 +301,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
             initialQuantity: data.initialQuantity,
             unit: data.unit,
             targetAmount: data.enableGoal ? data.targetAmount : undefined,
-            targetDate: data.enableGoal && data.targetDate ? data.targetDate.toISOString() : undefined,
+            targetDate: targetDateStr,
             goalType: data.enableGoal ? data.goalType : undefined,
             monthlyBudget: data.monthlyBudget ? data.monthlyBudget.replace(/,/g, '') : undefined,
         };

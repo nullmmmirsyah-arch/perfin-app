@@ -252,11 +252,26 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         submitLock.current = true;
         setIsProcessing(true);
 
+        // Normalize target date to prevent timezone shifts
+        let targetDateStr: string | undefined = undefined;
+        if (data.targetDate) {
+            const now = new Date();
+            const selectedDate = new Date(data.targetDate);
+            const isToday = selectedDate.toDateString() === now.toDateString();
+            
+            if (isToday) {
+                selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+            } else {
+                selectedDate.setHours(12, 0, 0, 0);
+            }
+            targetDateStr = selectedDate.toISOString();
+        }
+
         const payload = {
             name: data.name,
             type: data.type,
             targetAmount: data.targetAmount,
-            targetDate: data.targetDate ? data.targetDate.toISOString() : undefined,
+            targetDate: targetDateStr,
             enablePacing: data.enablePacing,
             goalType: data.type === 'saving' ? data.goalType : undefined,
             monthlyBudget: monthlyContribution ? monthlyContribution.replace(/,/g, '') : undefined,
