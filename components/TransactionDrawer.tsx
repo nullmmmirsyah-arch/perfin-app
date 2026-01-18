@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 import { useForm, useFieldArray, useWatch, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +12,14 @@ import {
   DrawerFooter,
   DrawerClose,
 } from '@/components/ui/drawer';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -22,6 +30,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
@@ -30,21 +39,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, PlusCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { PlusCircle, AlertCircle } from 'lucide-react';
+import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { Doc, Id } from '../convex/_generated/dataModel';
 import { toast } from 'sonner';
 import { useHousehold } from '@/components/HouseholdProvider';
 import { SplitEditorDrawer } from './SplitEditorDrawer';
-import { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -58,6 +60,15 @@ type TransactionWithDetails = Doc<'transactions'> & {
     labelId?: string;
     categoryName?: string;
   }>;
+};
+
+// Adapted for use with api.budgets.getBudgetStatus
+type CategoryOption = {
+    _id: Id<'categories'>;
+    name: string;
+    type: string;
+    budgetLimit?: number;
+    remaining?: number;
 };
 
 const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
@@ -111,7 +122,6 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
     const destIsSpecial = !isLiquid(destAccount?.type);
 
     // Require category if ANY side involves a Special Account (Saving/Asset)
-    // This ensures we track both Inflow (Saving) and Outflow (Withdrawal) from goals.
     const requiresCategory = sourceIsSpecial || destIsSpecial;
 
     if (requiresCategory) {
@@ -178,7 +188,43 @@ const formatNumber = (value: string | undefined) => {
   return new Intl.NumberFormat('en-US').format(parsed);
 };
 
-const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawerProps) => {
+// --- Main Wrapper Component ---
+const TransactionDrawer = (props: TransactionDrawerProps) => {
+  const isMobile = useIsMobile();
+  const { open, onOpenChange, transaction } = props;
+  const isEditMode = !!transaction;
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="max-h-[96dvh] flex flex-col">
+          <DrawerHeader>
+            <DrawerTitle>{isEditMode ? 'Edit transaction' : 'Create a new transaction'}</DrawerTitle>
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto p-4">
+             <TransactionForm {...props} isMobile={true} />
+          </div>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-2">
+           <DialogTitle>{isEditMode ? 'Edit transaction' : 'Create a new transaction'}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto p-6 pt-2">
+            <TransactionForm {...props} isMobile={false} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// --- Form Logic Component ---
+const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: TransactionDrawerProps & { isMobile: boolean }) => {
   const { householdId } = useHousehold();
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
@@ -186,65 +232,122 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
   const [splitDrawerOpen, setSplitDrawerOpen] = useState(false);
 
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
-
   const isEditMode = !!transaction;
 
   const formSchema = useMemo(() => createTransactionFormSchema(accounts || []), [accounts]);
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      type: 'expense',
+      amount: '',
+      date: new Date(),
+      description: '',
+      accountId: '',
+      isSplit: false,
+      splits: [{ categoryId: '', amount: '', description: '', labelId: '' }],
+      labelId: undefined,
+      assetDetails: { quantity: '', unitPrice: undefined },
+    }
   });
 
-  const transactionType = useWatch({
-    control: form.control,
-    name: 'type',
+  const transactionType = useWatch({ control: form.control, name: 'type' });
+  const transactionDate = useWatch({ control: form.control, name: 'date' });
+  
+  // Dynamic Month/Year for Budget Status (Consistent with Dashboard)
+  const selectedMonth = transactionDate ? transactionDate.getMonth() : new Date().getMonth();
+  const selectedYear = transactionDate ? transactionDate.getFullYear() : new Date().getFullYear();
+
+  // Use EXISTING budget status query
+  const budgetStatus = useQuery(api.budgets.getBudgetStatus, { 
+      householdId: householdId ?? undefined, 
+      month: selectedMonth, 
+      year: selectedYear 
   });
-  const categories = useQuery(
-    api.categories.get,
-    transactionType === 'transfer' 
-        ? { type: 'saving', householdId: householdId ?? undefined } 
-        : { type: transactionType, householdId: householdId ?? undefined }
-  );
+
+  // Also fetch simple categories list for Income (which might not be in budgetStatus fully if filtered)
+  // Optimization: budgetStatus only returns expense/saving. We need income categories too.
+  const allCategories = useQuery(api.categories.get, {
+      householdId: householdId ?? undefined
+  });
+
+  // Merge Data
+  const categories: CategoryOption[] = useMemo(() => {
+      const typeFilter = transactionType === 'transfer' ? 'saving' : transactionType;
+      
+      // If Expense/Saving, prefer budgetStatus data
+      if (typeFilter === 'expense' || typeFilter === 'saving') {
+          if (!budgetStatus?.data) return [];
+          
+          return budgetStatus.data
+            .filter(item => item.category.type === typeFilter)
+            .map(item => {
+                const limit = item.budget ? parseFloat(item.budget.amount.replace(/,/g, '') || '0') : 0;
+                // remaining can be negative
+                const remaining = limit - (item.spent || 0);
+                
+                return {
+                    _id: item.category._id,
+                    name: item.category.name,
+                    type: item.category.type,
+                    budgetLimit: limit,
+                    remaining: remaining
+                };
+            });
+      }
+      
+      // Fallback for Income (or if budgetStatus fails)
+      if (!allCategories) return [];
+      return allCategories
+        .filter(c => c.type === typeFilter)
+        .map(c => ({
+            _id: c._id,
+            name: c.name,
+            type: c.type
+        }));
+
+  }, [transactionType, budgetStatus, allCategories]);
+
   const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
 
+  // Reset form when opening/closing or changing transaction
   useEffect(() => {
-    if (open && isEditMode && transaction) {
-      form.reset({
-        type: transaction.type as 'expense' | 'income' | 'transfer',
-        amount: transaction.amount,
-        date: new Date(transaction.date),
-        description: transaction.description || '',
-        accountId: transaction.accountId,
-        categoryId: transaction.categoryId || undefined,
-        toAccountId: transaction.toAccountId || undefined,
-        isSplit: transaction.isSplit || false,
-        splits: transaction.splits?.map(s => ({
-          categoryId: s.categoryId,
-          amount: s.amount,
-          description: s.description || '',
-          labelId: s.labelId || undefined,
-        })) || [{ categoryId: '', amount: '', description: '', labelId: '' }],
-        labelId: transaction.labelId || undefined,
-        assetDetails: transaction.assetDetails ? {
-          quantity: transaction.assetDetails.quantity,
-          unitPrice: transaction.assetDetails.unitPrice,
-        } : undefined,
-      });
-    } else if (open && !isEditMode) {
-      form.reset({
-        type: 'expense',
-        amount: '',
-        date: new Date(),
-        description: '',
-        accountId: '',
-        isSplit: false,
-        splits: [{ categoryId: '', amount: '', description: '', labelId: '' }],
-        labelId: undefined,
-        assetDetails: {
-          quantity: '',
-          unitPrice: undefined,
-        },
-      });
+    if (open) {
+      if (isEditMode && transaction) {
+        form.reset({
+          type: transaction.type as 'expense' | 'income' | 'transfer',
+          amount: transaction.amount,
+          date: new Date(transaction.date),
+          description: transaction.description || '',
+          accountId: transaction.accountId,
+          categoryId: transaction.categoryId || undefined,
+          toAccountId: transaction.toAccountId || undefined,
+          isSplit: transaction.isSplit || false,
+          splits: transaction.splits?.map(s => ({
+            categoryId: s.categoryId,
+            amount: s.amount,
+            description: s.description || '',
+            labelId: s.labelId || undefined,
+          })) || [{ categoryId: '', amount: '', description: '', labelId: '' }],
+          labelId: transaction.labelId || undefined,
+          assetDetails: transaction.assetDetails ? {
+            quantity: transaction.assetDetails.quantity,
+            unitPrice: transaction.assetDetails.unitPrice,
+          } : undefined,
+        });
+      } else {
+        form.reset({
+          type: 'expense',
+          amount: '',
+          date: new Date(),
+          description: '',
+          accountId: '',
+          isSplit: false,
+          splits: [{ categoryId: '', amount: '', description: '', labelId: '' }],
+          labelId: undefined,
+          assetDetails: { quantity: '', unitPrice: undefined },
+        });
+      }
     }
   }, [open, isEditMode, transaction, form]);
 
@@ -253,7 +356,6 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     name: 'splits',
   });
 
-  // Filter accounts for Expense/Income (Cash only)
   const cashAccounts = useMemo(() => 
     accounts?.filter(a => !a.type || a.type === 'CASH') || [], 
   [accounts]);
@@ -314,14 +416,8 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     }
   };
 
-  const isSplit = useWatch({
-    control: form.control,
-    name: 'isSplit',
-  });
-  const splits = useWatch({
-    control: form.control,
-    name: 'splits',
-  });
+  const isSplit = useWatch({ control: form.control, name: 'isSplit' });
+  const splits = useWatch({ control: form.control, name: 'splits' });
 
   useEffect(() => {
     if (!isSplit) {
@@ -331,82 +427,102 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
     }
   }, [isSplit, replace, append, fields.length]);
 
-
   const allocated = splits?.reduce((acc, split) => acc + parseFloat(split.amount?.replace(/,/g, '') || '0'), 0) || 0;
-
-  const handleTabChange = (value: string) => {
-    form.setValue('type', value as 'expense' | 'income' | 'transfer');
-  };
-
   const splitCount = splits?.length || 0;
 
   const handleSplitToggle = (checked: boolean) => {
       form.setValue('isSplit', checked);
       if (checked) {
           setSplitDrawerOpen(true);
-          // Auto-add first item if empty
           if (!splits || splits.length === 0) {
              form.setValue('splits', [{ categoryId: '', amount: '', description: '', labelId: '' }]);
           }
       }
   };
+  
+  const handleTabChange = (value: string) => {
+    form.setValue('type', value as 'expense' | 'income' | 'transfer');
+  };
 
   return (
     <Form {...form}>
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-dvh flex flex-col">
-          <DrawerHeader>
-            <DrawerTitle>{isEditMode ? 'Edit transaction' : 'Create a new transaction'}</DrawerTitle>
-          </DrawerHeader>
-          <div className="flex-1 overflow-y-auto p-4">
-            <Tabs value={transactionType} className="w-full" onValueChange={handleTabChange}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="expense">Expense</TabsTrigger>
-                <TabsTrigger value="income">Income</TabsTrigger>
-                <TabsTrigger value="transfer">Transfer</TabsTrigger>
-              </TabsList>
-              
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-                  <TabsContent value="expense" className="space-y-4 mt-0">
-                    <TransactionFormFields 
-                      form={form} 
-                      categories={categories || []} 
-                      accounts={cashAccounts} 
-                      labels={labels || []} 
-                      onSplitToggle={handleSplitToggle}
-                      splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
-                      onEditSplit={() => setSplitDrawerOpen(true)}
-                    />
-                  </TabsContent>
-                  <TabsContent value="income" className="space-y-4 mt-0">
-                    <TransactionFormFields 
-                      form={form} 
-                      categories={categories || []} 
-                      accounts={cashAccounts} 
-                      labels={labels || []} 
-                      onSplitToggle={handleSplitToggle}
-                      splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
-                      onEditSplit={() => setSplitDrawerOpen(true)}
-                    />
-                  </TabsContent>
-                  <TabsContent value="transfer" className="space-y-4 mt-0">
-                    <TransferFormFields form={form} accounts={accounts || []} labels={labels || []} categories={categories || []} />
-                  </TabsContent>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 flex flex-col">
+          <Tabs value={transactionType} className="w-full" onValueChange={handleTabChange}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger 
+                value="expense"
+                className={cn(transactionType === 'expense' && "bg-destructive! text-destructive-foreground!")}
+              >
+                Expense
+              </TabsTrigger>
+              <TabsTrigger 
+                value="income"
+                className={cn(transactionType === 'income' && "bg-success! text-success-foreground!")}
+              >
+                Income
+              </TabsTrigger>
+              <TabsTrigger 
+                value="transfer"
+                className={cn(transactionType === 'transfer' && "bg-primary! text-primary-foreground!")}
+              >
+                Transfer
+              </TabsTrigger>
+            </TabsList>
 
-                  {/* Hidden submit button to allow Enter key submission within form fields if needed */}
-                  <button type="submit" className="hidden" />
-                </form>
-              
-            </Tabs>
-          </div>
-          <DrawerFooter className="border-t bg-background pt-4 pb-safe">
-            <Button onClick={form.handleSubmit(onSubmit)}>Save changes</Button>
-            <DrawerClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+            <div className="pt-4">
+                <TabsContent value="expense" className="space-y-4 mt-0">
+                  <TransactionFormFields 
+                    form={form} 
+                    categories={categories || []} 
+                    accounts={cashAccounts} 
+                    labels={labels || []} 
+                    onSplitToggle={handleSplitToggle}
+                    splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
+                    onEditSplit={() => setSplitDrawerOpen(true)}
+                    isMobile={isMobile}
+                  />
+                </TabsContent>
+                <TabsContent value="income" className="space-y-4 mt-0">
+                  <TransactionFormFields 
+                    form={form} 
+                    categories={categories || []} 
+                    accounts={cashAccounts} 
+                    labels={labels || []} 
+                    onSplitToggle={handleSplitToggle}
+                    splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
+                    onEditSplit={() => setSplitDrawerOpen(true)}
+                    isMobile={isMobile}
+                  />
+                </TabsContent>
+                <TabsContent value="transfer" className="space-y-4 mt-0">
+                  <TransferFormFields 
+                    form={form} 
+                    accounts={accounts || []} 
+                    labels={labels || []} 
+                    categories={categories || []} 
+                    isMobile={isMobile} 
+                  />
+                </TabsContent>
+            </div>
+          </Tabs>
+
+           {/* Footer Rendering */}
+           {isMobile ? (
+              <DrawerFooter className="border-t bg-background -mx-4 pt-4 mt-auto">
+                <Button type="submit">Save changes</Button>
+                <DrawerClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DrawerClose>
+              </DrawerFooter>
+           ) : (
+              <div className="flex justify-end gap-2 border-t -mx-6 pt-4 px-6 mt-6">
+                 <DialogClose asChild>
+                    <Button variant="outline" type="button">Cancel</Button>
+                 </DialogClose>
+                 <Button type="submit">Save changes</Button>
+              </div>
+           )}
+        </form>
 
       <SplitEditorDrawer 
         open={splitDrawerOpen} 
@@ -417,23 +533,29 @@ const TransactionDrawer = ({ open, onOpenChange, transaction }: TransactionDrawe
       />
     </Form>
   );
-};
+}
 
 const TransactionFormFields = ({ 
-    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit 
+    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit, isMobile 
 }: { 
     form: UseFormReturn<TransactionFormValues>, 
-    categories: Doc<'categories'>[], 
+    categories: CategoryOption[], 
     accounts: Doc<'accounts'>[], 
     labels: Doc<'labels'>[],
     onSplitToggle?: (checked: boolean) => void,
     splitSummary?: { count: number, total: number },
-    onEditSplit?: () => void
+    onEditSplit?: () => void,
+    isMobile?: boolean
 }) => {
-  const isSplit = useWatch({
-    control: form.control,
-    name: 'isSplit',
-  });
+  const isSplit = useWatch({ control: form.control, name: 'isSplit' });
+  const type = useWatch({ control: form.control, name: 'type' });
+  const amount = useWatch({ control: form.control, name: 'amount' });
+  const accountId = useWatch({ control: form.control, name: 'accountId' });
+  
+  const selectedAccount = accounts.find(a => a._id === accountId);
+  const amountValue = parseAmount(amount);
+  const balanceValue = parseAmount(selectedAccount?.balance);
+  const isOverspent = (type === 'expense' || type === 'transfer') && selectedAccount && amountValue > balanceValue;
 
   return (
     <>
@@ -460,26 +582,56 @@ const TransactionFormFields = ({
         control={form.control}
         name="amount"
         render={({ field }) => (
-          <FormItem>
-            <FormLabel>Amount</FormLabel>
+          <FormItem className={cn(isMobile && "mb-8")}>
+            <FormLabel className={cn(isMobile && "text-center block text-muted-foreground uppercase text-[10px] font-bold tracking-widest")}>
+              Amount
+            </FormLabel>
             <FormControl>
-              <Input
-                placeholder="0"
-                inputMode="numeric"
-                {...field}
-                value={field.value || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  field.onChange(formatNumber(value));
-                }}
-                onBlur={(e) => {
-                  const value = e.target.value;
-                  field.onBlur();
-                  field.onChange(formatNumber(value));
-                }}
-              />
+              {isMobile ? (
+                  <div className="relative group">
+                    <Input
+                        placeholder="0"
+                        inputMode="numeric"
+                        className={cn(
+                            "h-24 text-5xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent transition-colors",
+                            isOverspent ? "text-destructive animate-pulse" : "text-foreground"
+                        )}
+                        {...field}
+                        value={field.value || ''}
+                        onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(formatNumber(value));
+                        }}
+                    />
+                    <div className={cn(
+                        "h-px w-full mt-1 bg-linear-to-r from-transparent via-border to-transparent",
+                        isOverspent && "via-destructive"
+                    )} />
+                    {isOverspent && (
+                        <div className="flex items-center justify-center gap-1 mt-2 text-destructive text-[10px] font-medium uppercase tracking-tighter">
+                            <AlertCircle className="h-3 w-3" /> Insufficient Balance
+                        </div>
+                    )}
+                  </div>
+              ) : (
+                <Input
+                    placeholder="0"
+                    inputMode="numeric"
+                    {...field}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(formatNumber(value));
+                    }}
+                    onBlur={(e) => {
+                    const value = e.target.value;
+                    field.onBlur();
+                    field.onChange(formatNumber(value));
+                    }}
+                />
+              )}
             </FormControl>
-            <FormMessage />
+            <FormMessage className={cn(isMobile && "text-center")} />
           </FormItem>
         )}
       />
@@ -497,7 +649,14 @@ const TransactionFormFields = ({
               </FormControl>
               <SelectContent>
                 {accounts.map(account => (
-                  <SelectItem key={account._id} value={account._id}>{account.name}</SelectItem>
+                  <SelectItem key={account._id} value={account._id}>
+                     <div className="flex w-full items-center justify-between gap-4">
+                        <span className="font-medium truncate">{account.name}</span>
+                        <span className="text-muted-foreground text-xs font-normal shrink-0">
+                            {formatCurrency(account.balance)}
+                        </span>
+                     </div>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -551,9 +710,27 @@ const TransactionFormFields = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {categories.map(category => (
-                      <SelectItem key={category._id} value={category._id}>{category.name}</SelectItem>
-                    ))}
+                    {categories.map(category => {
+                        const showBudget = category.type === 'expense' && (category.budgetLimit || 0) > 0;
+                        const remaining = category.remaining || 0;
+                        const isLow = remaining < 0;
+
+                        return (
+                          <SelectItem key={category._id} value={category._id}>
+                             <div className="flex w-full items-center justify-between gap-4">
+                                <span className="font-medium truncate">{category.name}</span>
+                                {showBudget && (
+                                    <span className={cn(
+                                        "text-xs font-normal shrink-0",
+                                        isLow ? "text-destructive" : "text-muted-foreground"
+                                    )}>
+                                        Avail: {formatCurrency(remaining)}
+                                    </span>
+                                )}
+                             </div>
+                          </SelectItem>
+                        );
+                    })}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -584,7 +761,15 @@ const TransactionFormFields = ({
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Input placeholder="Add a description" {...field} />
+                  {isMobile ? (
+                      <Textarea 
+                        placeholder="Add a description..." 
+                        className="resize-none min-h-[80px]" 
+                        {...field} 
+                      />
+                  ) : (
+                      <Input placeholder="Add a description" {...field} />
+                  )}
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -618,9 +803,10 @@ const TransactionFormFields = ({
   );
 };
 
-const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseFormReturn<TransactionFormValues>, accounts: Doc<'accounts'>[], labels: Doc<'labels'>[], categories: Doc<'categories'>[] }) => {
+const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { form: UseFormReturn<TransactionFormValues>, accounts: Doc<'accounts'>[], labels: Doc<'labels'>[], categories: CategoryOption[], isMobile?: boolean }) => {
   const fromAccountId = useWatch({ control: form.control, name: 'accountId' });
   const toAccountId = useWatch({ control: form.control, name: 'toAccountId' });
+  const amount = useWatch({ control: form.control, name: 'amount' });
   const quantity = useWatch({ control: form.control, name: 'assetDetails.quantity' });
 
   // Prefill category if destination account has a linked category
@@ -642,7 +828,6 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
   const destIsSpecial = !isLiquid(toAccount?.type);
 
   // Show category selector if ANY side involves a Special Account
-  // This allows tracking both Inflow (Saving) and Outflow (Withdrawal)
   const showCategory = sourceIsSpecial || destIsSpecial;
   
   const isAssetTransaction = fromAccount?.type === 'ASSET' || toAccount?.type === 'ASSET';
@@ -660,7 +845,10 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
     amountLabel = 'Total Sale Value'; // Sell
   }
 
-  const amount = useWatch({ control: form.control, name: 'amount' });
+  const amountValue = parseAmount(amount);
+  const fromBalanceValue = parseAmount(fromAccount?.balance);
+  const isOverspent = fromAccount && amountValue > fromBalanceValue;
+
   const parsedAmount = parseFloat(amount?.replace(/,/g, '') || '0');
   const parsedQuantity = parseFloat(quantity || '0');
   const impliedPrice = parsedQuantity > 0 ? parsedAmount / parsedQuantity : 0;
@@ -700,7 +888,14 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
               </FormControl>
               <SelectContent>
                 {accounts.map(account => (
-                  <SelectItem key={account._id} value={account._id}>{account.name}</SelectItem>
+                  <SelectItem key={account._id} value={account._id}>
+                      <div className="flex w-full items-center justify-between gap-4">
+                        <span className="font-medium truncate">{account.name}</span>
+                        <span className="text-muted-foreground text-xs font-normal shrink-0">
+                            {formatCurrency(account.balance)}
+                        </span>
+                     </div>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -713,7 +908,14 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
         name="toAccountId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>To Account</FormLabel>
+            <div className="flex justify-between items-center">
+              <FormLabel>To Account</FormLabel>
+              {toAccount && (
+                <span className="text-xs text-muted-foreground font-medium">
+                   Balance: {formatCurrency(toAccount.balance)}
+                </span>
+              )}
+            </div>
             <Select onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
                 <SelectTrigger>
@@ -722,7 +924,14 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
               </FormControl>
               <SelectContent>
                 {accounts.map(account => (
-                  <SelectItem key={account._id} value={account._id}>{account.name}</SelectItem>
+                  <SelectItem key={account._id} value={account._id}>
+                      <div className="flex w-full items-center justify-between gap-4">
+                        <span className="font-medium truncate">{account.name}</span>
+                        <span className="text-muted-foreground text-xs font-normal shrink-0">
+                            {formatCurrency(account.balance)}
+                        </span>
+                     </div>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -770,26 +979,45 @@ const TransferFormFields = ({ form, accounts, labels, categories }: { form: UseF
         control={form.control}
         name="amount"
         render={({ field }) => (
-          <FormItem>
-            <FormLabel>{amountLabel}</FormLabel>
+          <FormItem className={cn(isMobile && "mb-8")}>
+            <FormLabel className={cn(isMobile && "text-center block text-muted-foreground uppercase text-[10px] font-bold tracking-widest")}>
+              {amountLabel}
+            </FormLabel>
             <FormControl>
-              <Input
-                placeholder="0"
-                inputMode="numeric"
-                {...field}
-                value={field.value || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  field.onChange(formatNumber(value));
-                }}
-                onBlur={(e) => {
-                  const value = e.target.value;
-                  field.onBlur();
-                  field.onChange(formatNumber(value));
-                }}
-              />
+              {isMobile ? (
+                  <div className="relative group">
+                    <Input
+                        placeholder="0"
+                        inputMode="numeric"
+                        className="h-24 text-5xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(formatNumber(value));
+                        }}
+                    />
+                    <div className="h-px w-full bg-linear-to-r from-transparent via-border to-transparent mt-1" />
+                  </div>
+              ) : (
+                <Input
+                    placeholder="0"
+                    inputMode="numeric"
+                    {...field}
+                    value={field.value || ''}
+                    onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(formatNumber(value));
+                    }}
+                    onBlur={(e) => {
+                    const value = e.target.value;
+                    field.onBlur();
+                    field.onChange(formatNumber(value));
+                    }}
+                />
+              )}
             </FormControl>
-            <FormMessage />
+            <FormMessage className={cn(isMobile && "text-center")} />
           </FormItem>
         )}
       />
