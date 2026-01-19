@@ -86,6 +86,7 @@
 5.  **Performance Optimization:**
     - **Avoid N+1 Queries:** When fetching lists of items with related data (e.g., Transactions with Accounts/Categories), always use **Batch Fetching**.
     - **Pattern:** Collect all IDs first -> `Promise.all(ids.map(ctx.db.get))` -> Map results back. **Do NOT** await `ctx.db.get` inside a loop.
+    - **Memoization (Frontend):** Use `useMemo` for heavy client-side grouping or filtering operations (e.g., `TransactionListGrouped`), especially when dealing with large datasets on mobile devices.
 
 ## Directory Structure
 
@@ -96,10 +97,12 @@
 │   └── globals.css      # Tailwind imports
 ├── components/          # React Components
 │   ├── ui/              # shadcn/ui primitives (Button, Input, etc.)
+│   ├── forms/           # Shared form sections (AutoSaveFields, etc.)
 │   ├── dashboard/       # Dashboard-specific widgets
 │   ├── transactions/    # Transaction-specific components
 │   ├── [Feature].tsx    # Shared Feature components (TransactionDrawer, etc.)
 │   └── HouseholdProvider.tsx # Context for Household state
+├── hooks/               # Custom React Hooks (useGoalCalculator, etc.)
 ├── convex/              # Backend Logic
 │   ├── schema.ts        # Database Schema
 │   ├── transactions.ts  # Transaction logic

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { TransactionWithDetails } from './types';
 import { TransactionItem } from '@/components/TransactionItem';
 import { groupTransactionsByDate } from '@/lib/utils';
@@ -11,8 +12,10 @@ interface Props {
 }
 
 export function TransactionListGrouped({ transactions, onEdit, onDelete, highlightLabelId, highlightCategoryId }: Props) {
-  const groupedTransactions = groupTransactionsByDate(transactions || []);
-  const sortedDates = Object.keys(groupedTransactions);
+  const { groupedTransactions, sortedDates } = useMemo(() => {
+    const grouped = groupTransactionsByDate(transactions || []);
+    return { groupedTransactions: grouped, sortedDates: Object.keys(grouped) };
+  }, [transactions]);
 
   const getDailyTotal = (transactions: TransactionWithDetails[]) => {
     let total = 0;

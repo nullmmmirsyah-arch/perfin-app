@@ -134,3 +134,8 @@ Certain UI patterns are standardized to ensure consistency.
 4.  **Notifications:**
     - **In-App:** Use `sonner` (`toast.success(...)`).
     - **Push:** Use `web-push` logic via Convex Actions.
+
+5.  **Refactoring & Reusability (New):**
+    - **Complex Logic:** Move heavy calculation or state logic (like Goal Projections) into custom hooks in `@/hooks` (e.g., `useGoalCalculator`).
+    - **Shared Form UI:** Extract repetitive form sections (like Auto-Save toggles) into `@/components/forms`.
+    - **Mobile UI:** Use dedicated mobile components from `@/components/ui/mobile-inputs` for complex inputs (Drawers simulating Selects) on small screens.

@@ -62,6 +62,7 @@ import { toast } from 'sonner';
 import { useHousehold } from '@/components/HouseholdProvider';
 import { SplitEditorDrawer } from './SplitEditorDrawer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -202,78 +203,6 @@ const formatNumber = (value: string | undefined) => {
   if (isNaN(parsed)) return '';
   return new Intl.NumberFormat('en-US').format(parsed);
 };
-
-// --- Mobile Selection Drawer (Replaces Select on Mobile) ---
-const MobileSelectionDrawer = ({ 
-  title, 
-  options, 
-  value, 
-  onSelect, 
-  trigger,
-  children
-}: { 
-  title: string, 
-  options?: { value: string, label: React.ReactNode, subLabel?: string }[], 
-  value?: string | Date, 
-  onSelect?: (val: string) => void, 
-  trigger: React.ReactNode,
-  children?: React.ReactNode
-}) => {
-  const [open, setOpen] = useState(false);
-  
-  return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        {trigger}
-      </DrawerTrigger>
-      <DrawerContent className="z-200 max-h-[85vh]">
-         <DrawerHeader className="text-left pb-2">
-            <DrawerTitle>{title}</DrawerTitle>
-         </DrawerHeader>
-         <div className="p-4 pt-0 flex flex-col gap-2 overflow-y-auto">
-            {children ? (
-                <div className="flex justify-center" onClick={(e) => {
-                    // For calendar, we intercept clicks to close drawer if a day is selected.
-                    // This is a heuristic: if the click target is a button (day) inside the calendar
-                    const target = e.target as HTMLElement;
-                    if (target.tagName === 'BUTTON' && target.getAttribute('name') === 'day') {
-                         setOpen(false);
-                    }
-                }}>
-                    {children}
-                </div>
-            ) : (
-                options?.map((opt) => (
-                    <button 
-                    key={opt.value} 
-                    type="button"
-                    className={cn(
-                        "flex items-center justify-between p-4 rounded-xl border transition-all active:scale-[0.98] text-left",
-                        value === opt.value ? "border-primary bg-primary/5" : "border-border bg-card"
-                    )}
-                    onClick={() => {
-                        onSelect?.(opt.value);
-                        setOpen(false);
-                    }}
-                    >
-                    <div className="flex flex-col gap-0.5">
-                            <span className={cn("font-semibold text-base", value === opt.value ? "text-primary" : "text-foreground")}>{opt.label}</span>
-                            {opt.subLabel && <span className="text-xs text-muted-foreground">{opt.subLabel}</span>}
-                    </div>
-                    {value === opt.value && <Check className="h-5 w-5 text-primary" />}
-                    </button>
-                ))
-            )}
-         </div>
-         <DrawerFooter className="pt-2">
-            <DrawerClose asChild>
-                <Button variant="outline" className="w-full">Cancel</Button>
-            </DrawerClose>
-         </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
-  );
-}
 
 // --- Main Wrapper Component ---
 const TransactionDrawer = (props: TransactionDrawerProps) => {
@@ -686,48 +615,6 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
     </Form>
   );
 }
-
-const MobileInputCard = ({ 
-    label, 
-    icon: Icon, 
-    children, 
-    valueDisplay, 
-    subValueDisplay,
-    onClick 
-}: { 
-    label: string, 
-    icon: React.ElementType, 
-    children?: React.ReactNode, 
-    valueDisplay?: string,
-    subValueDisplay?: string,
-    onClick?: () => void
-}) => {
-    // This is a visual wrapper that looks like a card.
-    return (
-        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border relative group active:scale-[0.99] transition-transform duration-100" onClick={onClick}>
-            <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
-                    <Icon className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">{label}</p>
-                    <p className="font-semibold text-foreground truncate text-base">
-                        {valueDisplay || "Select..."}
-                    </p>
-                    {subValueDisplay && (
-                        <p className="text-xs text-muted-foreground mt-0.5 font-medium">{subValueDisplay}</p>
-                    )}
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground/50" />
-            </div>
-            {children && (
-                <div className="absolute inset-0 opacity-0 cursor-pointer">
-                    {children}
-                </div>
-            )}
-        </div>
-    );
-};
 
 const TransactionFormFields = ({ 
     form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit, isMobile 
