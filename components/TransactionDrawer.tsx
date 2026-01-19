@@ -428,9 +428,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
                 categoryId: s.categoryId as Id<'categories'>,
                 amount: s.amount,
                 description: s.description,
-                labelId: s.labelId ? s.labelId as Id<'labels'> : undefined,
+                labelId: (s.labelId && s.labelId !== 'none') ? s.labelId as Id<'labels'> : undefined,
               })),
-              labelId: data.labelId ? data.labelId as Id<'labels'> : undefined,
+              labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
             });
             toast.success("Transaction updated");
@@ -449,9 +449,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
                 categoryId: s.categoryId as Id<'categories'>,
                 amount: s.amount,
                 description: s.description,
-                labelId: s.labelId ? s.labelId as Id<'labels'> : undefined,
+                labelId: (s.labelId && s.labelId !== 'none') ? s.labelId as Id<'labels'> : undefined,
               })),
-              labelId: data.labelId ? data.labelId as Id<'labels'> : undefined,
+              labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
             });
             toast.success("Transaction created");
@@ -530,6 +530,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
                     splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
                     onEditSplit={() => setSplitDrawerOpen(true)}
                     isMobile={isMobile}
+                    open={open}
                   />
                 </TabsContent>
                 <TabsContent value="income" className="space-y-4 mt-0 outline-none">
@@ -542,6 +543,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
                     splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
                     onEditSplit={() => setSplitDrawerOpen(true)}
                     isMobile={isMobile}
+                    open={open}
                   />
                 </TabsContent>
                 <TabsContent value="transfer" className="space-y-4 mt-0 outline-none">
@@ -617,7 +619,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
 }
 
 const TransactionFormFields = ({ 
-    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit, isMobile 
+    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit, isMobile, open 
 }: { 
     form: UseFormReturn<TransactionFormValues>, 
     categories: CategoryOption[], 
@@ -626,7 +628,8 @@ const TransactionFormFields = ({
     onSplitToggle?: (checked: boolean) => void,
     splitSummary?: { count: number, total: number },
     onEditSplit?: () => void,
-    isMobile?: boolean
+    isMobile?: boolean,
+    open?: boolean
 }) => {
   const isSplit = useWatch({ control: form.control, name: 'isSplit' });
   const type = useWatch({ control: form.control, name: 'type' });
@@ -645,6 +648,25 @@ const TransactionFormFields = ({
   const balanceValue = parseAmount(selectedAccount?.balance);
   const isOverspent = (type === 'expense' || type === 'transfer') && selectedAccount && amountValue > balanceValue;
 
+  // SAFE AUTO-FOCUS: Trigger every time 'open' becomes true.
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => {
+          amountInputRef.current?.focus({ preventScroll: true });
+      }, 250); // Slightly increased to 250ms for better stability
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // Helper to merge refs
+  const mergeRefs = (...refs: any[]) => (value: any) => {
+    refs.forEach(ref => {
+      if (typeof ref === 'function') ref(value);
+      else if (ref != null) ref.current = value;
+    });
+  };
+
   return (
     <>
       <div className={cn(isMobile && "space-y-6")}>
@@ -657,18 +679,19 @@ const TransactionFormFields = ({
                 {!isMobile && <FormLabel>Amount</FormLabel>}
                 <FormControl>
                   {isMobile ? (
-                      <div className="relative flex flex-col items-center justify-center py-6">
+                      <div className="relative flex flex-col items-center justify-center py-4">
                         <div className="flex items-start justify-center gap-1 text-foreground">
                             <span className="text-lg font-medium text-muted-foreground mt-2">Rp</span>
                             <Input
+                                {...field}
+                                ref={mergeRefs(amountInputRef, field.ref)}
                                 placeholder="0"
                                 inputMode="numeric"
                                 enterKeyHint="next"
                                 className={cn(
-                                    "h-auto p-0 text-6xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent transition-colors w-full min-w-[100px]",
+                                    "h-auto p-0 text-5xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent transition-colors w-full min-w-[100px]",
                                     isOverspent ? "text-destructive" : "text-foreground"
                                 )}
-                                {...field}
                                 value={field.value || ''}
                                 onChange={(e) => {
                                     const value = e.target.value;
@@ -815,19 +838,22 @@ const TransactionFormFields = ({
                                             </button>
                                         }
                                     >
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={(date) => {
-                                                if(date) {
-                                                    field.onChange(date);
+                                        {({ close }) => (
+                                            <Calendar
+                                                mode="single"
+                                                selected={field.value}
+                                                onSelect={(date) => {
+                                                    if(date) {
+                                                        field.onChange(date);
+                                                        close();
+                                                    }
+                                                }}
+                                                disabled={(date) =>
+                                                    date > new Date() || date < new Date("1900-01-01")
                                                 }
-                                            }}
-                                            disabled={(date) =>
-                                                date > new Date() || date < new Date("1900-01-01")
-                                            }
-                                            initialFocus
-                                        />
+                                                initialFocus
+                                            />
+                                        )}
                                     </MobileSelectionDrawer>
                                 </FormControl>
                             </FormItem>
@@ -1267,13 +1293,32 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                     control={form.control}
                     name="date"
                     render={({ field }) => (
-                        <div className="relative">
-                            <button type="button" className="w-full text-left outline-none">
-                                <MobileInputCard label="Date" icon={CalendarDays} valueDisplay={field.value ? field.value.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'Pick'} />
-                            </button>
-                            <div className="opacity-0 absolute inset-0 overflow-hidden">
-                                <DatePicker date={field.value} setDate={field.onChange} />
-                            </div>
+                         <div className="relative">
+                            <MobileSelectionDrawer
+                                title="Select Date"
+                                trigger={
+                                    <button type="button" className="w-full text-left outline-none">
+                                        <MobileInputCard label="Date" icon={CalendarDays} valueDisplay={field.value ? field.value.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'Pick'} />
+                                    </button>
+                                }
+                            >
+                                {({ close }) => (
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={(date) => {
+                                            if(date) {
+                                                field.onChange(date);
+                                                close();
+                                            }
+                                        }}
+                                        disabled={(date) =>
+                                            date > new Date() || date < new Date("1900-01-01")
+                                        }
+                                        initialFocus
+                                    />
+                                )}
+                            </MobileSelectionDrawer>
                         </div>
                     )}
                 />

@@ -25,9 +25,10 @@ export const MobileSelectionDrawer = ({
   value?: string | Date, 
   onSelect?: (val: string) => void, 
   trigger: React.ReactNode,
-  children?: React.ReactNode
+  children?: React.ReactNode | ((props: { close: () => void }) => React.ReactNode)
 }) => {
   const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
   
   return (
     <Drawer open={open} onOpenChange={setOpen}>
@@ -40,15 +41,8 @@ export const MobileSelectionDrawer = ({
          </DrawerHeader>
          <div className="p-4 pt-0 flex flex-col gap-2 overflow-y-auto">
             {children ? (
-                <div className="flex justify-center" onClick={(e) => {
-                    // For calendar, we intercept clicks to close drawer if a day is selected.
-                    // This is a heuristic: if the click target is a button (day) inside the calendar
-                    const target = e.target as HTMLElement;
-                    if (target.tagName === 'BUTTON' && target.getAttribute('name') === 'day') {
-                         setOpen(false);
-                    }
-                }}>
-                    {children}
+                <div className="flex justify-center">
+                    {typeof children === 'function' ? children({ close }) : children}
                 </div>
             ) : (
                 options?.map((opt) => (
