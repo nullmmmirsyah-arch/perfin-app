@@ -828,7 +828,7 @@ const TransactionFormFields = ({
                         control={form.control}
                         name="date"
                         render={({ field }) => (
-                            <FormItem className="flex flex-col">
+                            <FormItem className={cn("flex flex-col", isSplit && "col-span-2")}>
                                 <FormControl>
                                     <MobileSelectionDrawer
                                         title="Select Date"
@@ -860,57 +860,61 @@ const TransactionFormFields = ({
                         )}
                     />
                     
-                    <FormField
-                        control={form.control}
-                        name="labelId"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <MobileSelectionDrawer
-                                        title="Select Label"
-                                        value={field.value}
-                                        onSelect={field.onChange}
-                                        options={[
-                                            { value: 'none', label: 'None' },
-                                            ...(labels?.map(lbl => ({
-                                                value: lbl._id,
-                                                label: lbl.name
-                                            })) || [])
-                                        ]}
-                                        trigger={
-                                            <button type="button" className="w-full text-left outline-none">
-                                                <MobileInputCard label="Label" icon={Tag} valueDisplay={selectedLabel?.name || "None"} />
-                                            </button>
-                                        }
-                                    />
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
+                    {!isSplit && (
+                        <FormField
+                            control={form.control}
+                            name="labelId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <MobileSelectionDrawer
+                                            title="Select Label"
+                                            value={field.value}
+                                            onSelect={field.onChange}
+                                            options={[
+                                                { value: 'none', label: 'None' },
+                                                ...(labels?.map(lbl => ({
+                                                    value: lbl._id,
+                                                    label: lbl.name
+                                                })) || [])
+                                            ]}
+                                            trigger={
+                                                <button type="button" className="w-full text-left outline-none">
+                                                    <MobileInputCard label="Label" icon={Tag} valueDisplay={selectedLabel?.name || "None"} />
+                                                </button>
+                                            }
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    )}
                 </div>
 
-                <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/50">
-                            <div className="flex items-start gap-4">
-                                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 mt-1">
-                                    <FileText className="h-5 w-5" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Note</p>
-                                    <Textarea 
-                                        placeholder="Write a note..." 
-                                        className="min-h-[60px] border-none shadow-none resize-none p-0 focus-visible:ring-0 text-base" 
-                                        enterKeyHint="done"
-                                        {...field}
-                                    />
+                {!isSplit && (
+                    <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/50">
+                                <div className="flex items-start gap-4">
+                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0 mt-1">
+                                        <FileText className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Note</p>
+                                        <Textarea 
+                                            placeholder="Write a note..." 
+                                            className="min-h-[60px] border-none shadow-none resize-none p-0 focus-visible:ring-0 text-base" 
+                                            enterKeyHint="done"
+                                            {...field}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                />
+                        )}
+                    />
+                )}
                 
                 {/* Split Toggle Button */}
                 <div 
