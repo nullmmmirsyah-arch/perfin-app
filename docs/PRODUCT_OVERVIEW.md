@@ -9,15 +9,17 @@
 - **Asset Transactions (Buy/Sell):** Handled as Transfers between Liquid and Asset accounts. Backend automatically calculates:
     - **Buy:** Decreases Cash, Increases Asset Quantity/Cost Basis.
     - **Sell:** Increases Cash, Decreases Asset Quantity/Cost Basis, calculates Realized Profit.
-- **Split Transactions:** Ability to split a single transaction into multiple categories. Uses a dedicated **Nested Drawer** UI for better mobile experience.
+- **Split Transactions:** Ability to split a single transaction into multiple categories.
+    - **Unified UI:** Uses a dedicated drawer with the same visual language as the main transaction entry.
+    - **Context-Aware Fields:** When Split mode is active, global fields (Category, Label, Description) are hidden to prevent redundancy, replaced by a "Split Summary Card" that shows item count and total allocated funds.
 - **Filtering:** Powerful **Multi-Select Filtering** allows users to combine multiple Accounts, Categories, or Types simultaneously. Supports Date Range filtering.
-- **Analytics:** Integrated visual analytics (Donut Chart) with **Real-time Trend Analysis** (comparing current vs previous period) directly within the transaction list via a swipeable tab interface.
 
 ### 2. Accounts (Funds Storage)
 - **Types:**
   - **Liquid (Cash/Bank):** Used for daily spending.
   - **Savings:** Non-liquid funds reserved for specific goals.
   - **Assets:** Track value of non-monetary items (Gold, Stocks) with Quantity/Unit support.
+- **Asset Onboarding:** When creating a new Asset account, providing an **Initial Balance** and **Initial Quantity** automatically initializes the `totalCostBasis`. This ensures that future sales of pre-owned assets provide accurate Profit/Loss reports.
 - **Linked Goals:** Creating a **Saving** or **Asset** account automatically creates a linked category (Goal) with the same name.
 - **Unified Management:**
   - **Full Control:** Goal targets (amount/date), **Monthly Contribution (Budget)**, and **Auto-Save** schedules can be managed directly from *either* the Account Drawer or the Category Drawer.
@@ -97,7 +99,11 @@
 
 ## Business Logic Rules
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is blocked if transactions exist.
-2.  **Transfers:**
+2.  **Account Type Locking:** Once an account has associated transactions, its **Type (Cash/Asset/Saving)** is permanently locked. This prevents data corruption (e.g., swapping Cash to Asset without quantity data) and historical report inconsistencies. Users must Archive the old account and create a new one if a type change is needed.
+3.  **Asset Inventory Safety:**
+    - The system strictly enforces **Non-Negative Quantity** for assets.
+    - Actions that would result in negative inventory (e.g., Deleting a "Buy" transaction after the asset has been sold, or Editing a "Sell" transaction to sell more than currently owned) are blocked with a descriptive error.
+4.  **Transfers:**
     - Transfer between Liquid accounts = Neutral.
     - Transfer Liquid -> Saving/Asset = "Spending" (allocating to goal).
     - **Auto-Categorization:** Transfers to accounts with linked categories automatically inherit that category.

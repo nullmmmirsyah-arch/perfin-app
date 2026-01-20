@@ -8,6 +8,7 @@ This document outlines the design philosophy and user experience patterns used i
 3.  **Focus & Context:** Avoid clutter. Use drawers to drill down into complex tasks.
 4.  **Swipe Navigation:** Prioritize gestures (Swipe Left/Right) for switching contexts (e.g., List vs Analytics, Expenses vs Savings).
 5.  **Data Integrity:** Ensure robust data handling, especially regarding dates and preventing duplicate submissions.
+    - **Inventory Paradox Prevention:** For Asset Accounts, the backend must validate that any Update or Delete operation does not result in a negative quantity balance (e.g., selling more than you own).
 
 ## UX Patterns
 
@@ -21,7 +22,9 @@ This document outlines the design philosophy and user experience patterns used i
 
 ### 2. Forms & Data Entry
 - **Drawers (Sheet) over Modals:** Use `Drawer` (from `vaul`/shadcn) for almost all forms (Add Transaction, Edit Account, etc.).
-- **Nested Drawers:** For complex sub-forms (like **Split Transactions**), DO NOT expand the form inline. Open a second, nested Drawer. This prevents keyboard occlusion issues on mobile.
+- **Nested Drawers:** For complex sub-forms (like **Split Transactions**), DO NOT expand the form inline. Open a second, nested Drawer. 
+    - **Visual Consistency:** The nested drawer (Split Editor) must use the same component patterns as the main drawer (`MobileInputCard`, `MobileSelectionDrawer`).
+    - **Focused Interface:** Hide redundant global fields in the parent drawer when a sub-editor is active to maintain user focus on the relevant context.
 - **Unified Account & Goal:** For Saving/Asset accounts, provide optional "Goal Settings" directly in the `AccountDrawer`. This allows users to set targets without leaving the account context.
 - **Auto-Save/Validation:** Use `react-hook-form` + `zod` for instant validation.
 - **Submission Safety:**

@@ -783,49 +783,99 @@ export const update = mutation({
       const isToAsset = toAccount.type === ACCOUNT_TYPES.ASSET;
 
       if (isFromAsset || isToAsset) {
-          const quantity = parseFloat(newTx.assetDetails?.quantity || '0');
-          if (quantity <= 0) throw new Error("Quantity required for asset transaction");
+          const newQuantity = parseFloat(newTx.assetDetails?.quantity || '0');
+          const originalQuantity = parseFloat(originalTransaction.assetDetails?.quantity || '0');
+
+          if (newQuantity <= 0) throw new Error("Quantity required for asset transaction");
 
           if (!isFromAsset && isToAsset) {
-              const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
-              await ctx.db.patch(fromAccount._id, { balance: (fromBalance - newAmount).toString() });
-
+              // Edit "BUY" (Income to Asset)
+              // Net Effect: Are we adding more or removing some?
+              // If new < original, we are removing the difference from the account.
+              const qtyDifference = newQuantity - originalQuantity;
               const currentQty = toAccount.quantity ?? parseFloat(toAccount.initialQuantity || '0');
+              
+              if (qtyDifference < 0 && (currentQty + qtyDifference) < 0) {
+                 throw new Error(`Cannot update transaction. Reducing quantity by ${Math.abs(qtyDifference)} results in negative balance (Current: ${currentQty}).`);
+              }
+
+              const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
+              await ctx.db.patch(fromAccount._id, { balance: (fromBalance - newAmount + originalAmount).toString() }); // Net balance change? 
+              // Wait, simpler to follow standard flow: Revert Old, Apply New. But we need safety check first.
+              // Re-fetching fresh state might be safer but let's trust the logic.
+              // Correct Revert+Apply logic for Balance:
+              // Old was: From - OldAmount
+              // New is: From - NewAmount
+              // Delta: From + OldAmount - NewAmount. Correct.
+
               const currentCostBasis = toAccount.totalCostBasis ?? 0;
-              const newQty = currentQty + quantity;
-              const newCostBasis = currentCostBasis + newAmount;
-              const impliedPrice = quantity > 0 ? newAmount / quantity : 0;
+              const newQty = currentQty - originalQuantity + newQuantity; // Revert then Apply
+              const newCostBasis = currentCostBasis - originalAmount + newAmount;
+              
+              // We need price to update balance value.
+              // If we are editing a BUY, usually we assume the current price is driven by this buy? 
+              // Or we keep the implicit price? 
+              // Let's use the Implicit Price from the NEW transaction for the new balance valuation?
+              // No, valuation should be: NewQty * (Current Market Price).
+              // Current Market Price = CurrentBalance / CurrentQty.
+              const currentPrice = currentQty > 0 ? parseFloat(toAccount.balance) / currentQty : 0;
+              // If we are strictly backdating, this simple logic might slightly drift valuation, but it preserves "Market Value".
               
               await ctx.db.patch(toAccount._id, {
                   quantity: newQty,
                   totalCostBasis: newCostBasis,
-                  balance: (newQty * impliedPrice).toString()
+                  balance: (newQty * currentPrice).toString()
               });
           }
           else if (isFromAsset && !isToAsset) {
-              const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
-              await ctx.db.patch(toAccount._id, { balance: (toBalance + newAmount).toString() });
-
+              // Edit "SELL" (Asset to Cash)
+              // We are removing assets.
+              // Old removed: originalQuantity
+              // New removes: newQuantity
+              // If new > original, we are removing MORE.
+              const extraToRemove = newQuantity - originalQuantity;
               const currentQty = fromAccount.quantity ?? parseFloat(fromAccount.initialQuantity || '0');
+              
+              if (extraToRemove > 0 && (currentQty - extraToRemove) < 0) {
+                 throw new Error(`Cannot update transaction. Selling ${extraToRemove} more units exceeds current balance (Current: ${currentQty}).`);
+              }
+
+              const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
+              await ctx.db.patch(toAccount._id, { balance: (toBalance + newAmount - originalAmount).toString() });
+
               const currentCostBasis = fromAccount.totalCostBasis ?? 0;
               const currentRealizedProfit = fromAccount.totalRealizedProfit ?? 0;
 
-              if (currentQty < quantity) throw new Error("Insufficient asset quantity");
+              // Revert Old Sell Logic to find "Pre-Sell" state is hard without transaction history recalculation.
+              // Approximation: 
+              // 1. Revert the "Cost of Goods Sold" from the Old Transaction.
+              // Problem: We don't store the exact COGS used in the original tx.
+              // We have to estimate it using CURRENT Average Cost, which might have changed.
+              // This is the limitation of simple average cost.
+              // Best Effort: Use Current Average Cost for both Revert and Apply.
+              
+              const avgCost = currentQty > 0 ? currentCostBasis / currentQty : 0; 
+              
+              // New Logic:
+              // We need to adjust Cost Basis by the net change in quantity sold * avgCost.
+              // Quantity Change = newQuantity - originalQuantity
+              const qtyChange = newQuantity - originalQuantity;
+              const costBasisAdjustment = qtyChange * avgCost; // If selling more, reduce basis more.
+              
+              const profitAdjustment = (newAmount - originalAmount) - costBasisAdjustment; // Revenue Change - Cost Change
 
-              const avgCost = currentQty > 0 ? currentCostBasis / currentQty : 0;
-              const costOfSoldGoods = avgCost * quantity;
-              const profit = newAmount - costOfSoldGoods;
-
-              const newQty = currentQty - quantity;
-              const newCostBasis = currentCostBasis - costOfSoldGoods;
-              const newRealizedProfit = currentRealizedProfit + profit;
-              const sellPrice = quantity > 0 ? newAmount / quantity : 0;
+              const newQty = currentQty - qtyChange;
+              const newCostBasis = currentCostBasis - costBasisAdjustment;
+              const newRealizedProfit = currentRealizedProfit + profitAdjustment;
+              
+              // Valuation
+              const currentPrice = currentQty > 0 ? parseFloat(fromAccount.balance) / currentQty : 0;
 
               await ctx.db.patch(fromAccount._id, {
                   quantity: newQty,
                   totalCostBasis: newCostBasis,
                   totalRealizedProfit: newRealizedProfit,
-                  balance: (newQty * sellPrice).toString()
+                  balance: (newQty * currentPrice).toString()
               });
           }
       } else {
@@ -925,10 +975,16 @@ export const deleteTransaction = mutation({
         const quantity = parseFloat(transaction.assetDetails?.quantity || '0');
         
         if (!isFromAsset && isToAsset) {
+          // Deleting a "BUY" (Income to Asset). We must revert (remove) the added quantity.
+          // Safety Check: Ensure we have enough quantity to remove.
+          const currentQty = toAccount.quantity ?? parseFloat(toAccount.initialQuantity || '0');
+          if ((currentQty - quantity) < 0) {
+              throw new Error(`Cannot delete this transaction. It would result in negative asset quantity (Current: ${currentQty}, Removing: ${quantity}). This asset might have already been sold.`);
+          }
+
           const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
           await ctx.db.patch(fromAccount._id, { balance: (fromBalance + amount).toString() });
 
-          const currentQty = toAccount.quantity ?? parseFloat(toAccount.initialQuantity || '0');
           const currentCostBasis = toAccount.totalCostBasis ?? 0;
 
           const newQty = Math.max(0, currentQty - quantity);

@@ -98,6 +98,9 @@ export const create = mutation({
         }
     }
 
+    const initialBalance = parseFloat(args.balance.replace(/,/g, ''));
+    const isAsset = args.type === ACCOUNT_TYPES.ASSET;
+
     const accountId = await ctx.db.insert("accounts", {
       householdId: args.householdId,
       name: args.name,
@@ -107,11 +110,14 @@ export const create = mutation({
       unit: args.unit,
       userId: identity.subject,
       linkedCategoryId,
+      // Initialize Asset metrics for accurate profit tracking
+      quantity: isAsset ? parseFloat(args.initialQuantity || '0') : undefined,
+      totalCostBasis: isAsset ? initialBalance : undefined,
     });
 
-    // Create Initial Balance Transaction if balance > 0
-    const initialBalance = parseFloat(args.balance.replace(/,/g, ''));
-    if (initialBalance > 0 && args.type !== ACCOUNT_TYPES.ASSET) {
+    // Create Initial Balance Transaction if balance > 0 and NOT an asset 
+    // (Assets handle their own initial value via cost basis above)
+    if (initialBalance > 0 && !isAsset) {
         // 1. Find or Create "Initial Balance" Category
         let categoryId;
         const existingCategory = await ctx.db
@@ -172,6 +178,18 @@ export const update = mutation({
         await ensureHouseholdAccess(ctx, account.householdId, identity.subject);
     } else {
         if (account.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    // Safety Guard: Prevent Type Swap if Transactions Exist
+    if (args.type && args.type !== account.type) {
+        const hasTx = await ctx.db.query("transactions")
+            .withIndex("by_userId", q => q.eq("userId", identity.subject))
+            .filter(q => q.or(q.eq(q.field("accountId"), id), q.eq(q.field("toAccountId"), id)))
+            .first();
+        
+        if (hasTx) {
+            throw new Error("Cannot change Account Type because this account already has transactions. Please archive this account and create a new one instead.");
+        }
     }
 
     if (args.name && account.linkedCategoryId) {
