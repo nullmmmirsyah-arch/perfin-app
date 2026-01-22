@@ -53,6 +53,10 @@
 3.  **Centralized Logic (Important):**
     - To maintain data consistency across Dashboard, Budget, and Transactions, core business logic is centralized in `convex/lib/`.
     - **`convex/lib/finance.ts`:** Contains pure functions for calculating Spending, Unassigned Cash, and Transaction Analysis. **ALWAYS** use these helpers instead of re-writing logic in queries.
+    - **`convex/lib/finance.ts` (Fiscal Logic):**
+        - `getFiscalDateDetails(date, startDay)`: Converts a Calendar Date to Fiscal Year/Month.
+        - `getFiscalMonthRange(year, month, startDay)`: Returns start/end timestamps for a fiscal period.
+        - **Critical:** All budget queries MUST use these helpers to support custom start days.
     - **`convex/lib/auth.ts`:** Centralized authorization checks (`ensureHouseholdAccess`).
     - **`convex/lib/constants.ts`:** Constants for Transaction Types, Category Types, Account Types, etc. **NEVER** use string literals (e.g., "expense") directly; import from constants.
     - **`lib/utils.ts` (Frontend):**
@@ -74,6 +78,9 @@
         - **Helper:** `generateSearchTags` in `convex/lib/transactions.ts` extracts all IDs from the main transaction and splits.
         - **Logic:** This helper is called automatically during `create` and `update` mutations to ensure the index is always in sync with the data.
         - **Migration:** A one-off script `convex/migrations.ts:backfillSearchTags` is available to populate this index for existing data.
+    - **Reconciliation Optimization:**
+        - **Schema:** Added indexes `by_accountId` and `by_toAccountId` to `transactions` table.
+        - **Usage:** Used by `getLiquidAccountComposition` to quickly calculate net contribution from Liquid accounts to Goals without full table scans.
     - **Cron Jobs (Auto-Save):**
         - Uses **Native Convex Crons** defined in `convex/crons.ts`.
         - Runs **Hourly** to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).

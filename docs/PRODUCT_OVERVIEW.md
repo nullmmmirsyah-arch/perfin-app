@@ -97,6 +97,23 @@
 - **Visuals:** Sensitive amounts (Balances, Totals) are masked using bullet characters (`••••`) instead of asterisks.
 - **Interaction:** Toggled via the **Eye Icon** in the Dashboard Page Header.
 
+### 8. Custom Budget Cycle (Fiscal Month)
+- **Concept:** Supports users who receive income on a specific date (e.g., 25th) rather than the 1st of the month.
+- **Configuration:** Managed in Household Settings (`budgetStartDay`).
+- **Logic:**
+    - If Start Day = 25.
+    - Transaction on Jan 20th -> Belongs to **December Fiscal Period** (Dec 25 - Jan 24).
+    - Transaction on Jan 26th -> Belongs to **January Fiscal Period** (Jan 25 - Feb 24).
+- **Impact:** All dashboards, budgets, and reports automatically align with this cycle. "Safe to Spend" calculates days remaining until the *next cycle start*, not the end of the calendar month.
+
+### 9. Funds Reconciliation (Virtual Allocations)
+- **Problem:** Users often keep savings in their main bank account but track them as separate "Goals" in the app. This causes a mismatch between App Balance (deducted) and Real Bank Balance (full).
+- **Solution:** Liquid Accounts (Cash/Bank) now feature a **Reconciliation Trace**.
+- **Visuals:** In Account Details and Dashboard:
+    - **Total Bank Balance:** The real-world balance (Available + Allocated).
+    - **Allocated Funds:** Breakdown of money reserved for specific Goals/Savings.
+    - **True Available:** The amount safe to spend.
+
 ## Business Logic Rules
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is blocked if transactions exist.
 2.  **Account Type Locking:** Once an account has associated transactions, its **Type (Cash/Asset/Saving)** is permanently locked. This prevents data corruption (e.g., swapping Cash to Asset without quantity data) and historical report inconsistencies. Users must Archive the old account and create a new one if a type change is needed.
