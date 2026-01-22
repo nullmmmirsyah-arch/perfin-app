@@ -6,7 +6,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { calculateBudgetPace, calculateFiscalDaysRemaining } from '@/lib/finance-utils';
+import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails } from '@/lib/finance-utils';
 
 export type BudgetBreakdownItem = {
   categoryName: string;
@@ -47,8 +47,11 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: {
 
     // Pacing Logic
     const now = new Date();
+    // FIX: Use Fiscal Month to ensure isCurrentFiscalMonth is TRUE in helper
+    const { year, month } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
+    
     const pacing = item.enablePacing && item.limit > 0
-        ? calculateBudgetPace(item.spent, item.limit, now.getFullYear(), now.getMonth(), budgetStartDay)
+        ? calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay)
         : null;
 
     return (
@@ -224,11 +227,12 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                 ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
                 .sort((a, b) => {
                     const now = new Date();
+                    const { year, month } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
                     
                     const getPacingScore = (item: BudgetBreakdownItem) => {
                         if (!item.enablePacing || item.limit <= 0) return 0;
                         
-                        const p = calculateBudgetPace(item.spent, item.limit, now.getFullYear(), now.getMonth());
+                        const p = calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay);
                         if (p.status === 'danger') return 3;
                         if (p.status === 'warning') return 2;
                         return 1;

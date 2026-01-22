@@ -21,6 +21,15 @@ export function getFiscalDate(date: Date, startDay: number = 1): Date {
   return date;
 }
 
+export function getFiscalDateDetails(dateStr: string, startDay: number = 1): { year: number; month: number } {
+  const date = new Date(dateStr);
+  const fiscalDate = getFiscalDate(date, startDay);
+  return {
+      year: fiscalDate.getFullYear(),
+      month: fiscalDate.getMonth()
+  };
+}
+
 export function getFiscalMonthRange(year: number, month: number, startDay: number = 1): { start: Date; end: Date } {
   // Determine Start Date based on Year/Month provided
   // Note: These inputs (year/month) are assumed to be the "Fiscal Label".
@@ -98,6 +107,9 @@ export function calculateBudgetPace(
   const currentFiscal = getFiscalDate(now, budgetStartDay);
   const isCurrentFiscalMonth = currentFiscal.getFullYear() === year && currentFiscal.getMonth() === month;
   
+  // Base status check: Over budget is ALWAYS danger
+  const isOver = limit > 0 && spent > limit;
+
   // If viewing Past/Future, simpler logic
   if (!isCurrentFiscalMonth) {
     const viewDate = new Date(year, month, budgetStartDay);
@@ -105,7 +117,7 @@ export function calculateBudgetPace(
     
     if (isPast) {
       return {
-        status: spent > limit ? 'danger' : 'safe',
+        status: isOver ? 'danger' : 'safe',
         dailyLimit: 0,
         timeProgress: 100,
         spendProgress: limit > 0 ? (spent / limit) * 100 : 0,
@@ -114,10 +126,10 @@ export function calculateBudgetPace(
     }
     // Future
     return {
-      status: 'safe',
+      status: isOver ? 'danger' : 'safe',
       dailyLimit: limit / 30, // Approx
       timeProgress: 0,
-      spendProgress: 0,
+      spendProgress: limit > 0 ? (spent / limit) * 100 : 0,
       daysRemaining: 30,
     };
   }
@@ -129,17 +141,11 @@ export function calculateBudgetPace(
   const totalDaysInCycle = differenceInCalendarDays(end, start) + 1;
   
   // Days Passed since Start of Cycle
-  // If Start=25, Now=21. Start Date was Dec 25. Now is Jan 21.
-  // Diff = 27 days passed.
   const daysPassed = differenceInCalendarDays(now, start) + 1;
   
   const timeProgress = (daysPassed / totalDaysInCycle) * 100;
   const spendProgress = limit > 0 ? (spent / limit) * 100 : 0;
   
-  const daysRemaining = Math.max(1, totalDaysInCycle - daysPassed + 1); // +1 safety or handled by logic above?
-  // Let's rely on our robust helper for consistency if needed, 
-  // but here we have the exact range. 
-  // differenceInCalendarDays(end, now) + 1 is exactly days remaining.
   const daysRemainingExact = differenceInCalendarDays(end, now) + 1;
 
   const remainingBudget = Math.max(0, limit - spent);
@@ -148,14 +154,13 @@ export function calculateBudgetPace(
   // Status Logic
   let status: PacingStatus = 'safe';
   
-  // Danger if spending is > 10% faster than time
-  if (spendProgress > timeProgress + 10) {
+  if (isOver) {
+      status = 'danger';
+  } else if (spendProgress > timeProgress + 10) {
     status = 'danger';
   } else if (spendProgress > timeProgress) {
     status = 'warning';
   }
-
-  if (spent > limit) status = 'danger';
 
   return {
     status,

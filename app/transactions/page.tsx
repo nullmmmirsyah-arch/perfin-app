@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { List, PieChart } from 'lucide-react'
 import { TransactionAnalytics } from '@/components/transactions/TransactionAnalytics'
 import { startOfMonth, endOfMonth } from 'date-fns'
-import { getFiscalMonthRange, getFiscalDate } from '@/lib/finance-utils'
+import { getFiscalMonthRange, getFiscalDateDetails } from '@/lib/finance-utils'
 
 import { 
   type CarouselApi, 
@@ -68,8 +68,8 @@ export default function TransactionsPage() {
   // Only update on initial load/change of settings to avoid overwriting user manual selection
   useEffect(() => {
       if (budgetStartDay > 1) {
-          const fiscalDate = getFiscalDate(new Date(), budgetStartDay);
-          const { start, end } = getFiscalMonthRange(fiscalDate.getFullYear(), fiscalDate.getMonth(), budgetStartDay);
+          const { year, month } = getFiscalDateDetails(new Date().toISOString(), budgetStartDay);
+          const { start, end } = getFiscalMonthRange(year, month, budgetStartDay);
           setFilters(prev => ({
               ...prev,
               dateRange: { from: start, to: end }
