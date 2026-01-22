@@ -4,22 +4,17 @@ import { useForm, useFieldArray, useWatch, UseFormReturn } from 'react-hook-form
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import * as SelectPrimitive from "@radix-ui/react-select";
 import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-  DrawerFooter,
-  DrawerClose,
-  DrawerTrigger,
 } from '@/components/ui/drawer';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -51,9 +46,7 @@ import {
   CalendarDays, 
   FileText, 
   ArrowRight,
-  ChevronDown,
   Tag,
-  Check,
   Loader2
 } from 'lucide-react';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
@@ -394,15 +387,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
     // 2. If date is NOT Today (manual pick), set to 12:00 PM to avoid timezone shift bugs (e.g. 00:00 WIB -> 17:00 UTC prev day).
     const now = new Date();
     const selectedDate = new Date(data.date);
-    const isToday = selectedDate.toDateString() === now.toDateString();
-    
-    if (isToday) {
-        // Keep current hours/mins/secs
-        selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-    } else {
-        // Set to safe noon
-        selectedDate.setHours(12, 0, 0, 0);
-    }
+    // Always set to 12:00 PM (noon) local time to prevent UTC timezone shifts from changing the date.
+    // This ensures transactions are assigned to the correct fiscal month regardless of time of entry.
+    selectedDate.setHours(12, 0, 0, 0);
     const dateStr = selectedDate.toISOString();
 
     const assetDetails = data.assetDetails?.quantity 

@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { Check, PartyPopper, ArrowRight, Wallet, CalendarClock, TrendingUp, Sparkles } from 'lucide-react'
+import { PartyPopper, ArrowRight, CalendarClock, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useHousehold } from './HouseholdProvider'
 import confetti from 'canvas-confetti'
@@ -137,6 +137,9 @@ export default function GoalAchievementDialog({
       }
 
       try {
+          const date = new Date();
+          date.setHours(12, 0, 0, 0);
+
           await createTransaction({
               householdId: householdId ?? undefined,
               type: 'transfer',
@@ -144,7 +147,7 @@ export default function GoalAchievementDialog({
               toAccountId: destAccountId as Id<"accounts">,
               amount: transferAmount,
               categoryId: categoryId,
-              date: new Date().toISOString(),
+              date: date.toISOString(),
               description: `Goal Reached: ${category.name} Disbursement`,
               isGoalDisbursement: true, // Special Flag
           })
@@ -168,9 +171,12 @@ export default function GoalAchievementDialog({
       }
       
       try {
+          const date = new Date(newTargetDate);
+          date.setHours(12, 0, 0, 0);
+
           await resetGoal({
               id: categoryId,
-              newTargetDate: newTargetDate.toISOString()
+              newTargetDate: date.toISOString()
           });
           await markRead({ id: notificationId });
           toast.success("Cycle reset! Ready for next payment.");

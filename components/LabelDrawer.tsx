@@ -69,13 +69,19 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
   const { formState: { isSubmitting } } = form;
 
   useEffect(() => {
-    if (open && isEditMode) {
-      form.reset(label);
-    } else if (open && !isEditMode) {
-      form.reset({
-        name: '',
-        color: predefinedColors[0],
-      });
+    if (open) {
+      // Reset lock and processing state when opening
+      setIsProcessing(false);
+      submitLock.current = false;
+
+      if (isEditMode) {
+        form.reset(label);
+      } else {
+        form.reset({
+          name: '',
+          color: predefinedColors[0],
+        });
+      }
     }
   }, [open, isEditMode, label, form]);
 
@@ -187,3 +193,4 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
 };
 
 export default LabelDrawer;
+

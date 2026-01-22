@@ -25,13 +25,22 @@ import { Loader2 } from 'lucide-react'
 type Props = { ... }
 
 // 2. Component
-export default function ComponentName({ ... }: Props) {
+export default function ComponentName({ open, onOpenChange }: Props) {
   // 3. Hooks (Query/Mutation/State)
   const data = useQuery(...)
   const [isProcessing, setIsProcessing] = useState(false)
   const submitLock = useRef(false)
   
-  // 4. Handlers
+  // 4. Lifecycle (Reset locks on open)
+  // Essential for Drawers/Dialogs to prevent "stuck" loading states
+  useEffect(() => {
+    if (open) {
+      setIsProcessing(false);
+      submitLock.current = false;
+    }
+  }, [open]);
+
+  // 5. Handlers
   const handleSubmit = async () => {
     // Synchronous Lock (Double-click prevention)
     if (submitLock.current || isProcessing) return;
@@ -42,6 +51,9 @@ export default function ComponentName({ ... }: Props) {
         if (navigator.vibrate) navigator.vibrate(10); // Haptics
         
         // ... Logic ...
+        
+        // Success
+        onOpenChange(false);
     } catch (e) {
         // Reset on error
         submitLock.current = false;
@@ -49,7 +61,7 @@ export default function ComponentName({ ... }: Props) {
     }
   }
 
-  // 5. Render
+  // 6. Render
   return (
     <Button disabled={isProcessing}>
         {isProcessing ? <Loader2 className="animate-spin" /> : "Save"}

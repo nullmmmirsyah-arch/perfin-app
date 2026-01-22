@@ -32,11 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { cn, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -140,8 +138,6 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
     },
   });
 
-  const { formState: { isSubmitting } } = form;
-
   const accountType = useWatch({ control: form.control, name: 'type' });
   const enableGoal = useWatch({ control: form.control, name: 'enableGoal' });
   const enableAutoSave = useWatch({ control: form.control, name: 'enableAutoSave' });
@@ -180,7 +176,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         enableAutoSave: !!existingSchedule?.isEnabled,
         autoSaveSourceAccountId: existingSchedule?.fromAccountId || '',
         autoSaveAmount: existingSchedule?.amount || '',
-        autoSaveFrequency: (existingSchedule?.frequency as any) || 'monthly',
+        autoSaveFrequency: (existingSchedule?.frequency as 'daily' | 'weekly' | 'monthly' | 'yearly') || 'monthly',
         autoSaveDay: existingSchedule?.nextRunAt ? new Date(existingSchedule.nextRunAt).getDate().toString() : '25',
       });
     } else if (open && !isEditMode) {
@@ -234,15 +230,9 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         // Normalize target date to prevent timezone shifts
         let targetDateStr: string | undefined = undefined;
         if (data.enableGoal && data.targetDate) {
-            const now = new Date();
             const selectedDate = new Date(data.targetDate);
-            const isToday = selectedDate.toDateString() === now.toDateString();
-            
-            if (isToday) {
-                selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
-            } else {
-                selectedDate.setHours(12, 0, 0, 0);
-            }
+            // Always set to 12:00 PM (noon) local time to prevent UTC timezone shifts from changing the date.
+            selectedDate.setHours(12, 0, 0, 0);
             targetDateStr = selectedDate.toISOString();
         }
 
@@ -274,10 +264,8 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
 
         let targetCategoryId: Id<'categories'> | undefined;
         if (isEditMode) {
-             // @ts-ignore
             targetCategoryId = result?.linkedCategoryId ?? account?.linkedCategoryId; 
         } else {
-             // @ts-ignore
             targetCategoryId = result?.linkedCategoryId;
         }
 
@@ -297,7 +285,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                     name: `Auto-Save: ${data.name}`,
                     amount: data.autoSaveAmount || data.monthlyBudget || '0',
                     fromAccountId: data.autoSaveSourceAccountId as Id<'accounts'>,
-                    toAccountId: isEditMode ? account?._id : (result as any).accountId,
+                    toAccountId: isEditMode ? account?._id : (result as { accountId: Id<'accounts'> }).accountId,
                     linkedEntityId: targetCategoryId,
                     frequency: data.autoSaveFrequency || 'monthly',
                     nextRunAt: nextRun.getTime(),
@@ -310,7 +298,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                     name: existingSchedule.name,
                     amount: existingSchedule.amount,
                     fromAccountId: existingSchedule.fromAccountId,
-                    frequency: existingSchedule.frequency as any,
+                    frequency: existingSchedule.frequency as 'daily' | 'weekly' | 'monthly' | 'yearly',
                     nextRunAt: existingSchedule.nextRunAt,
                 });
             }
@@ -318,8 +306,9 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         
         toast.success(isEditMode ? "Account updated" : "Account created");
         onOpenChange(false);
-    } catch (error: any) {
-        toast.error(error.message || "Failed to save account");
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to save account";
+        toast.error(message);
         setIsProcessing(false);
         submitLock.current = false;
     }

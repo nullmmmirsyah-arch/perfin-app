@@ -98,6 +98,10 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
 
   useEffect(() => {
     if (open) {
+      // Reset lock and processing state when opening
+      setIsProcessing(false);
+      submitLock.current = false;
+
       form.reset({
         categoryId: defaultCategory?._id ?? '',
         amount: activeTab === 'set-limit' ? (currentAmount ? formatAmount(currentAmount) : '') : '', 

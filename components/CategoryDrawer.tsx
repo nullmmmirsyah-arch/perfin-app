@@ -11,7 +11,6 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-  DrawerFooter,
   DrawerClose,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
@@ -32,9 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
@@ -101,7 +98,6 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
 
   // Local State for Calculator
   const [monthlyContribution, setMonthlyContribution] = useState<string>('');
-  const [isManuallyEdited, setIsManuallyEdited] = useState(false);
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(CategoryFormSchema),
@@ -119,8 +115,6 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
     }
   });
 
-  const { formState: { isSubmitting } } = form;
-
   const categoryType = useWatch({ control: form.control, name: 'type' });
   const targetAmountStr = useWatch({ control: form.control, name: 'targetAmount' });
   const targetDate = useWatch({ control: form.control, name: 'targetDate' });
@@ -137,11 +131,11 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
             targetAmount: category.targetAmount || '',
             targetDate: category.targetDate ? new Date(category.targetDate) : undefined,
             enablePacing: category.enablePacing || false,
-            goalType: (category.goalType as any) || 'purchase',
+            goalType: (category.goalType as 'investment' | 'bill' | 'purchase') || 'purchase',
             enableAutoSave: !!existingSchedule?.isEnabled,
             autoSaveSourceAccountId: existingSchedule?.fromAccountId || '',
             autoSaveAmount: existingSchedule?.amount || '',
-            autoSaveFrequency: (existingSchedule?.frequency as any) || 'monthly',
+            autoSaveFrequency: (existingSchedule?.frequency as 'daily' | 'weekly' | 'monthly' | 'yearly') || 'monthly',
             autoSaveDay: existingSchedule?.nextRunAt ? new Date(existingSchedule.nextRunAt).getDate().toString() : '25',
         });
         
@@ -165,7 +159,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         });
         setMonthlyContribution('');
     }
-  }, [open, isEditMode, category, existingSchedule, form, defaultType]);
+  }, [open, isEditMode, category, existingSchedule, form, defaultType, currentCategoryBudget?.amount]);
 
   const formatNumber = (value: string | undefined) => {
     if (!value) return '';
@@ -203,15 +197,9 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         // Normalize target date to prevent timezone shifts
         let targetDateStr: string | undefined = undefined;
         if (data.targetDate) {
-            const now = new Date();
             const selectedDate = new Date(data.targetDate);
-            const isToday = selectedDate.toDateString() === now.toDateString();
-            
-            if (isToday) {
-                selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
-            } else {
-                selectedDate.setHours(12, 0, 0, 0);
-            }
+            // Always set to 12:00 PM (noon) local time to prevent UTC timezone shifts from changing the date.
+            selectedDate.setHours(12, 0, 0, 0);
             targetDateStr = selectedDate.toISOString();
         }
 
@@ -275,7 +263,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
                     name: existingSchedule.name,
                     amount: existingSchedule.amount,
                     fromAccountId: existingSchedule.fromAccountId,
-                    frequency: existingSchedule.frequency as any,
+                    frequency: existingSchedule.frequency as 'daily' | 'weekly' | 'monthly' | 'yearly',
                     nextRunAt: existingSchedule.nextRunAt,
                 });
             }
@@ -283,8 +271,9 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
 
         toast.success(isEditMode ? "Category updated" : "Category created");
         onOpenChange(false);
-    } catch (error: any) {
-        toast.error(error.message || "Failed to save category");
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to save category";
+        toast.error(message);
         setIsProcessing(false);
         submitLock.current = false;
     }
@@ -418,7 +407,6 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
                             onChange={(e) => {
                                 const val = formatNumber(e.target.value);
                                 setMonthlyContribution(val);
-                                setIsManuallyEdited(true); // User explicitly typing -> Manual Mode
                                 if (enableAutoSave) form.setValue('autoSaveAmount', val);
                             }}
                         />

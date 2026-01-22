@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
 import { AUTOMATION_FREQUENCIES } from "./lib/constants";
 import { parseAmount } from "./lib/finance";
 import { ensureHouseholdAccess } from "./lib/auth";
@@ -208,12 +207,18 @@ export const processDueSchedules = internalMutation({
         }
 
         // Record Transaction
+        // Use the scheduled date (nextRunAt) instead of current cron execution time
+        // to ensure it matches the user's intended day.
+        // We set it to 12:00 PM UTC to be safe for date-only comparisons.
+        const txDate = new Date(schedule.nextRunAt);
+        txDate.setUTCHours(12, 0, 0, 0);
+
         await ctx.db.insert("transactions", {
           userId: schedule.userId,
           householdId: schedule.householdId,
           type: "transfer", // Auto-save is a transfer
           amount: schedule.amount,
-          date: new Date().toISOString(),
+          date: txDate.toISOString(),
           description: `${schedule.name} (Auto-Save)`,
           accountId: schedule.fromAccountId,
           toAccountId: schedule.toAccountId,
