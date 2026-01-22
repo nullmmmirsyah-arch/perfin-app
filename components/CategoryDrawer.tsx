@@ -84,6 +84,16 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
     } : "skip"
   );
 
+  // Fetch Existing Budget (Correct Fiscal Month)
+  const now = new Date();
+  const existingBudget = useQuery(api.budgets.getBudgetStatus, {
+      month: now.getMonth(),
+      year: now.getFullYear(),
+      householdId: householdId ?? undefined,
+  });
+  
+  const currentCategoryBudget = existingBudget?.data?.find(b => b.category._id === category?._id)?.budget;
+
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
   const liquidAccounts = React.useMemo(() => 
     accounts?.filter(a => !a.type || a.type === 'CASH') || [], 
@@ -137,6 +147,8 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
         
         if (existingSchedule?.amount) {
             setMonthlyContribution(existingSchedule.amount);
+        } else if (currentCategoryBudget?.amount) {
+            setMonthlyContribution(currentCategoryBudget.amount);
         }
     } else if (open && !isEditMode) {
         form.reset({

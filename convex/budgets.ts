@@ -1,11 +1,27 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
 import { 
   calculateSpendingByCategory, 
   calculateUnassignedCash, 
-  AccountMap 
+  AccountMap,
+  getFiscalMonthRange,
+  getFiscalDateDetails 
 } from "./lib/finance";
+
+async function getHousehold(ctx: QueryCtx, householdId?: Id<"households">, userId?: string) {
+    if (householdId) {
+        return await ctx.db.get(householdId);
+    }
+    if (userId) {
+        const member = await ctx.db
+            .query("householdMembers")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .first();
+        if (member) return await ctx.db.get(member.householdId);
+    }
+    return null;
+}
 
 async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
     const member = await ctx.db
@@ -64,6 +80,9 @@ export const getBudgetStatus = query({
         }
     }
 
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
     const now = new Date();
     const currentYear = year ?? now.getFullYear();
     const currentMonth = month ?? now.getMonth();
@@ -86,9 +105,10 @@ export const getBudgetStatus = query({
         ).collect();
     }
 
-    // 3. Calculate date range for the month
-    const startOfMonth = new Date(currentYear, currentMonth, 1);
-    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+    // 3. Calculate date range for the month (Using Fiscal Helper)
+    const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, currentMonth, startDay);
+    const startObj = new Date(startOfFiscal);
+    const endObj = new Date(endOfFiscal);
 
     // 4. Get all transactions (needed for Spending and Unassigned Cash)
     let allTransactions;
@@ -100,7 +120,7 @@ export const getBudgetStatus = query({
 
     const transactionsInMonth = allTransactions.filter((t) => {
       const tDate = new Date(t.date);
-      return tDate >= startOfMonth && tDate <= endOfMonth;
+      return tDate >= startObj && tDate <= endObj;
     });
 
     // 5. Get Accounts for Helper Map
@@ -116,7 +136,6 @@ export const getBudgetStatus = query({
     const spendingByCategory = calculateSpendingByCategory(transactionsInMonth, accountsMap);
 
     // 7. Calculate Accumulated (All Time) for Savings
-    // We can reuse calculateSpendingByCategory for ALL transactions to get accumulated values
     const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap);
 
     // 8. Calculate Unassigned Cash using Helper
@@ -128,7 +147,7 @@ export const getBudgetStatus = query({
         allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
     }
     
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
 
     // 9. Combine data for Response
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
@@ -166,39 +185,20 @@ export const getBudgetStatus = query({
             };
     });
 
-    // Breakdown for UI (Simplified logic or reuse helpers if needed, but for now specific to this month's stats)
-    // Reusing unassignedCash from helper covers the main need.
-    // The specific 'breakdown' fields might need manual calculation if they are purely visual specific to month.
-    
-    const startOfSelectedMonth = new Date(currentYear, currentMonth, 1).toISOString();
-    const endOfSelectedMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999).toISOString();
-
-    // Simplify Breakdown calc just for UI display if needed, or remove if unused.
-    // Current UI uses: thisMonthIncome, thisMonthBudgeted, pastSurplus.
-    // Let's keep manual calculation for these specific visual breakdowns as they are time-windowed specific.
-    // But ensure logic matches helper philosophy (e.g. Transfers).
-    // For now, I'll keep the existing breakdown logic but ensure consistency where possible.
-    
-    // Note: The helper calculates GLOBAL unassigned.
-    // Breakdown is localized.
-    
-    // ... (Keeping breakdown logic simplified or derived) ...
+    // Breakdown for UI
     const thisMonthIncome = allTransactions
-        .filter(t => t.type === 'income' && t.date >= startOfSelectedMonth && t.date <= endOfSelectedMonth)
-        .reduce((acc, t) => acc + parseFloat(t.amount.replace(/,/g, '') || '0'), 0); // Simplified for now
+        .filter(t => t.type === 'income' && t.date >= startOfFiscal && t.date <= endOfFiscal)
+        .reduce((acc, t) => acc + parseFloat(t.amount.replace(/,/g, '') || '0'), 0);
 
     const thisMonthBudgeted = budgets.reduce((acc, b) => acc + parseFloat(b.amount.replace(/,/g, '') || '0'), 0);
     
-    // Past Surplus = Total Unassigned - (Income This Month - Budgeted This Month) ???
-    // Algebra: Unassigned = PastSurplus + (IncomeThisMonth - BudgetedThisMonth)
-    // So: PastSurplus = Unassigned - (IncomeThisMonth - BudgetedThisMonth)
     const pastSurplus = unassignedCash - (thisMonthIncome - thisMonthBudgeted);
 
     const breakdown = {
         thisMonthIncome,
         thisMonthBudgeted,
         pastSurplus,
-        totalIncome: 0, // removed from requirement? or calc from helper
+        totalIncome: 0,
         totalBudgeted: 0 
     };
 
@@ -216,12 +216,13 @@ export const getBudgetStatus = query({
     }
 
     if (prevBudgets.length > 0) {
-         const startOfPrev = new Date(prevYear, prevMonth, 1);
-         const endOfPrev = new Date(prevYear, prevMonth + 1, 0, 23, 59, 59, 999);
+         const { start: startOfPrev, end: endOfPrev } = getFiscalMonthRange(prevYear, prevMonth, startDay);
+         const startOfPrevObj = new Date(startOfPrev);
+         const endOfPrevObj = new Date(endOfPrev);
          
          const prevTransactions = allTransactions.filter(t => {
             const tDate = new Date(t.date);
-            return tDate >= startOfPrev && tDate <= endOfPrev;
+            return tDate >= startOfPrevObj && tDate <= endOfPrevObj;
          });
          
          const prevSpending = calculateSpendingByCategory(prevTransactions, accountsMap);
@@ -258,6 +259,9 @@ export const getBudgetAssistance = query({
         if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
     }
 
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
     // 1. Fetch Data
     let allBudgets;
     if (householdId) {
@@ -282,7 +286,7 @@ export const getBudgetAssistance = query({
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
     // 2. Calculate Unassigned Cash (Helper)
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
 
     // 3. Previous Month's Budget
     let prevMonth = targetMonth - 1;
@@ -310,12 +314,13 @@ export const getBudgetAssistance = query({
     }
 
     // 4. Previous Month's Spending (Helper)
-    const startOfPrevMonth = new Date(prevYear, prevMonth, 1);
-    const endOfPrevMonth = new Date(prevYear, prevMonth + 1, 0, 23, 59, 59, 999);
+    const { start: startOfPrevMonth, end: endOfPrevMonth } = getFiscalMonthRange(prevYear, prevMonth, startDay);
+    const startOfPrevObj = new Date(startOfPrevMonth);
+    const endOfPrevObj = new Date(endOfPrevMonth);
 
     const prevMonthTransactions = allTransactions.filter(t => {
        const tDate = new Date(t.date);
-       return tDate >= startOfPrevMonth && tDate <= endOfPrevMonth;
+       return tDate >= startOfPrevObj && tDate <= endOfPrevObj;
     });
 
     const prevMonthSpendingMap = calculateSpendingByCategory(prevMonthTransactions, accountsMap);
@@ -330,12 +335,13 @@ export const getBudgetAssistance = query({
         let y = targetYear;
         while (m < 0) { m += 12; y--; }
         
-        const start = new Date(y, m, 1);
-        const end = new Date(y, m + 1, 0, 23, 59, 59, 999);
+        const { start, end } = getFiscalMonthRange(y, m, startDay);
+        const startObj = new Date(start);
+        const endObj = new Date(end);
         
         const monthTx = allTransactions.filter(t => {
             const tDate = new Date(t.date);
-            return tDate >= start && tDate <= end;
+            return tDate >= startObj && tDate <= endObj;
         });
         
         const monthSpendingMap = calculateSpendingByCategory(monthTx, accountsMap);
@@ -390,6 +396,9 @@ export const upsertBudget = mutation({
         }
     }
 
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
     // 1. Validate Funds (Unassigned Check)
     let allTransactions;
     if (householdId) {
@@ -413,7 +422,7 @@ export const upsertBudget = mutation({
     }
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
 
     // Logic: 
     // We need to check if (Available Unassigned + Old Budget Amount) >= New Budget Amount
@@ -488,6 +497,9 @@ export const moveBudgetFunds = mutation({
         if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
     }
 
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
     const moveAmount = parseFloat(amount.replace(/,/g, '') || '0');
     if (moveAmount <= 0) throw new Error("Amount must be greater than 0");
 
@@ -507,8 +519,7 @@ export const moveBudgetFunds = mutation({
         
         // We must check if source has enough *Remaining* (Limit - Spent)
         // Fetch spending for validation
-        const startOfMonth = new Date(year, month, 1);
-        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        const { start: startOfMonth, end: endOfMonth } = getFiscalMonthRange(year, month, startDay);
         
         let txQuery;
         if (householdId) {
@@ -518,7 +529,7 @@ export const moveBudgetFunds = mutation({
         }
         
         const transactions = await txQuery
-            .filter(q => q.gte(q.field("date"), startOfMonth.toISOString()) && q.lte(q.field("date"), endOfMonth.toISOString()))
+            .filter(q => q.gte(q.field("date"), startOfMonth) && q.lte(q.field("date"), endOfMonth))
             .collect();
 
         // Get Account Map for accurate spending calculation
@@ -562,7 +573,7 @@ export const moveBudgetFunds = mutation({
         }
         
         const accMap = new Map(allAcc.map(a => [a._id, a]));
-        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap);
+        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap, startDay);
 
         if (moveAmount > unassigned) {
              throw new Error(`Insufficient Unassigned Cash. Available: ${unassigned.toLocaleString()}`);
@@ -602,6 +613,9 @@ export const sweepBudgets = mutation({
        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
     }
 
+    const household = await getHousehold(ctx, householdId, identity.subject);
+    const startDay = household?.budgetStartDay || 1;
+
     // 1. Get Budgets for the target month
     let budgets;
     if (householdId) {
@@ -611,8 +625,9 @@ export const sweepBudgets = mutation({
     }
 
     // 2. Calculate Spending using Helper
-    const startOfMonth = new Date(year, month, 1);
-    const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
+    const startObj = new Date(startOfFiscal);
+    const endObj = new Date(endOfFiscal);
 
     let allTransactions;
     if (householdId) {
@@ -623,7 +638,7 @@ export const sweepBudgets = mutation({
 
     const monthTransactions = allTransactions.filter(t => {
         const tDate = new Date(t.date);
-        return tDate >= startOfMonth && tDate <= endOfMonth;
+        return tDate >= startObj && tDate <= endObj;
     });
 
     // Accounts for helper

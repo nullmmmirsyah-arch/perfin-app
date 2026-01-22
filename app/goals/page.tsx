@@ -23,21 +23,42 @@ export default function GoalsPage() {
   const { householdId } = useHousehold()
   const router = useRouter()
   
-  // Fetch ALL saving categories (including archived/achieved)
+  // 1. Fetch Categories
   const goals = useQuery(api.categories.get, { 
       type: 'saving', 
       householdId: householdId ?? undefined,
       showArchived: true 
   })
 
+  // 2. Fetch Budget Status (Contains Accumulated Amount Calculation)
+  // We use current month/year just to satisfy the query params, 
+  // but the 'accumulated' field in the response is Global (Lifetime) which is what we need.
+  const now = new Date();
+  const budgetData = useQuery(api.budgets.getBudgetStatus, {
+      month: now.getMonth(),
+      year: now.getFullYear(),
+      householdId: householdId ?? undefined,
+  });
+
+  // 3. Merge Data
+  const enrichedGoals = goals?.map(g => {
+      const status = budgetData?.data?.find(b => b.category._id === g._id);
+      return {
+          ...g,
+          currentAmount: status?.accumulated || 0,
+          currentBudget: status?.budget,
+          thisMonthContribution: status?.spent || 0
+      };
+  });
+
   // Separate Active vs Completed
-  const activeGoals = goals?.filter(g => !g.isArchived && g.status !== 'achieved') || []
-  const completedGoals = goals?.filter(g => g.status === 'achieved') || []
+  const activeGoals = enrichedGoals?.filter(g => !g.isArchived && g.status !== 'achieved') || []
+  const completedGoals = enrichedGoals?.filter(g => g.status === 'achieved') || []
 
   // Group Active Goals
   const investments = activeGoals.filter(g => g.goalType === 'investment');
   const bills = activeGoals.filter(g => g.goalType === 'bill');
-  const purchases = activeGoals.filter(g => !g.goalType || g.goalType === 'purchase'); // Default to purchase
+  const purchases = activeGoals.filter(g => !g.goalType || g.goalType === 'purchase');
 
   const handleGoalClick = (id: Id<"categories">) => {
       router.push(`/goals/${id}`)

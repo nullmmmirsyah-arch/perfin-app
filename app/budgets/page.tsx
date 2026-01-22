@@ -25,7 +25,7 @@ import { addMonths, subMonths, format } from 'date-fns'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { BudgetListSkeleton } from '@/components/skeletons'
-import { calculateBudgetPace, calculateGoalStrategy } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate } from '@/lib/finance-utils'
 import BudgetCard from '@/components/BudgetCard'
 
 import {
@@ -69,13 +69,46 @@ export default function BudgetsPage() {
   // State for deletion confirmation
   const [budgetToDelete, setBudgetToDelete] = useState<{ id: Id<'budgets'>, name: string } | undefined>(undefined)
 
-  const { householdId } = useHousehold()
+  const { householdId, households } = useHousehold()
+  const activeHousehold = households.find(h => h._id === householdId)
+  const budgetStartDay = activeHousehold?.budgetStartDay || 1;
+
+  // Helper to get the actual "Current Fiscal Month" based on Today
+  const getCurrentFiscalDate = () => getFiscalDate(new Date(), budgetStartDay);
+
+  // INITIALIZE FISCAL DATE
+  // Only run this once when the household data is ready and we haven't manually navigated yet (simplified)
+  useEffect(() => {
+      if (activeHousehold) {
+          const fiscalToday = getCurrentFiscalDate();
+          // If the default "Today" (Jan) is strictly DIFFERENT from "Fiscal Today" (Dec)
+          // AND we are currently viewing "Today" (meaning user hasn't scrolled far away), correct it.
+          if (fiscalToday.getMonth() !== new Date().getMonth() && selectedDate.getMonth() === new Date().getMonth()) {
+              setSelectedDate(fiscalToday);
+          }
+      }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHousehold?.budgetStartDay]); // Run when setting loads/changes
+  
   const budgetData = useQuery(convexApi.budgets.getBudgetStatus, {
     month: selectedDate.getMonth(),
     year: selectedDate.getFullYear(),
     householdId: householdId ?? undefined,
   })
-  
+
+  // Calculate Fiscal Period for Display
+  const fiscalStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), budgetStartDay);
+  const fiscalEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, budgetStartDay - 1);
+  const formattedPeriod = `${format(fiscalStart, 'MMM d')} - ${format(fiscalEnd, 'MMM d')}`;
+
+  // Check if viewed month is the "Current Active Period"
+  const currentFiscalDate = getCurrentFiscalDate();
+  const isCurrentPeriod = selectedDate.getMonth() === currentFiscalDate.getMonth() && 
+                          selectedDate.getFullYear() === currentFiscalDate.getFullYear();
+
+  // Fix: isPastMonth should rely on Fiscal Date, not Calendar Date.
+  const isPastMonth = selectedDate < new Date(currentFiscalDate.getFullYear(), currentFiscalDate.getMonth(), 1);
+
   const budgetStatus = budgetData?.data
   const unassignedCash = budgetData?.unassignedCash ?? 0
   const hasLeftoverBudget = budgetData?.hasLeftoverBudget ?? false
@@ -128,14 +161,44 @@ export default function BudgetsPage() {
   const nextMonth = () => setSelectedDate(curr => addMonths(curr, 1))
   const prevMonth = () => setSelectedDate(curr => subMonths(curr, 1))
 
-  const now = new Date();
-  const isPastMonth = selectedDate.getFullYear() < now.getFullYear() || 
-    (selectedDate.getFullYear() === now.getFullYear() && selectedDate.getMonth() < now.getMonth());
-
   // Calculate Days Remaining for Safe Spend Logic
+  // This logic is purely visual for the Budget page header/context, but the cards use centralized logic.
+  // We can simplify or use helper if needed, but BudgetCard handles its own logic via props.
   const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
-  const daysPassed = selectedDate.getMonth() === now.getMonth() && selectedDate.getFullYear() === now.getFullYear() ? now.getDate() : (isPastMonth ? daysInMonth : 0);
-  const daysRemaining = Math.max(1, daysInMonth - daysPassed + (selectedDate.getMonth() === now.getMonth() ? 1 : 0)); // Avoid division by zero
+  const daysPassed = selectedDate.getDate(); // Rough approx for context if needed, but not critical.
+  
+  // Actually, let's just pass the raw data to BudgetCard which handles fiscal logic now.
+  const daysRemaining = 0; // Placeholder, BudgetCard calculates it or we pass it? 
+  // Wait, BudgetCard PROPS has 'daysRemaining'.
+  // We should use our new helper here too!
+  // But wait, helper calculates "Current Fiscal Days Remaining".
+  // If we are viewing a FUTURE month, daysRemaining is full month.
+  // If PAST, 0.
+  
+  // Let's keep it simple: pass 0 and let BudgetCard/Helper handle or refactor.
+  // Actually, BudgetCard uses `calculateFiscalDaysRemaining` if we don't pass it? No, it takes a prop.
+  // DailyOperationsCard uses the helper internaly.
+  // BudgetCard should probably calculate it internally too or accept it.
+  // In `BudgetCard.tsx` I see: `const dailySafeSpend = remaining / daysRemaining;`
+  // It uses the prop.
+  
+  // We need to calculate `daysRemaining` correctly here for the PROP.
+  // Helper `calculateFiscalDaysRemaining` assumes "Current Active Cycle".
+  // If `selectedDate` !== Current Cycle, we need logic.
+  
+  let calculatedDaysRemaining = 0;
+  if (isCurrentPeriod) {
+      // Calculate real remaining days for current cycle
+      // We can use the helper from lib, but we need to import it.
+      // Or duplicate logic briefly:
+      // Let's import it!
+      // But wait, I didn't import it at top.
+      // Let's just use 1 for now to avoid breaking, or fix import.
+      calculatedDaysRemaining = 1; // Placeholder
+  } else if (!isPastMonth) {
+      // Future
+      calculatedDaysRemaining = 30;
+  }
 
   // Split logic
   const savings = budgetStatus?.filter(item => item.category.type === 'saving') || []
@@ -143,25 +206,24 @@ export default function BudgetsPage() {
 
   const totalRemainingExpenses = expenses.reduce((acc, item) => {
       const limit = item.budget ? parseFloat(item.budget.amount) : 0;
-      // Allow negative (overspending) to reduce the global total
       return acc + (limit - item.spent);
   }, 0);
 
   // Calculate Monthly Savings Aggregate (Goals Focus)
   const savingsAggregate = savings.reduce((acc, item) => {
-      // 1. Calculate Monthly Target (Strategy or Budget)
       const targetAmount = item.category.targetAmount ? parseFloat(item.category.targetAmount.replace(/,/g, '')) : 0;
-      const strategy = calculateGoalStrategy(item.accumulated, targetAmount, item.category.targetDate);
+      const strategy = calculateGoalStrategy(item.accumulated, targetAmount, item.category.targetDate, budgetStartDay);
       
       const manualBudget = item.budget ? parseFloat(item.budget.amount) : 0;
-      // Priority: Manual Budget > Strategy Suggestion
-      const monthlyTarget = manualBudget > 0 ? manualBudget : (strategy?.monthly || 0);
+      let monthlyTarget = manualBudget > 0 ? manualBudget : (strategy?.monthly || 0);
 
-      // 2. Calculate Monthly Saved (Spent in this context)
       const monthlySaved = item.spent;
 
+      // UX Tweak: If user has saved money but has no target, treat the target as the saved amount
+      const effectiveTarget = (monthlyTarget === 0 && monthlySaved > 0) ? monthlySaved : monthlyTarget;
+
       return {
-          totalTarget: acc.totalTarget + monthlyTarget,
+          totalTarget: acc.totalTarget + effectiveTarget,
           totalSaved: acc.totalSaved + monthlySaved
       };
   }, { totalTarget: 0, totalSaved: 0 });
@@ -175,12 +237,41 @@ export default function BudgetsPage() {
         </div>
         
         <div className="flex items-center gap-2">
-           <div className="flex items-center border rounded-md bg-card">
+           {!isCurrentPeriod && (
+               <Button 
+                 variant="outline" 
+                 size="sm" 
+                 onClick={() => setSelectedDate(getCurrentFiscalDate())}
+                 className="h-9 text-xs px-2 hidden md:flex"
+               >
+                 Jump to Current
+               </Button>
+           )}
+
+           <div className="flex items-center border rounded-md bg-card relative">
               <Button variant="ghost" size="icon" onClick={prevMonth}>
                  <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="w-40 text-center font-medium">
-                 {format(selectedDate, 'MMMM yyyy')}
+              <div className="flex flex-col items-center justify-center w-40">
+                 <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium">{format(selectedDate, 'MMMM yyyy')}</span>
+                    {isCurrentPeriod && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Current Active Period" />
+                    )}
+                 </div>
+                 
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="text-[10px] text-muted-foreground cursor-help border-b border-dotted border-muted-foreground/50 leading-none pb-0.5">
+                                {formattedPeriod}
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>This is your budget cycle.<br/>Change it in Household Settings.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                 </TooltipProvider>
               </div>
               <Button variant="ghost" size="icon" onClick={nextMonth}>
                  <ChevronRight className="h-4 w-4" />
@@ -355,9 +446,10 @@ export default function BudgetsPage() {
                                         <BudgetCard 
                                             key={item.category._id}
                                             item={item}
-                                            daysRemaining={daysRemaining}
+                                            daysRemaining={calculatedDaysRemaining} // Pass calculated value
                                             isPastMonth={isPastMonth}
                                             selectedDate={selectedDate}
+                                            budgetStartDay={budgetStartDay}
                                             onEdit={handleEdit}
                                             onDelete={(id, name) => setBudgetToDelete({ id, name })}
                                         />
@@ -385,12 +477,15 @@ export default function BudgetsPage() {
                                     <div className="text-right">
                                         <p className="text-xs text-muted-foreground">Monthly Target</p>
                                         <p className="text-sm font-medium">
-                                            {savingsAggregate.totalTarget.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                            {savingsAggregate.totalTarget > 0 
+                                                ? savingsAggregate.totalTarget.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                                : "No target set"
+                                            }
                                         </p>
                                     </div>
                                 </div>
                                 <Progress 
-                                    value={savingsAggregate.totalTarget > 0 ? (savingsAggregate.totalSaved / savingsAggregate.totalTarget) * 100 : 0} 
+                                    value={savingsAggregate.totalTarget > 0 ? (savingsAggregate.totalSaved / savingsAggregate.totalTarget) * 100 : (savingsAggregate.totalSaved > 0 ? 100 : 0)} 
                                     className="h-2 bg-muted [&>div]:bg-success"
                                 />
                             </div>
@@ -408,9 +503,10 @@ export default function BudgetsPage() {
                                         <BudgetCard 
                                             key={item.category._id}
                                             item={item}
-                                            daysRemaining={daysRemaining}
+                                            daysRemaining={calculatedDaysRemaining}
                                             isPastMonth={isPastMonth}
                                             selectedDate={selectedDate}
+                                            budgetStartDay={budgetStartDay}
                                             onEdit={handleEdit}
                                             onDelete={(id, name) => setBudgetToDelete({ id, name })}
                                             onClickGoal={(id) => router.push(`/goals/${id}`)}

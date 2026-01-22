@@ -62,3 +62,20 @@ export const backfillSearchTags = mutation({
     };
   },
 });
+
+export const backfillHouseholdSettings = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const households = await ctx.db.query("households").collect();
+    let updated = 0;
+    
+    for (const h of households) {
+      if (h.budgetStartDay === undefined) {
+        await ctx.db.patch(h._id, { budgetStartDay: 1 });
+        updated++;
+      }
+    }
+    
+    return { total: households.length, updated };
+  }
+});

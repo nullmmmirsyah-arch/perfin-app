@@ -5,6 +5,7 @@ export default defineSchema({
   households: defineTable({
     name: v.string(),
     ownerId: v.string(),
+    budgetStartDay: v.optional(v.number()),
   }),
   householdMembers: defineTable({
     householdId: v.id("households"),
@@ -60,7 +61,9 @@ export default defineSchema({
     .index("by_search_category", ["userId", "searchCategoryIds"])
     .index("by_search_label", ["userId", "searchLabelIds"])
     .index("by_household_search_category", ["householdId", "searchCategoryIds"])
-    .index("by_household_search_label", ["householdId", "searchLabelIds"]),
+    .index("by_household_search_label", ["householdId", "searchLabelIds"])
+    .index("by_accountId", ["accountId"])
+    .index("by_toAccountId", ["toAccountId"]),
   accounts: defineTable({
     userId: v.string(),
     householdId: v.optional(v.id("households")),

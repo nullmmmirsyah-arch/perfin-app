@@ -1,4 +1,4 @@
-import { differenceInMonths } from "date-fns";
+import { differenceInCalendarDays, differenceInMonths, subMonths, addMonths } from "date-fns";
 
 export type PacingStatus = 'safe' | 'warning' | 'danger';
 
@@ -10,23 +10,70 @@ export interface PacingResult {
   daysRemaining: number;
 }
 
+// --- CORE HELPERS ---
+
+export function getFiscalDate(date: Date, startDay: number = 1): Date {
+  const day = date.getDate();
+  // If today is before startDay, it belongs to previous month fiscal-wise
+  if (day < startDay) {
+    return subMonths(date, 1);
+  }
+  return date;
+}
+
+export function getFiscalMonthRange(year: number, month: number, startDay: number = 1): { start: Date; end: Date } {
+  // Determine Start Date based on Year/Month provided
+  // Note: These inputs (year/month) are assumed to be the "Fiscal Label".
+  // Example: Fiscal December 2025 (Start Day 25) means 25 Dec 2025 - 24 Jan 2026.
+  
+  const startDate = new Date(year, month, startDay);
+  const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, startDay - 1);
+  
+  return { start: startDate, end: endDate };
+}
+
+export function calculateFiscalDaysRemaining(budgetStartDay: number = 1): number {
+  const now = new Date();
+  const currentFiscal = getFiscalDate(now, budgetStartDay);
+  
+  // Get range for CURRENT fiscal month
+  const { end } = getFiscalMonthRange(currentFiscal.getFullYear(), currentFiscal.getMonth(), budgetStartDay);
+  
+  // Diff in Days (+1 to include today)
+  const diffDays = differenceInCalendarDays(end, now) + 1;
+  return Math.max(1, diffDays);
+}
+
+// --- STRATEGY & PACING (UPDATED TO BE FISCAL AWARE) ---
+
 export function calculateGoalStrategy(
   currentAmount: number,
   targetAmount: number,
-  targetDateStr?: string
+  targetDateStr?: string,
+  budgetStartDay: number = 1
 ) {
   if (!targetAmount || !targetDateStr) return null;
 
   const now = new Date();
   const targetDate = new Date(targetDateStr);
   
-  if (targetDate <= now) return null; // Already passed or today
+  if (targetDate <= now) return null;
 
   const remainingAmount = Math.max(0, targetAmount - currentAmount);
   if (remainingAmount === 0) return { monthly: 0, months: 0, isDone: true };
 
-  // Calculate months remaining (including current month)
-  const monthsRemaining = differenceInMonths(targetDate, now) + (targetDate.getDate() >= now.getDate() ? 0 : 1);
+  // FISCAL UPDATE:
+  // We need to calculate how many *Fiscal Months* are left.
+  // We align 'now' to its Fiscal Date representation.
+  // We align 'target' to its Fiscal Date representation (approx).
+  
+  const fiscalNow = getFiscalDate(now, budgetStartDay);
+  
+  // If target date is e.g. 20th Jan (and start is 25), it effectively falls in Dec fiscal.
+  const fiscalTarget = getFiscalDate(targetDate, budgetStartDay);
+
+  // Calculate difference + 1 to include current month
+  const monthsRemaining = differenceInMonths(fiscalTarget, fiscalNow) + (fiscalTarget.getDate() >= fiscalNow.getDate() ? 0 : 1);
   const divisor = Math.max(1, monthsRemaining);
   
   const monthly = remainingAmount / divisor;
@@ -41,53 +88,73 @@ export function calculateGoalStrategy(
 export function calculateBudgetPace(
   spent: number,
   limit: number,
-  year: number,
-  month: number
+  year: number, // Fiscal Year
+  month: number, // Fiscal Month
+  budgetStartDay: number = 1
 ): PacingResult {
   const now = new Date();
-  const isCurrentMonth = now.getFullYear() === year && now.getMonth() === month;
   
-  // If not current month, it's either past or future.
-  // For past: if spent > limit then danger, else safe.
-  // For future: always safe.
-  if (!isCurrentMonth) {
-    const isPast = new Date(year, month) < new Date(now.getFullYear(), now.getMonth());
+  // Check if we are viewing the Current Active Fiscal Month
+  const currentFiscal = getFiscalDate(now, budgetStartDay);
+  const isCurrentFiscalMonth = currentFiscal.getFullYear() === year && currentFiscal.getMonth() === month;
+  
+  // If viewing Past/Future, simpler logic
+  if (!isCurrentFiscalMonth) {
+    const viewDate = new Date(year, month, budgetStartDay);
+    const isPast = viewDate < currentFiscal;
+    
     if (isPast) {
       return {
         status: spent > limit ? 'danger' : 'safe',
         dailyLimit: 0,
         timeProgress: 100,
-        spendProgress: (spent / limit) * 100,
+        spendProgress: limit > 0 ? (spent / limit) * 100 : 0,
         daysRemaining: 0,
       };
     }
+    // Future
     return {
       status: 'safe',
-      dailyLimit: limit / 30, // Approximation
+      dailyLimit: limit / 30, // Approx
       timeProgress: 0,
       spendProgress: 0,
       daysRemaining: 30,
     };
   }
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const currentDay = now.getDate();
-  const timeProgress = (currentDay / daysInMonth) * 100;
+  // FISCAL UPDATE for Current Month:
+  const { start, end } = getFiscalMonthRange(year, month, budgetStartDay);
+  
+  // Total Days in this specific fiscal cycle (e.g. 30, 31, 28)
+  const totalDaysInCycle = differenceInCalendarDays(end, start) + 1;
+  
+  // Days Passed since Start of Cycle
+  // If Start=25, Now=21. Start Date was Dec 25. Now is Jan 21.
+  // Diff = 27 days passed.
+  const daysPassed = differenceInCalendarDays(now, start) + 1;
+  
+  const timeProgress = (daysPassed / totalDaysInCycle) * 100;
   const spendProgress = limit > 0 ? (spent / limit) * 100 : 0;
-  const daysRemaining = daysInMonth - currentDay + 1; // including today
+  
+  const daysRemaining = Math.max(1, totalDaysInCycle - daysPassed + 1); // +1 safety or handled by logic above?
+  // Let's rely on our robust helper for consistency if needed, 
+  // but here we have the exact range. 
+  // differenceInCalendarDays(end, now) + 1 is exactly days remaining.
+  const daysRemainingExact = differenceInCalendarDays(end, now) + 1;
 
   const remainingBudget = Math.max(0, limit - spent);
-  const dailyLimit = remainingBudget / daysRemaining;
+  const dailyLimit = remainingBudget / Math.max(1, daysRemainingExact);
 
-  // Tolerance of 10%
+  // Status Logic
   let status: PacingStatus = 'safe';
+  
+  // Danger if spending is > 10% faster than time
   if (spendProgress > timeProgress + 10) {
     status = 'danger';
   } else if (spendProgress > timeProgress) {
     status = 'warning';
   }
 
-  // Also if spent > limit, it's always danger
   if (spent > limit) status = 'danger';
 
   return {
@@ -95,6 +162,6 @@ export function calculateBudgetPace(
     dailyLimit,
     timeProgress,
     spendProgress,
-    daysRemaining,
+    daysRemaining: daysRemainingExact,
   };
 }

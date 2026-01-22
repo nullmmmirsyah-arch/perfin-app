@@ -395,3 +395,80 @@ export const archiveAccount = mutation({
     }
   },
 });
+
+export const getLiquidAccountComposition = query({
+  args: { accountId: v.id("accounts") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const account = await ctx.db.get(args.accountId);
+    if (!account) throw new Error("Account not found");
+
+    if (account.householdId) {
+        if (!await checkHouseholdAccess(ctx, account.householdId, identity.subject)) {
+             throw new Error("Unauthorized");
+        }
+    } else {
+        if (account.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    // Only applicable for Liquid Accounts
+    if (account.type && account.type !== ACCOUNT_TYPES.CASH) {
+        return [];
+    }
+
+    // 1. Fetch outgoing transfers (Money leaving this account)
+    const outgoing = await ctx.db
+        .query("transactions")
+        .withIndex("by_accountId", q => q.eq("accountId", args.accountId))
+        .filter(q => q.eq(q.field("type"), TRANSACTION_TYPES.TRANSFER))
+        .collect();
+
+    // 2. Fetch incoming transfers (Money returning to this account)
+    const incoming = await ctx.db
+        .query("transactions")
+        .withIndex("by_toAccountId", q => q.eq("toAccountId", args.accountId))
+        .filter(q => q.eq(q.field("type"), TRANSACTION_TYPES.TRANSFER))
+        .collect();
+
+    // 3. Map to track net contribution per counterparty
+    // Key: Counterparty Account ID -> Value: Net Amount (Outgoing - Incoming)
+    const contributionMap = new Map<string, number>();
+    const counterpartyIds = new Set<Id<"accounts">>();
+
+    outgoing.forEach(t => {
+        if (t.toAccountId) {
+            const amount = parseFloat(t.amount.replace(/,/g, '') || '0');
+            contributionMap.set(t.toAccountId, (contributionMap.get(t.toAccountId) || 0) + amount);
+            counterpartyIds.add(t.toAccountId);
+        }
+    });
+
+    incoming.forEach(t => {
+        const amount = parseFloat(t.amount.replace(/,/g, '') || '0');
+        contributionMap.set(t.accountId, (contributionMap.get(t.accountId) || 0) - amount);
+        counterpartyIds.add(t.accountId);
+    });
+
+    if (counterpartyIds.size === 0) return [];
+
+    // 4. Fetch counterparty details to check their type
+    const accounts = await Promise.all(
+        Array.from(counterpartyIds).map(id => ctx.db.get(id))
+    );
+
+    // 5. Filter only Special Accounts (Saving/Asset) and format result
+    const composition = accounts
+        .filter(acc => acc && (acc.type === ACCOUNT_TYPES.SAVING || acc.type === ACCOUNT_TYPES.ASSET))
+        .map(acc => ({
+            id: acc!._id,
+            name: acc!.name,
+            amount: contributionMap.get(acc!._id) || 0,
+            type: acc!.type
+        }))
+        .filter(item => item.amount > 0); // Only show positive contribution (Net saved from this source)
+
+    return composition;
+  }
+});

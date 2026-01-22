@@ -38,7 +38,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useGoalCalculator } from '@/hooks/useGoalCalculator';
 import { AutoSaveFields } from './forms/AutoSaveFields';
@@ -114,6 +114,11 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
     } : "skip"
   );
 
+  // Funds Allocation Composition (Only for Liquid Accounts)
+  const accountComposition = useQuery(api.accounts.getLiquidAccountComposition, 
+    open && isEditMode && account?.type === 'CASH' ? { accountId: account._id } : "skip"
+  );
+
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(AccountFormSchema),
     defaultValues: {
@@ -143,6 +148,17 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
   const targetAmountStr = useWatch({ control: form.control, name: 'targetAmount' });
   const targetDate = useWatch({ control: form.control, name: 'targetDate' });
   const monthlyBudgetStr = useWatch({ control: form.control, name: 'monthlyBudget' });
+  
+  // Real-time calculation for "Available Balance"
+  const currentBalanceStr = useWatch({ control: form.control, name: 'balance' });
+  const dbBalance = parseFloat(currentBalanceStr.replace(/,/g, '') || '0');
+  const totalAllocated = accountComposition?.reduce((acc, item) => acc + item.amount, 0) || 0;
+  
+  // Logic Fix:
+  // DB Balance is the "Available" funds (already deducted by transfer).
+  // Real Bank Balance is Available + Allocated.
+  const bankBalance = dbBalance + totalAllocated;
+  const availableBalance = dbBalance;
 
   useEffect(() => {
     if (open && isEditMode && account) {
@@ -319,6 +335,55 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               
+              {/* FUNDS ALLOCATION CARD (Only for Cash Accounts in Edit Mode) */}
+              {isEditMode && account?.type === 'CASH' && (
+                  <div className="bg-muted/30 border rounded-lg p-4 space-y-3 mb-4 animate-in fade-in slide-in-from-top-2">
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                          <CheckCircle2 className="h-3 w-3" /> Funds Breakdown
+                      </h4>
+                      
+                      <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                              <span>Total Bank Balance</span>
+                              <span className="font-mono font-bold">{formatCurrency(bankBalance)}</span>
+                          </div>
+                          
+                          {/* Allocated List */}
+                          {accountComposition && accountComposition.length > 0 ? (
+                              <div className="space-y-1 py-2 border-y border-dashed border-foreground/10">
+                                  {accountComposition.map(item => (
+                                      <div key={item.id} className="flex justify-between text-xs text-muted-foreground">
+                                          <span className="flex items-center gap-1">
+                                              ↳ for {item.name}
+                                          </span>
+                                          <span className="text-amber-600 dark:text-amber-500 font-medium">
+                                              -{formatCurrency(item.amount)}
+                                          </span>
+                                      </div>
+                                  ))}
+                                  <div className="flex justify-between text-xs font-semibold pt-1">
+                                      <span>Total Allocated</span>
+                                      <span className="text-amber-600 dark:text-amber-500">
+                                          -{formatCurrency(totalAllocated)}
+                                      </span>
+                                  </div>
+                              </div>
+                          ) : (
+                              <div className="py-2 text-xs text-muted-foreground italic border-y border-dashed border-foreground/10 text-center">
+                                  No funds allocated to goals from this account.
+                              </div>
+                          )}
+
+                          <div className="flex justify-between items-center pt-1">
+                              <span className="font-semibold text-sm">Available for Spending</span>
+                              <span className={cn("font-bold text-base", availableBalance < 0 ? "text-destructive" : "text-primary")}>
+                                  {formatCurrency(availableBalance)}
+                              </span>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="type"

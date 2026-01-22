@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { List, PieChart } from 'lucide-react'
 import { TransactionAnalytics } from '@/components/transactions/TransactionAnalytics'
 import { startOfMonth, endOfMonth } from 'date-fns'
+import { getFiscalMonthRange, getFiscalDate } from '@/lib/finance-utils'
 
 import { 
   type CarouselApi, 
@@ -37,24 +38,45 @@ export default function TransactionsPage() {
   const [api, setApi] = useState<CarouselApi>()
   const [activeTab, setActiveTab] = useState("list")
 
+  const { householdId, households } = useHousehold()
+  const activeHousehold = households.find(h => h._id === householdId)
+  const budgetStartDay = activeHousehold?.budgetStartDay || 1;
+
+  // Initialize filters with fiscal range if customized
   const [filters, setFilters] = useState<{
     type: string[] | undefined
     accountId: string[] | undefined
     categoryId: string[] | undefined
     labelId: string[] | undefined
     dateRange: DateRange | undefined
-  }>({
-    type: undefined,
-    accountId: undefined,
-    categoryId: undefined,
-    labelId: undefined,
-    dateRange: {
-      from: startOfMonth(new Date()),
-      to: endOfMonth(new Date()),
-    },
+  }>(() => {
+      // Lazy init to use correct start day if available immediately, 
+      // but household might be loading. We'll use useEffect to correct it.
+      return {
+        type: undefined,
+        accountId: undefined,
+        categoryId: undefined,
+        labelId: undefined,
+        dateRange: {
+          from: startOfMonth(new Date()),
+          to: endOfMonth(new Date()),
+        },
+      }
   })
 
-  const { householdId } = useHousehold()
+  // Sync Date Range with Fiscal Settings
+  // Only update on initial load/change of settings to avoid overwriting user manual selection
+  useEffect(() => {
+      if (budgetStartDay > 1) {
+          const fiscalDate = getFiscalDate(new Date(), budgetStartDay);
+          const { start, end } = getFiscalMonthRange(fiscalDate.getFullYear(), fiscalDate.getMonth(), budgetStartDay);
+          setFilters(prev => ({
+              ...prev,
+              dateRange: { from: start, to: end }
+          }));
+      }
+  }, [budgetStartDay]);
+
   const { results: transactions, status, loadMore } = usePaginatedQuery(convexApi.transactions.get, {
     householdId: householdId ?? undefined,
     type: filters.type,

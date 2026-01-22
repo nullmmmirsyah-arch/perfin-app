@@ -32,6 +32,7 @@ export const getOrCreateDefault = mutation({
     const householdId = await ctx.db.insert("households", {
       name: "Personal",
       ownerId: identity.subject,
+      budgetStartDay: 1,
     });
 
     await ctx.db.insert("householdMembers", {
@@ -70,7 +71,10 @@ export const list = query({
 });
 
 export const create = mutation({
-  args: { name: v.string() },
+  args: { 
+    name: v.string(),
+    budgetStartDay: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -80,6 +84,7 @@ export const create = mutation({
     const householdId = await ctx.db.insert("households", {
       name: args.name,
       ownerId: identity.subject,
+      budgetStartDay: args.budgetStartDay || 1,
     });
 
     await ctx.db.insert("householdMembers", {
@@ -259,5 +264,35 @@ export const rename = mutation({
     if (!member || member.role !== 'admin') throw new Error("Unauthorized");
 
     await ctx.db.patch(args.householdId, { name: args.name });
+  }
+});
+
+export const updateSettings = mutation({
+  args: {
+    householdId: v.id("households"),
+    name: v.optional(v.string()),
+    budgetStartDay: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const member = await ctx.db
+      .query("householdMembers")
+      .withIndex("by_householdId_userId", q => q.eq("householdId", args.householdId).eq("userId", identity.subject))
+      .first();
+    
+    if (!member || member.role !== 'admin') throw new Error("Unauthorized");
+
+    const updates: any = {};
+    if (args.name) updates.name = args.name;
+    if (args.budgetStartDay) {
+        if (args.budgetStartDay < 1 || args.budgetStartDay > 28) {
+            throw new Error("Budget start day must be between 1 and 28");
+        }
+        updates.budgetStartDay = args.budgetStartDay;
+    }
+
+    await ctx.db.patch(args.householdId, updates);
   }
 });

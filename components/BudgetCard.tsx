@@ -32,6 +32,7 @@ interface BudgetCardProps {
   daysRemaining: number;
   isPastMonth: boolean;
   selectedDate: Date;
+  budgetStartDay?: number;
   onEdit: (category: any, amount?: string) => void;
   onDelete: (id: any, name: string) => void;
   onClickGoal?: (id: any) => void;
@@ -42,6 +43,7 @@ export default function BudgetCard({
   daysRemaining,
   isPastMonth,
   selectedDate,
+  budgetStartDay = 1,
   onEdit,
   onDelete,
   onClickGoal
@@ -59,12 +61,12 @@ export default function BudgetCard({
 
   // Pacing Logic (Expenses)
   const pacing = category.enablePacing && category.type === 'expense' && budget
-    ? calculateBudgetPace(spent, limit, selectedDate.getFullYear(), selectedDate.getMonth())
+    ? calculateBudgetPace(spent, limit, selectedDate.getFullYear(), selectedDate.getMonth(), budgetStartDay)
     : null;
 
   // Goal Strategy Logic (Savings)
   const strategy = isGoal && !isPastMonth 
-    ? calculateGoalStrategy(accumulated, targetAmount, category.targetDate) 
+    ? calculateGoalStrategy(accumulated, targetAmount, category.targetDate, budgetStartDay) 
     : null;
 
   // --- NEW LOGIC FOR SAVINGS CARD ---

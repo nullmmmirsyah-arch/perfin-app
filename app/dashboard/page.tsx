@@ -28,7 +28,10 @@ import { PageHeader } from '@/components/PageHeader'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 
 export default function Dashboard() {
-  const { householdId } = useHousehold()
+  const { householdId, households } = useHousehold()
+  const activeHousehold = households.find(h => h._id === householdId)
+  const budgetStartDay = activeHousehold?.budgetStartDay || 1;
+
   const summary = useQuery(api.dashboard.getDashboardSummary, {
     householdId: householdId ?? undefined
   })
@@ -100,7 +103,7 @@ export default function Dashboard() {
             >
                 <CarouselContent className="-ml-4">
                     <CarouselItem className="pl-4 basis-[85%]">
-                        <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} />
+                        <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
                     </CarouselItem>
                     <CarouselItem className="pl-4 basis-[85%]">
                         <WealthCard summary={summary} isPrivacyMode={isPrivacyMode} />
@@ -119,7 +122,7 @@ export default function Dashboard() {
             </>
         ) : (
             <>
-                <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} />
+                <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
                 <WealthCard summary={summary} isPrivacyMode={isPrivacyMode} />
             </>
         )}

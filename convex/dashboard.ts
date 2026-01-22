@@ -5,8 +5,11 @@ import {
   calculateSpendingByCategory, 
   calculateUnassignedCash, 
   AccountMap,
-  isLiquidAccount
+  isLiquidAccount,
+  getFiscalMonthRange,
+  getFiscalDateDetails
 } from "./lib/finance";
+import { TRANSACTION_TYPES, ACCOUNT_TYPES } from "./lib/constants";
 
 // Helper for Auth Check
 async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
@@ -17,6 +20,20 @@ async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households"
         )
         .first();
     return !!member;
+}
+
+async function getHousehold(ctx: QueryCtx, householdId?: Id<"households">, userId?: string) {
+    if (householdId) {
+        return await ctx.db.get(householdId);
+    }
+    if (userId) {
+        const member = await ctx.db
+            .query("householdMembers")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .first();
+        if (member) return await ctx.db.get(member.householdId);
+    }
+    return null;
 }
 
 export const getTotals = query({
@@ -124,17 +141,25 @@ export const getDashboardSummary = query({
         return null;
     }
 
-    // 0. Fetch Accounts
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
+    // 0. Fetch Accounts & Transactions (GLOBAL FETCH FIRST)
     let allAccounts;
+    let allTransactions;
+
     if (householdId) {
         allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
+    
     const accounts = allAccounts.filter(a => !a.isArchived);
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
-    // 1. Split Balances
+    // 1. Split Balances & Funds Allocation
     const liquidCash = accounts
       .filter((a: Doc<"accounts">) => isLiquidAccount(a))
       .reduce((acc: number, a: Doc<"accounts">) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
@@ -147,12 +172,68 @@ export const getDashboardSummary = query({
       .filter((a: Doc<"accounts">) => a.type === 'ASSET')
       .reduce((acc: number, a: Doc<"accounts">) => acc + parseFloat(a.balance.replace(/,/g, '') || '0'), 0);
 
+    // --- FUNDS ALLOCATION LOGIC (In-Memory) ---
+    const allocationMap = new Map<string, { name: string, amount: number }[]>();
+    const transfers = allTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER && t.toAccountId);
+    
+    const specialAccountIds = new Set(
+        accounts
+            .filter(a => a.type === ACCOUNT_TYPES.SAVING || a.type === ACCOUNT_TYPES.ASSET)
+            .map(a => a._id)
+    );
+
+    transfers.forEach(t => {
+        const amount = parseFloat(t.amount.replace(/,/g, '') || '0');
+        
+        // Outgoing: Liquid -> Special
+        if (t.accountId && specialAccountIds.has(t.toAccountId!) && accountsMap.has(t.accountId)) {
+            if (isLiquidAccount(accountsMap.get(t.accountId))) {
+                const list = allocationMap.get(t.accountId) || [];
+                const destName = accountsMap.get(t.toAccountId!)?.name || "Unknown Goal";
+                
+                const existingItem = list.find(i => i.name === destName);
+                if (existingItem) {
+                    existingItem.amount += amount;
+                } else {
+                    list.push({ name: destName, amount });
+                }
+                allocationMap.set(t.accountId, list);
+            }
+        }
+
+        // Incoming: Special -> Liquid
+        if (t.toAccountId && specialAccountIds.has(t.accountId) && accountsMap.has(t.toAccountId)) {
+             if (isLiquidAccount(accountsMap.get(t.toAccountId!))) {
+                const list = allocationMap.get(t.toAccountId!) || [];
+                const sourceName = accountsMap.get(t.accountId)?.name || "Unknown Goal";
+                
+                const existingItem = list.find(i => i.name === sourceName);
+                if (existingItem) {
+                    existingItem.amount -= amount;
+                } else {
+                    list.push({ name: sourceName, amount: -amount });
+                }
+                allocationMap.set(t.toAccountId!, list);
+             }
+        }
+    });
+
     const cashAccounts = accounts
       .filter((a: Doc<"accounts">) => isLiquidAccount(a))
-      .map((a: Doc<"accounts">) => ({
-        name: a.name,
-        balance: parseFloat(a.balance.replace(/,/g, '') || '0')
-      }));
+      .map((a: Doc<"accounts">) => {
+        const rawAllocations = allocationMap.get(a._id) || [];
+        const allocations = rawAllocations.filter(i => i.amount > 0);
+        const totalAllocated = allocations.reduce((sum, i) => sum + i.amount, 0);
+        const balance = parseFloat(a.balance.replace(/,/g, '') || '0');
+
+        return {
+            name: a.name,
+            balance: balance,
+            allocations,
+            // Reconciled Balance: DB Balance (Available) + Allocated Funds
+            bankBalance: balance + totalAllocated
+        };
+      });
 
     const savingAccounts = accounts
       .filter((a: Doc<"accounts">) => a.type === 'SAVING')
@@ -170,10 +251,8 @@ export const getDashboardSummary = query({
 
     // 2. Remaining Budget Logic (Monthly)
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    const startOfMonth = new Date(currentYear, currentMonth, 1).toISOString();
-    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999).toISOString();
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
+    const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, currentMonth, startDay);
 
     let budgets;
     if (householdId) {
@@ -184,16 +263,8 @@ export const getDashboardSummary = query({
         ).collect();
     }
 
-    let allTransactions;
-    if (householdId) {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
-    } else {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
-    }
-
     const currentMonthTransactions = allTransactions.filter(t => {
-      const isDateMatch = t.date >= startOfMonth && t.date <= endOfMonth;
-      return isDateMatch;
+      return t.date >= startOfFiscal && t.date <= endOfFiscal;
     });
 
     const spendingByCategory = calculateSpendingByCategory(currentMonthTransactions, accountsMap);
@@ -255,7 +326,7 @@ export const getDashboardSummary = query({
         allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
     }
     
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
 
     // 3. Recent Transactions
     const sortedTransactions = allTransactions

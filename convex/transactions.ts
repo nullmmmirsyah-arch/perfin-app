@@ -2,7 +2,13 @@ import { v } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { calculateSpendingByCategory, AccountMap, analyzeTransactionFlow } from "./lib/finance";
+import { 
+  calculateSpendingByCategory, 
+  AccountMap, 
+  analyzeTransactionFlow,
+  getFiscalDateDetails,
+  getFiscalMonthRange 
+} from "./lib/finance";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
 import { 
   TRANSACTION_TYPES, 
@@ -25,9 +31,21 @@ async function ensureBudgetExists(
     householdId?: Id<"households">,
     shouldIncrement: boolean = false // New param: Auto-adjust budget upward
 ) {
-    const date = new Date(dateStr);
-    const month = date.getMonth();
-    const year = date.getFullYear();
+    // 1. Fetch Household settings for budgetStartDay
+    let household;
+    if (householdId) {
+        household = await ctx.db.get(householdId);
+    } else {
+        const member = await ctx.db
+            .query("householdMembers")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .first();
+        if (member) household = await ctx.db.get(member.householdId);
+    }
+    const startDay = household?.budgetStartDay || 1;
+
+    // 2. Use Fiscal Helper to determine Year/Month
+    const { year, month } = getFiscalDateDetails(dateStr, startDay);
 
     let existingBudget;
     if (householdId) {
@@ -63,9 +81,8 @@ async function ensureBudgetExists(
     } else if (shouldIncrement) {
         // Smart Auto-Adjust: Only increment if the new transaction would exceed the current budget.
         
-        // 1. Calculate current spending for this category in this month
-        const startOfMonth = new Date(year, month, 1).toISOString();
-        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
+        // 1. Calculate current spending for this category in this month (FISCAL RANGE)
+        const { start: startOfMonth, end: endOfMonth } = getFiscalMonthRange(year, month, startDay);
         
         let monthTransactions;
         let accounts; // We need accounts to determine flow direction

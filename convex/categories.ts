@@ -1,7 +1,9 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
-import { GOAL_STATUS, GOAL_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from "./lib/constants";
+import { CATEGORY_TYPES, GOAL_TYPES, GOAL_STATUS, ACCOUNT_TYPES } from "./lib/constants";
+import { getFiscalDateDetails } from "./lib/finance";
 import { calculateSpendingByCategory, AccountMap } from "./lib/finance";
 
 export const getGoalDetails = query({
@@ -322,16 +324,46 @@ export const create = mutation({
         });
 
         // AUTO-CREATE BUDGET if monthlyBudget provided
-        if (monthlyBudget) {
+        if (args.monthlyBudget) {
+            // Get Budget Start Day
+            let startDay = 1;
+            if (args.householdId) {
+                const household = await ctx.db.get(args.householdId);
+                startDay = household?.budgetStartDay || 1;
+            } else {
+                // For personal, get default household
+                const member = await ctx.db.query("householdMembers").withIndex("by_userId", q => q.eq("userId", identity.subject)).first();
+                if (member) {
+                    const household = await ctx.db.get(member.householdId);
+                    startDay = household?.budgetStartDay || 1;
+                }
+            }
+
             const now = new Date();
-            await ctx.db.insert("budgets", {
-                userId: identity.subject,
-                householdId: args.householdId,
-                categoryId,
-                amount: monthlyBudget,
-                year: now.getFullYear(),
-                month: now.getMonth(),
-            });
+            const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
+
+            // Check existing budget first (Paranoid Check)
+            const existingBudget = await ctx.db.query("budgets")
+                .withIndex(args.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
+                    let builder = q.eq(args.householdId ? "householdId" : "userId", args.householdId || identity.subject)
+                                   .eq("categoryId", categoryId)
+                                   .eq("year", year)
+                                   .eq("month", month);
+                    return builder;
+                }).first();
+
+            if (existingBudget) {
+                await ctx.db.patch(existingBudget._id, { amount: args.monthlyBudget });
+            } else {
+                await ctx.db.insert("budgets", {
+                    userId: identity.subject,
+                    householdId: args.householdId,
+                    categoryId: categoryId,
+                    amount: args.monthlyBudget,
+                    year: year,
+                    month: month,
+                });
+            }
         }
     }
 
@@ -367,18 +399,51 @@ export const update = mutation({
     await ctx.db.patch(id, { ...rest, goalType: goalType as any });
 
     // Handle Budget Update
-    if (monthlyBudget !== undefined && category.type === 'saving') {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
+    if (monthlyBudget !== undefined) {
+        // Fetch household for Fiscal Logic
+        let startDay = 1;
+        if (category.householdId) {
+            const household = await ctx.db.get(category.householdId);
+            startDay = household?.budgetStartDay || 1;
+        } else {
+            const member = await ctx.db.query("householdMembers").withIndex("by_userId", q => q.eq("userId", identity.subject)).first();
+            if (member) {
+                const household = await ctx.db.get(member.householdId);
+                startDay = household?.budgetStartDay || 1;
+            }
+        }
 
-        const existingBudget = await ctx.db.query("budgets")
-            .withIndex("by_user_category_year_month", q => 
-                q.eq("userId", identity.subject)
-                 .eq("categoryId", id)
-                 .eq("year", year)
-                 .eq("month", month)
-            ).first();
+        const now = new Date();
+        const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
+
+        console.log(`[DEBUG] Category ID: ${category._id}, HouseholdId: ${category.householdId}`);
+        if (category.householdId) {
+             const h = await ctx.db.get(category.householdId);
+             console.log(`[DEBUG] Household Found: ${h?.name}, BudgetStartDay: ${h?.budgetStartDay}`);
+        } else {
+             console.log(`[DEBUG] No HouseholdId on Category. Fallback to Personal.`);
+        }
+        
+        console.log(`[DEBUG] Update Category Budget: StartDay=${startDay}, Now=${now.toISOString()}, Result=${year}-${month}`);
+
+        let existingBudget;
+        if (category.householdId) {
+            existingBudget = await ctx.db.query("budgets")
+                .withIndex("by_householdId_category_year_month", q => 
+                    q.eq("householdId", category.householdId!)
+                     .eq("categoryId", id)
+                     .eq("year", year)
+                     .eq("month", month)
+                ).first();
+        } else {
+            existingBudget = await ctx.db.query("budgets")
+                .withIndex("by_user_category_year_month", q => 
+                    q.eq("userId", identity.subject)
+                     .eq("categoryId", id)
+                     .eq("year", year)
+                     .eq("month", month)
+                ).first();
+        }
 
         if (existingBudget) {
             await ctx.db.patch(existingBudget._id, { amount: monthlyBudget });

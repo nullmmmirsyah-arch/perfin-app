@@ -135,7 +135,8 @@ export function calculateSpendingByCategory(
 export function calculateUnassignedCash(
   allTransactions: Doc<"transactions">[],
   allBudgets: Doc<"budgets">[],
-  accountsMap: AccountMap
+  accountsMap: AccountMap,
+  budgetStartDay: number = 1
 ): number {
   // 1. Calculate Total Liquid Cash (Current Reality)
   let totalLiquidCash = 0;
@@ -145,13 +146,13 @@ export function calculateUnassignedCash(
     }
   }
 
-  // 2. Group Spending by Month & Category
+  // 2. Group Spending by Fiscal Month & Category
   const monthlySpending = new Map<string, Map<string, number>>();
 
   allTransactions.forEach(t => {
     const flows = analyzeTransactionFlow(t, accountsMap);
-    const date = new Date(t.date);
-    const key = `${date.getFullYear()}-${date.getMonth()}`; 
+    const { year, month } = getFiscalDateDetails(t.date, budgetStartDay);
+    const key = `${year}-${month}`; 
 
     if (!monthlySpending.has(key)) {
         monthlySpending.set(key, new Map());
@@ -177,12 +178,60 @@ export function calculateUnassignedCash(
     const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
     
     // Fix: Allow negative remaining (overspending) so Unassigned Cash isn't reduced automatically.
-    // Logic: Liquid (3) = Unassigned (5) + Available (-2).
-    // To get Unassigned = 5, we need: 5 = 3 - (-2).
-    // So remaining MUST be allowed to be negative.
     const remaining = allocated - spent;
     totalRemainingObligations += remaining;
   });
 
   return totalLiquidCash - totalRemainingObligations;
+}
+
+/**
+ * Calculates the Fiscal Month details for a given date.
+ * Example: If StartDay = 25.
+ * Date: Jan 10 -> Belongs to Dec Fiscal Month.
+ * Date: Jan 26 -> Belongs to Jan Fiscal Month.
+ */
+export function getFiscalDateDetails(
+  dateStr: string, 
+  startDay: number = 1
+): { year: number; month: number } {
+  const date = new Date(dateStr);
+  const day = date.getDate();
+  let year = date.getFullYear();
+  let month = date.getMonth(); // 0-11
+
+  // If day is before startDay, it belongs to previous month
+  if (day < startDay) {
+    month -= 1;
+    if (month < 0) {
+      month = 11;
+      year -= 1;
+    }
+  }
+
+  return { year, month };
+}
+
+/**
+ * Calculates the Start and End Date for a specific Fiscal Month.
+ * Example: Fiscal Month Jan (Year 2024), StartDay 25.
+ * Returns: { start: "2024-01-25...", end: "2024-02-24..." }
+ */
+export function getFiscalMonthRange(
+  year: number,
+  month: number,
+  startDay: number = 1
+): { start: string; end: string } {
+  // Start Date
+  const startDate = new Date(year, month, startDay);
+  
+  // End Date: Start Date + 1 Month - 1ms
+  // Note: JS Date handles overflow correctly (e.g., month 12 becomes Jan next year)
+  const nextMonthDate = new Date(year, month + 1, startDay);
+  const endDate = new Date(nextMonthDate.getTime() - 1);
+
+  return { 
+    start: startDate.toISOString(), 
+    end: endDate.toISOString() 
+  };
 }
