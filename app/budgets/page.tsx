@@ -119,9 +119,17 @@ export default function BudgetsPage() {
 
   useEffect(() => {
     if (!api) return
+
+    // Restore active section on mount (e.g. after data refresh)
+    const targetIndex = activeSection === 'savings' ? 1 : 0
+    if (api.selectedScrollSnap() !== targetIndex) {
+      api.scrollTo(targetIndex, true)
+    }
+
     api.on("select", () => {
         setActiveSection(api.selectedScrollSnap() === 0 ? 'expenses' : 'savings')
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api])
 
   const scrollToSection = (section: 'expenses' | 'savings') => {
