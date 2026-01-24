@@ -82,20 +82,23 @@ type CategoryOption = {
 
 const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
   type: z.enum(['expense', 'income', 'transfer']),
-  amount: z.string().refine(val => !isNaN(parseFloat(val.replace(/,/g, ''))), {
-    message: 'Amount must be a number',
-  }),
+  amount: z.string()
+    .min(1, "Amount is required")
+    .refine(val => !isNaN(parseFloat(val.replace(/,/g, ''))), {
+      message: 'Amount must be a number',
+    })
+    .refine(val => parseFloat(val.replace(/,/g, '')) > 0, {
+      message: 'Amount must be greater than 0',
+    }),
   date: z.date(),
   description: z.string().optional(),
-  accountId: z.string(),
+  accountId: z.string().min(1, "Account is required"),
   categoryId: z.string().optional(),
   toAccountId: z.string().optional(),
   isSplit: z.boolean().optional(),
   splits: z.array(z.object({
-    categoryId: z.string(),
-    amount: z.string().refine(val => !isNaN(parseFloat(val.replace(/,/g, ''))), {
-      message: 'Amount must be a number',
-    }),
+    categoryId: z.string().optional(),
+    amount: z.string().optional(),
     description: z.string().optional(),
     labelId: z.string().optional(),
   })).optional(),
@@ -169,8 +172,33 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
           message: 'Splits are required for split transactions',
         });
       } else {
-        const totalSplitAmount = data.splits.reduce((acc, split) => acc + parseFloat(split.amount.replace(/,/g, '')), 0);
-        if (totalSplitAmount !== parseFloat(data.amount.replace(/,/g, ''))) {
+        let totalSplitAmount = 0;
+        data.splits.forEach((split, index) => {
+            if (!split.categoryId) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['splits', index, 'categoryId'],
+                    message: 'Category is required',
+                });
+            }
+            if (!split.amount) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['splits', index, 'amount'],
+                    message: 'Amount is required',
+                });
+            } else if (isNaN(parseFloat(split.amount.replace(/,/g, '')))) {
+                 ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['splits', index, 'amount'],
+                    message: 'Amount must be a number',
+                });
+            } else {
+                totalSplitAmount += parseFloat(split.amount.replace(/,/g, ''));
+            }
+        });
+
+        if (Math.abs(totalSplitAmount - parseFloat(data.amount.replace(/,/g, ''))) > 0.01) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['splits'],
@@ -333,6 +361,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   // Reset form when opening/closing or changing transaction
   useEffect(() => {
     if (open) {
+      setIsProcessing(false);
+      submitLock.current = false;
+
       if (isEditMode && transaction) {
         editingTransactionId.current = transaction._id;
         form.reset({
@@ -399,6 +430,16 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
       ? { quantity: data.assetDetails.quantity, unitPrice: data.assetDetails.unitPrice }
       : undefined;
 
+    // Only send splits if isSplit is true, and ensure we don't send empty strings for IDs
+    const finalSplits = data.isSplit 
+      ? data.splits?.map(s => ({
+          categoryId: s.categoryId as Id<'categories'>,
+          amount: s.amount || '0',
+          description: s.description,
+          labelId: (s.labelId && s.labelId !== 'none' && s.labelId !== "") ? s.labelId as Id<'labels'> : undefined,
+        }))
+      : undefined;
+
     try {
         submitLock.current = true;
         setIsProcessing(true);
@@ -414,12 +455,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
               categoryId: data.categoryId as Id<'categories'> | undefined,
               toAccountId: data.toAccountId as Id<'accounts'> | undefined,
               isSplit: data.isSplit,
-              splits: data.splits?.map(s => ({
-                categoryId: s.categoryId as Id<'categories'>,
-                amount: s.amount,
-                description: s.description,
-                labelId: (s.labelId && s.labelId !== 'none') ? s.labelId as Id<'labels'> : undefined,
-              })),
+              splits: finalSplits,
               labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
             });
@@ -435,12 +471,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
               categoryId: data.categoryId as Id<'categories'> | undefined,
               toAccountId: data.toAccountId as Id<'accounts'> | undefined,
               isSplit: data.isSplit,
-              splits: data.splits?.map(s => ({
-                categoryId: s.categoryId as Id<'categories'>,
-                amount: s.amount,
-                description: s.description,
-                labelId: (s.labelId && s.labelId !== 'none') ? s.labelId as Id<'labels'> : undefined,
-              })),
+              splits: finalSplits,
               labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
             });
@@ -483,7 +514,10 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
 
   return (
     <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 flex flex-col h-full">
+        <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+          console.error("Form Validation Errors:", errors);
+          toast.error("Please check the form for errors");
+        })} className="space-y-4 flex-1 flex flex-col h-full">
           <Tabs value={transactionType} className="w-full" onValueChange={(v) => form.setValue('type', v as any)}>
             <TabsList className={cn(
               "p-1 w-full mb-6",
@@ -751,6 +785,7 @@ const TransactionFormFields = ({
                                     }
                                 />
                             </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
@@ -790,6 +825,7 @@ const TransactionFormFields = ({
                                                 }
                                             />
                                         </FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />
@@ -847,6 +883,7 @@ const TransactionFormFields = ({
                                         )}
                                     </MobileSelectionDrawer>
                                 </FormControl>
+                                <FormMessage />
                             </FormItem>
                         )}
                     />
@@ -876,6 +913,7 @@ const TransactionFormFields = ({
                                             }
                                         />
                                     </FormControl>
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
