@@ -44,6 +44,9 @@ type SplitEditorDrawerProps = {
   form: UseFormReturn<any>;
   categories: { _id: string; name: string; type?: string; budgetLimit?: number; remaining?: number }[]; // Updated type
   labels: Doc<'labels'>[];
+  fields: any[];
+  append: (value: any) => void;
+  remove: (index: number | number[]) => void;
 };
 
 const formatNumber = (value: string | undefined) => {
@@ -103,12 +106,7 @@ export const SplitEditorDrawer = (props: SplitEditorDrawerProps) => {
   );
 };
 
-const SplitEditorContent = ({ form, categories, labels, isMobile }: SplitEditorDrawerProps & { isMobile: boolean }) => {
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'splits',
-  });
-
+const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append, remove }: SplitEditorDrawerProps & { isMobile: boolean }) => {
   const amount = form.watch('amount') as string | undefined;
   const splits = form.watch('splits') as { amount: string }[] | undefined;
 
@@ -306,7 +304,7 @@ const SplitEditorContent = ({ form, categories, labels, isMobile }: SplitEditorD
                                     name={`splits.${index}.categoryId`}
                                     render={({ field }) => (
                                         <FormItem>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value} key={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger className="h-9">
                                                         <SelectValue placeholder="Category" />
@@ -371,7 +369,7 @@ const SplitEditorContent = ({ form, categories, labels, isMobile }: SplitEditorD
                                     name={`splits.${index}.labelId`}
                                     render={({ field }) => (
                                         <FormItem>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value} key={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger className="h-9">
                                                         <SelectValue placeholder="Label (opt)" />

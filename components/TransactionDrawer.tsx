@@ -248,6 +248,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   const [splitDrawerOpen, setSplitDrawerOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const submitLock = useRef(false);
+  const editingTransactionId = useRef<string | null>(null);
 
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
   const isEditMode = !!transaction;
@@ -333,6 +334,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   useEffect(() => {
     if (open) {
       if (isEditMode && transaction) {
+        editingTransactionId.current = transaction._id;
         form.reset({
           type: transaction.type as 'expense' | 'income' | 'transfer',
           amount: transaction.amount,
@@ -355,6 +357,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
           } : undefined,
         });
       } else {
+        editingTransactionId.current = null;
         form.reset({
           type: 'expense',
           amount: '',
@@ -370,7 +373,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
     }
   }, [open, isEditMode, transaction, form]);
 
-  const { fields, append, replace } = useFieldArray({
+  const { fields, append, replace, remove } = useFieldArray({
     control: form.control,
     name: 'splits',
   });
@@ -400,9 +403,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
         submitLock.current = true;
         setIsProcessing(true);
 
-        if (isEditMode && transaction) {
+        if (editingTransactionId.current) {
             await updateTransaction({
-              id: transaction._id,
+              id: editingTransactionId.current as Id<'transactions'>,
               type: data.type,
               amount: data.amount,
               date: dateStr,
@@ -455,14 +458,6 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   const isSplit = useWatch({ control: form.control, name: 'isSplit' });
   const splits = useWatch({ control: form.control, name: 'splits' });
 
-  useEffect(() => {
-    if (!isSplit) {
-      replace([]);
-    } else if (fields.length === 0) {
-      append({ categoryId: '', amount: '', description: '', labelId: '' });
-    }
-  }, [isSplit, replace, append, fields.length]);
-
   const allocated = splits?.reduce((acc, split) => acc + parseFloat(split.amount?.replace(/,/g, '') || '0'), 0) || 0;
   const splitCount = splits?.length || 0;
 
@@ -470,9 +465,15 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
       form.setValue('isSplit', checked);
       if (checked) {
           setSplitDrawerOpen(true);
-          if (!splits || splits.length === 0) {
-             form.setValue('splits', [{ categoryId: '', amount: '', description: '', labelId: '' }]);
+          // Check current value directly from form to avoid stale state issues
+          const currentSplits = form.getValues('splits');
+          if (!currentSplits || currentSplits.length === 0) {
+             // Use replace to ensure UI updates immediately
+             replace([{ categoryId: '', amount: '', description: '', labelId: '' }]);
           }
+      } else {
+          // Clear splits when toggled off
+          replace([]);
       }
   };
   
@@ -600,6 +601,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
         form={form}
         categories={categories || []}
         labels={labels || []}
+        fields={fields}
+        append={append}
+        remove={remove}
       />
     </Form>
   );
@@ -927,8 +931,7 @@ const TransactionFormFields = ({
                     name="accountId"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Account</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value} key={field.value}>
                         <FormControl>
                             <SelectTrigger>
                             <SelectValue placeholder="Select an account" />
@@ -993,7 +996,7 @@ const TransactionFormFields = ({
                         name="categoryId"
                         render={({ field }) => (
                         <>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value} key={field.value}>
                             <FormControl>
                                 <SelectTrigger>
                                 <SelectValue placeholder="Select a category" />
@@ -1068,9 +1071,8 @@ const TransactionFormFields = ({
                         name="labelId"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Label</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
+                                        <FormLabel>Label</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value} key={field.value}>                            <FormControl>
                                 <SelectTrigger>
                                 <SelectValue placeholder="Select a label (optional)" />
                                 </SelectTrigger>
@@ -1400,10 +1402,10 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
       ) : (
           <div className="grid grid-cols-2 gap-4">
              <FormField control={form.control} name="accountId" render={({ field }) => (
-                <FormItem><FormLabel>From</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><SelectTrigger><SelectValue placeholder="From" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                <FormItem><FormLabel>From</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="From" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
              )} />
              <FormField control={form.control} name="toAccountId" render={({ field }) => (
-                <FormItem><FormLabel>To</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><SelectTrigger><SelectValue placeholder="To" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                <FormItem><FormLabel>To</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="To" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
              )} />
           </div>
       )}
