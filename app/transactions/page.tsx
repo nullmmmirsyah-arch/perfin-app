@@ -86,7 +86,11 @@ export default function TransactionsPage() {
     dateRange: filters.dateRange
       ? {
           start: filters.dateRange.from?.toISOString(),
-          end: filters.dateRange.to?.toISOString(),
+          end: filters.dateRange.to ? (() => {
+              const d = new Date(filters.dateRange.to);
+              d.setHours(23, 59, 59, 999);
+              return d.toISOString();
+          })() : undefined,
         }
       : undefined,
   }, { initialNumItems: 20 })
