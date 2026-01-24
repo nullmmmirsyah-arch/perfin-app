@@ -176,9 +176,11 @@ export function calculateUnassignedCash(
     const categoryMap = monthlySpending.get(key);
     const spent = categoryMap?.get(String(b.categoryId)) || 0;
     const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+    const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
     
     // Fix: Allow negative remaining (overspending) so Unassigned Cash isn't reduced automatically.
-    const remaining = allocated - spent;
+    // We subtract sweptAmount from the allocated budget because that money is no longer reserved.
+    const remaining = (allocated - swept) - spent;
     totalRemainingObligations += remaining;
   });
 

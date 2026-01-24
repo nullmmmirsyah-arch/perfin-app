@@ -163,6 +163,12 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
   const moveAmount = parseFloat(amountValue?.replace(/,/g, '') || '0');
   const previewNewLimit = currentLimit + moveAmount;
 
+  // Find the current budget item to get carryover details
+  const currentBudgetItem = budgetStatus?.data.find(i => i.category._id === categoryId);
+  const carryover = currentBudgetItem?.budget?.carryoverAmount ? parseFloat(currentBudgetItem.budget.carryoverAmount) : 0;
+  const newAllocation = parseFloat(amountValue?.replace(/,/g, '') || '0');
+  const totalEffective = carryover + newAllocation;
+
   const sourceOptions = budgetStatus?.data
     .filter(item => item.category._id !== categoryId && item.category.type === 'expense')
     .map(item => {
@@ -223,7 +229,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                         render={({ field }) => (
                         <FormItem>
                             <div className="flex justify-between items-center">
-                                <FormLabel>Total Monthly Limit</FormLabel>
+                                <FormLabel>Monthly Allocation</FormLabel>
                                 {assistanceData && (
                                     <span className={cn(
                                         "text-xs",
@@ -248,6 +254,29 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                         </FormItem>
                         )}
                     />
+
+                    {/* Breakdown Card */}
+                    {categoryId && (
+                        <div className="p-4 rounded-xl bg-muted/30 border border-dashed border-border flex flex-col gap-2">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Starting Balance (Rollover)</span>
+                                <span className={cn(
+                                    "font-medium",
+                                    carryover > 0 ? "text-success" : carryover < 0 ? "text-destructive" : ""
+                                )}>
+                                    {carryover > 0 ? `+${carryover.toLocaleString()}` : carryover.toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">New Allocation</span>
+                                <span className="font-medium">+{newAllocation.toLocaleString()}</span>
+                            </div>
+                            <div className="border-t pt-2 mt-1 flex justify-between items-center">
+                                <span className="font-semibold text-sm">Total Available to Spend</span>
+                                <span className="font-bold text-primary">{totalEffective.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    )}
                     
                     {assistanceData && (
                         <div className="space-y-2">

@@ -81,6 +81,11 @@
     - **Reconciliation Optimization:**
         - **Schema:** Added indexes `by_accountId` and `by_toAccountId` to `transactions` table.
         - **Usage:** Used by `getLiquidAccountComposition` to quickly calculate net contribution from Liquid accounts to Goals without full table scans.
+    - **Budget Processing (Month-End):**
+        - **Concept:** Unified action to close the previous month's budget.
+        - **Schema:** The `budgets` table now includes optional fields `sweptAmount` (string) and `carryoverAmount` (string) to track fund movements without destroying historical data.
+        - **Sweep Logic (`sweepBudgets`):** Detects unspent funds in standard budgets. Instead of overwriting the original budget limit (which destroys history), it sets `sweptAmount`. This safely returns funds to Unassigned Cash while preserving the record of the original allocation.
+        - **Rollover Logic (`rolloverBudgets`):** Detects remaining balances (positive or negative) in **Smart Budgets** (categories with Pacing enabled). It automatically creates or updates the *next month's* budget entry with a `carryoverAmount`. This allows users to carry debt or savings forward.
     - **Cron Jobs (Auto-Save):**
         - Uses **Native Convex Crons** defined in `convex/crons.ts`.
         - Runs **Hourly** to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).

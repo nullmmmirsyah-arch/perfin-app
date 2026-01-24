@@ -81,7 +81,12 @@
         - 🟡 **Warning:** Spending pace is matching time (+10% tolerance).
         - 🔴 **Danger:** Spending is significantly faster than time.
     - **Opt-In:** Users can enable/disable this per category.
-- **Sweep Feature:** Move leftover budget from previous month to current month/savings.
+- **Month-End Processing (Sweep & Rollover):**
+    - **Concept:** A unified action to finalize the previous month's budget.
+    - **Non-Destructive Sweep:** For standard budgets, unspent funds are "swept" back to **Unassigned Cash** for the current month. Importantly, this action is **non-destructive**; the historical budget limit remains unchanged in reports, but the "swept" amount is logged to balance the books.
+    - **Smart Rollover:** For categories with **Smart Budget (Pacing)** enabled, any remaining balance (positive or negative) is **automatically carried over** to the current month.
+        - *Positive Carryover:* Increases the available budget for this month.
+        - *Negative Carryover:* Reduces the available budget (debt), forcing users to cover overspending from the past.
 
 ### 6. Households & Collaboration
 - **Multi-User:** Support for shared financial tracking (e.g., couples, families).
@@ -114,7 +119,13 @@
     - **Allocated Funds:** Breakdown of money reserved for specific Goals/Savings.
     - **True Available:** The amount safe to spend.
 
-## Business Logic Rules
+### 10. Category Insights & Analytics
+- **Category Detail Page:** A dedicated view for deep-diving into a specific category's performance.
+- **Features:**
+    - **Performance Trend:** A 12-month bar chart visualizing **Budget vs. Actual Spending**. It correctly reflects historical budgets even after funds have been swept.
+    - **Monthly History:** A detailed list showing Budget, Spent, Carryover, and Swept amounts for each fiscal month.
+    - **Grouped Transactions:** A list of recent transactions grouped by date (e.g., "Today", "Yesterday") for easier review.
+    - **Fiscal Awareness:** All data points respect the user's custom **Budget Start Day**.
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is blocked if transactions exist.
 2.  **Account Type Locking:** Once an account has associated transactions, its **Type (Cash/Asset/Saving)** is permanently locked. This prevents data corruption (e.g., swapping Cash to Asset without quantity data) and historical report inconsistencies. Users must Archive the old account and create a new one if a type change is needed.
 3.  **Asset Inventory Safety:**

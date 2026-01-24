@@ -126,6 +126,8 @@ export default defineSchema({
     amount: v.string(),
     year: v.number(),
     month: v.number(),
+    sweptAmount: v.optional(v.string()),
+    carryoverAmount: v.optional(v.string()),
   })
     .index("by_userId_year_month", ["userId", "year", "month"])
     .index("by_user_category_year_month", ["userId", "categoryId", "year", "month"])

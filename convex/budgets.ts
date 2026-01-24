@@ -190,7 +190,11 @@ export const getBudgetStatus = query({
         .filter(t => t.type === 'income' && t.date >= startOfFiscal && t.date <= endOfFiscal)
         .reduce((acc, t) => acc + parseFloat(t.amount.replace(/,/g, '') || '0'), 0);
 
-    const thisMonthBudgeted = budgets.reduce((acc, b) => acc + parseFloat(b.amount.replace(/,/g, '') || '0'), 0);
+    const thisMonthBudgeted = budgets.reduce((acc, b) => {
+        const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+        const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+        return acc + (allocated - swept);
+    }, 0);
     
     const pastSurplus = unassignedCash - (thisMonthIncome - thisMonthBudgeted);
 
@@ -202,8 +206,14 @@ export const getBudgetStatus = query({
         totalBudgeted: 0 
     };
 
-    // 10. Check for Leftover Budget (Sweep) - Refactored using Helper
-    let hasLeftoverBudget = false;
+    // 10. Check for Month-End Processing (Sweep & Rollover)
+    const monthEndProposals: { 
+        type: 'sweep' | 'rollover', 
+        categoryId: Id<"categories">, 
+        categoryName: string, 
+        amount: number 
+    }[] = [];
+
     let prevMonth = currentMonth - 1;
     let prevYear = currentYear;
     if (prevMonth < 0) { prevMonth = 11; prevYear--; }
@@ -228,16 +238,60 @@ export const getBudgetStatus = query({
          const prevSpending = calculateSpendingByCategory(prevTransactions, accountsMap);
 
          for (const b of prevBudgets) {
+             const category = categories.find(c => c._id === b.categoryId);
              const spent = prevSpending[b.categoryId] || 0;
              const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
-             if (allocated > spent) {
-                 hasLeftoverBudget = true;
-                 break;
+             const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+             const sisa = (allocated - swept) - spent;
+
+             // Case 1: Standard Sweepable Leftover
+             // Only for standard Expenses or Savings without pacing (though savings usually want to keep it, logic assumes simple sweep unless paced)
+             if (!category?.enablePacing && allocated > (spent + swept)) {
+                 const amountToSweep = allocated - (spent + swept);
+                 monthEndProposals.push({
+                     type: 'sweep',
+                     categoryId: b.categoryId,
+                     categoryName: category?.name || 'Unknown',
+                     amount: amountToSweep
+                 });
+             }
+
+             // Case 2: Smart Rollover (Positive or Negative)
+             if (category?.enablePacing && sisa !== 0) {
+                 // Check if it's already rolled over
+                 let targetBudget;
+                 if (householdId) {
+                     targetBudget = await ctx.db.query("budgets")
+                         .withIndex("by_householdId_category_year_month", q => 
+                             q.eq("householdId", householdId)
+                              .eq("categoryId", b.categoryId)
+                              .eq("year", currentYear)
+                              .eq("month", currentMonth)
+                         ).first();
+                 } else {
+                     targetBudget = await ctx.db.query("budgets")
+                         .withIndex("by_user_category_year_month", q => 
+                             q.eq("userId", userId)
+                              .eq("categoryId", b.categoryId)
+                              .eq("year", currentYear)
+                              .eq("month", currentMonth)
+                         ).first();
+                 }
+
+                 // If not yet rolled over, OR if the amount changed (re-run scenario)
+                 if (!targetBudget || targetBudget.carryoverAmount !== sisa.toString()) {
+                     monthEndProposals.push({
+                         type: 'rollover',
+                         categoryId: b.categoryId,
+                         categoryName: category?.name || 'Unknown',
+                         amount: sisa
+                     });
+                 }
              }
          }
     }
 
-    return { data, unassignedCash, hasLeftoverBudget, breakdown };
+    return { data, unassignedCash, monthEndProposals, breakdown };
   },
 });
 
@@ -657,13 +711,131 @@ export const sweepBudgets = mutation({
     for (const budget of budgets) {
         const spent = spendingByCategory[budget.categoryId] || 0;
         const allocated = parseFloat(budget.amount.replace(/,/g, '') || '0');
+        const currentSwept = parseFloat(budget.sweptAmount?.replace(/,/g, '') || '0');
         
-        if (allocated > spent) {
-            await ctx.db.patch(budget._id, { amount: spent.toString() });
+        // Only sweep if there is new leftover to sweep
+        if (allocated > (spent + currentSwept)) {
+            const newSweptValue = allocated - spent;
+            await ctx.db.patch(budget._id, { sweptAmount: newSweptValue.toString() });
             sweptCount++;
         }
     }
 
     return sweptCount;
   }
+});
+
+export const rolloverBudgets = mutation({
+    args: {
+        householdId: v.optional(v.id("households")),
+        month: v.number(), // The month to rollover FROM (e.g. Last Month)
+        year: v.number(),
+    },
+    handler: async (ctx, { householdId, month, year }) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Not authenticated");
+        const userId = identity.subject;
+
+        if (householdId) {
+            if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
+        }
+
+        const household = await getHousehold(ctx, householdId, userId);
+        const startDay = household?.budgetStartDay || 1;
+
+        // 1. Get Budgets from the Source Month
+        let sourceBudgets;
+        if (householdId) {
+            sourceBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", year).eq("month", month)).collect();
+        } else {
+            sourceBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", year).eq("month", month)).collect();
+        }
+
+        // 2. Determine Target Month
+        let targetMonth = month + 1;
+        let targetYear = year;
+        if (targetMonth > 11) {
+            targetMonth = 0;
+            targetYear++;
+        }
+
+        // 3. Calculate Spending for Source Month
+        const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
+        const startObj = new Date(startOfFiscal);
+        const endObj = new Date(endOfFiscal);
+
+        let allTransactions;
+        if (householdId) {
+            allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        } else {
+            allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+        }
+
+        const sourceTransactions = allTransactions.filter(t => {
+            const tDate = new Date(t.date);
+            return tDate >= startObj && tDate <= endObj;
+        });
+
+        let allAccounts;
+        if (householdId) {
+            allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        } else {
+            allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+        }
+        const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
+        const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap);
+
+        // 4. Process Rollover
+        let rolloverCount = 0;
+        for (const b of sourceBudgets) {
+            const category = await ctx.db.get(b.categoryId);
+            // ONLY rollover if Smart Pacing is enabled
+            if (category?.enablePacing) {
+                const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+                const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+                const spent = spendingMap[b.categoryId] || 0;
+                
+                const sisa = (allocated - swept) - spent;
+                
+                if (sisa !== 0) {
+                    // Find or create target budget
+                    let targetBudget;
+                    if (householdId) {
+                        targetBudget = await ctx.db.query("budgets")
+                            .withIndex("by_householdId_category_year_month", q => 
+                                q.eq("householdId", householdId)
+                                 .eq("categoryId", b.categoryId)
+                                 .eq("year", targetYear)
+                                 .eq("month", targetMonth)
+                            ).first();
+                    } else {
+                        targetBudget = await ctx.db.query("budgets")
+                            .withIndex("by_user_category_year_month", q => 
+                                q.eq("userId", userId)
+                                 .eq("categoryId", b.categoryId)
+                                 .eq("year", targetYear)
+                                 .eq("month", targetMonth)
+                            ).first();
+                    }
+
+                    if (targetBudget) {
+                        await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
+                    } else {
+                        await ctx.db.insert("budgets", {
+                            userId,
+                            householdId,
+                            categoryId: b.categoryId,
+                            amount: "0", // Initial allocation is 0 if not set
+                            year: targetYear,
+                            month: targetMonth,
+                            carryoverAmount: sisa.toString()
+                        });
+                    }
+                    rolloverCount++;
+                }
+            }
+        }
+
+        return rolloverCount;
+    }
 });

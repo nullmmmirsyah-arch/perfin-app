@@ -38,6 +38,10 @@ interface BudgetCardProps {
   onClickGoal?: (id: any) => void;
 }
 
+import { useRouter } from 'next/navigation'
+
+// ... existing imports
+
 export default function BudgetCard({
   item,
   daysRemaining,
@@ -48,20 +52,29 @@ export default function BudgetCard({
   onDelete,
   onClickGoal
 }: BudgetCardProps) {
+  const router = useRouter()
   const { category, budget, spent, accumulated } = item;
   
   const isGoal = category.type === 'saving' && category.targetAmount;
   const targetAmount = isGoal ? parseFloat(category.targetAmount!.replace(/,/g, '')) : 0;
-  const goalPercentage = isGoal && targetAmount > 0 ? (accumulated / targetAmount) * 100 : 0;
+  
   const limit = budget ? parseFloat(budget.amount) : 0;
-  const percentage = limit > 0 ? (spent / limit) * 100 : 0;
-  const isOverBudget = spent > limit && limit > 0;
-  const remaining = Math.max(0, limit - spent);
+  const carryover = budget?.carryoverAmount ? parseFloat(budget.carryoverAmount) : 0;
+  const swept = budget?.sweptAmount ? parseFloat(budget.sweptAmount) : 0;
+  
+  // Effective Limit is what the user REALLY has to spend this month
+  const effectiveLimit = limit + carryover;
+  
+  // Remaining is what's left after spending and any sweeps
+  const remaining = Math.max(0, effectiveLimit - spent - swept);
+  
+  const percentage = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 0;
+  const isOverBudget = spent > effectiveLimit && effectiveLimit > 0;
   const dailySafeSpend = remaining / daysRemaining;
 
-  // Pacing Logic (Expenses)
+  // Pacing Logic (Expenses) - Use Effective Limit
   const pacing = category.enablePacing && category.type === 'expense' && budget
-    ? calculateBudgetPace(spent, limit, selectedDate.getFullYear(), selectedDate.getMonth(), budgetStartDay)
+    ? calculateBudgetPace(spent, effectiveLimit, selectedDate.getFullYear(), selectedDate.getMonth(), budgetStartDay)
     : null;
 
   // Goal Strategy Logic (Savings)
@@ -70,20 +83,21 @@ export default function BudgetCard({
     : null;
 
   // --- NEW LOGIC FOR SAVINGS CARD ---
-  // Benchmark = Manual Budget Limit OR Calculated Strategy Suggestion
-  const monthlyTarget = budget && limit > 0 ? limit : (strategy?.monthly || 0);
-  // Progress = What we saved this month (spent) / Monthly Target
+  const monthlyTarget = budget && effectiveLimit > 0 ? effectiveLimit : (strategy?.monthly || 0);
   const monthlyProgress = monthlyTarget > 0 ? (spent / monthlyTarget) * 100 : 0;
   const isMonthlyGoalMet = monthlyTarget > 0 && spent >= monthlyTarget;
 
   return (
     <Card 
       className={cn(
-        "p-6 flex flex-col justify-between shadow-sm h-full min-h-[160px] transition-all",
-        isGoal ? "cursor-pointer hover:shadow-md active:scale-[0.99]" : ""
+        "p-6 flex flex-col justify-between shadow-sm h-full min-h-[160px] transition-all cursor-pointer hover:shadow-md active:scale-[0.99]"
       )}
       onClick={() => {
-        if (isGoal && onClickGoal) onClickGoal(category._id)
+        if (isGoal && onClickGoal) {
+            onClickGoal(category._id)
+        } else {
+            router.push(`/categories/${category._id}`)
+        }
       }}
     >
       <div>
@@ -91,6 +105,7 @@ export default function BudgetCard({
           <div>
             <h3 className="font-semibold text-lg flex items-center gap-2">
               {category.name}
+              {/* ... rest of the component ... */}
               {isGoal && isMonthlyGoalMet && (
                   <span className="flex items-center justify-center bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 p-1 rounded-full" title="Monthly Goal Met!">
                       <CheckCircle2 className="h-4 w-4" />
@@ -149,11 +164,19 @@ export default function BudgetCard({
               <p className="text-sm text-muted-foreground capitalize">
                 {isGoal ? (category.goalType === 'bill' ? 'Sinking Fund' : category.goalType === 'investment' ? 'Investment' : 'Goal') : category.type}
               </p>
-                            {!isGoal && budget && remaining > 0 && !isPastMonth && !pacing && (        
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
-                                ~{formatCurrency(dailySafeSpend)}/day
-                              </span>
-                            )}            </div>
+              {carryover !== 0 && (
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tight",
+                  carryover > 0 ? "bg-success/10 text-success border border-success/20" : "bg-destructive/10 text-destructive border border-destructive/20"
+                )}>
+                  {carryover > 0 ? `+${formatCurrency(carryover)}` : formatCurrency(carryover)} Rollover
+                </span>
+              )}
+              {!isGoal && budget && remaining > 0 && !isPastMonth && !pacing && (        
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                  ~{formatCurrency(dailySafeSpend)}/day
+                </span>
+              )}            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -261,15 +284,23 @@ export default function BudgetCard({
                     )}
                   />
                   <div className="flex justify-between items-center">
-                    <p className={cn(
-                      "text-xs font-semibold",
-                      isOverBudget ? "text-destructive" : "text-foreground"
-                    )}>
-                                            {isOverBudget
-                                              ? `-${formatCurrency(spent - limit)} over budget`
-                                              : `${formatCurrency(limit - spent)} left`
-                                            }
-                                          </p>                    <span className="text-xs text-muted-foreground">
+                    <div className="flex flex-col">
+                        <p className={cn(
+                        "text-xs font-semibold",
+                        isOverBudget ? "text-destructive" : "text-foreground"
+                        )}>
+                            {isOverBudget
+                                ? `-${formatCurrency(spent - effectiveLimit)} over budget`
+                                : `${formatCurrency(remaining)} left`
+                            }
+                        </p>
+                        {swept > 0 && (
+                            <p className="text-[10px] text-muted-foreground italic">
+                                ({formatCurrency(swept)} swept back)
+                            </p>
+                        )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">
                       {Math.round(percentage)}%
                     </span>
                   </div>

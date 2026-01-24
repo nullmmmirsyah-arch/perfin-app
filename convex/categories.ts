@@ -3,7 +3,7 @@ import { mutation, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
 import { CATEGORY_TYPES, GOAL_TYPES, GOAL_STATUS, ACCOUNT_TYPES } from "./lib/constants";
-import { getFiscalDateDetails } from "./lib/finance";
+import { getFiscalDateDetails, getFiscalMonthRange } from "./lib/finance";
 import { calculateSpendingByCategory, AccountMap } from "./lib/finance";
 
 export const getGoalDetails = query({
@@ -154,6 +154,139 @@ export const getGoalDetails = query({
         currentBudget,
         thisMonthContribution,
         linkedAccountId
+    };
+  }
+});
+
+export const getCategoryDetails = query({
+  args: {
+    id: v.id("categories"),
+    householdId: v.optional(v.id("households")),
+  },
+  handler: async (ctx, { id, householdId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const category = await ctx.db.get(id);
+    if (!category) throw new Error("Category not found");
+
+    if (householdId) {
+        if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
+    } else {
+        if (category.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    // 1. Fetch Context (Transactions & Budgets & Accounts)
+    // We need data for the last 12 months for trends.
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    // Calculate start date (12 months ago)
+    const startDate = new Date(currentYear, currentMonth - 11, 1);
+
+    let allTransactions;
+    let allBudgets;
+    let accounts;
+
+    if (householdId) {
+        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
+        accounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
+        allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", identity.subject)).collect();
+        accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
+    }
+
+    const accountsMap: AccountMap = new Map(accounts.map(a => [String(a._id), a]));
+
+    // 2. Build Historical Data (Last 12 Months)
+    const historyData = [];
+    
+    // Get Budget Start Day FIRST
+    let startDay = 1;
+    
+    // 1. Priority: Category's own household (The authoritative source)
+    if (category.householdId) {
+        const h = await ctx.db.get(category.householdId);
+        if (h?.budgetStartDay) startDay = h.budgetStartDay;
+    } 
+    // 2. Priority: Context household (If viewing in household context)
+    else if (householdId) {
+        const h = await ctx.db.get(householdId);
+        if (h?.budgetStartDay) startDay = h.budgetStartDay;
+    }
+    // 3. Priority: Fallback for Personal Categories - Find ANY household with a config
+    else {
+        const members = await ctx.db.query("householdMembers").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
+        const households = await Promise.all(members.map(m => ctx.db.get(m.householdId)));
+        
+        // Find first one with a custom start day
+        const configuredHousehold = households.find(h => h && h.budgetStartDay && h.budgetStartDay > 1);
+        if (configuredHousehold) {
+            startDay = configuredHousehold.budgetStartDay!;
+        }
+    }
+    
+    // We iterate backwards from current FISCAL month
+    for (let i = 11; i >= 0; i--) {
+        let m = currentMonth - i;
+        let y = currentYear;
+        while (m < 0) { m += 12; y--; }
+        
+        // Find Budget - Ensure strict ID comparison
+        const budget = allBudgets.find(b => String(b.categoryId) === String(id) && b.year === y && b.month === m);
+        
+        // Calculate Spending using Fiscal Logic
+        const { start, end } = getFiscalMonthRange(y, m, startDay);
+        
+        const monthTx = allTransactions.filter(t => {
+            const d = new Date(t.date);
+            return d >= new Date(start) && d <= new Date(end);
+        });
+        
+        const spendingMap = calculateSpendingByCategory(monthTx, accountsMap);
+        const spent = spendingMap[String(id)] || 0;
+
+        // Label Formatter: "Dec" or "Dec - Jan" depending on startDay
+        const labelDate = new Date(y, m, startDay);
+        // If mid-month start, maybe show 'Dec-Jan' or just 'Dec' (fiscal name)
+        // Standard in app seems to be just the Month Name of the start date
+        const label = labelDate.toLocaleDateString('en-US', { month: 'short' });
+
+        historyData.push({
+            year: y,
+            month: m,
+            label,
+            budgetAmount: budget ? parseFloat(budget.amount.replace(/,/g, '') || '0') : 0,
+            sweptAmount: budget?.sweptAmount ? parseFloat(budget.sweptAmount.replace(/,/g, '') || '0') : 0,
+            carryoverAmount: budget?.carryoverAmount ? parseFloat(budget.carryoverAmount.replace(/,/g, '') || '0') : 0,
+            spent,
+        });
+    }
+
+    // 3. Recent Transactions
+    const recentTransactions = allTransactions
+        .filter(t => {
+            const isMain = t.categoryId === id;
+            const isSplit = t.isSplit && t.splits?.some(s => s.categoryId === id);
+            return isMain || isSplit;
+        })
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 20)
+        .map(t => {
+            const account = accountsMap.get(String(t.accountId));
+            return {
+                ...t,
+                accountName: account?.name
+            };
+        });
+
+    return {
+        category,
+        historyData,
+        recentTransactions
     };
   }
 });

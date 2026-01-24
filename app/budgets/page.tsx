@@ -44,6 +44,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 import {
@@ -54,8 +55,16 @@ import {
 } from "@/components/ui/carousel"
 import { useRouter } from "next/navigation"
 
+import { MonthEndProcessDialog } from '@/components/budgets/MonthEndProcessDialog'
+
+// ... existing imports
+
 export default function BudgetsPage() {
   const [open, setOpen] = useState(false)
+  const [showMonthEndDialog, setShowMonthEndDialog] = useState(false)
+  const [isProcessingMonthEnd, setIsProcessingMonthEnd] = useState(false)
+  
+  // ... existing state ...
   const [selectedCategory, setSelectedCategory] = useState<Doc<'categories'> | undefined>(undefined)
   const [selectedAmount, setSelectedAmount] = useState<string | undefined>(undefined)
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -111,11 +120,12 @@ export default function BudgetsPage() {
 
   const budgetStatus = budgetData?.data
   const unassignedCash = budgetData?.unassignedCash ?? 0
-  const hasLeftoverBudget = budgetData?.hasLeftoverBudget ?? false
+  const monthEndProposals = budgetData?.monthEndProposals || []
   const breakdown = budgetData?.breakdown;
 
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
   const sweepBudgets = useMutation(convexApi.budgets.sweepBudgets)
+  const rolloverBudgets = useMutation(convexApi.budgets.rolloverBudgets)
 
   useEffect(() => {
     if (!api) return
@@ -158,11 +168,21 @@ export default function BudgetsPage() {
       let prevYear = now.getFullYear();
       if (prevMonth < 0) { prevMonth = 11; prevYear--; }
 
-      const count = await sweepBudgets({ month: prevMonth, year: prevYear, householdId: householdId ?? undefined });
-      if (count > 0) {
-          toast.success(`Successfully swept ${count} unused budgets back to available cash.`);
-      } else {
-          toast.info("No unused budgets found to sweep.");
+      setIsProcessingMonthEnd(true);
+      try {
+          const sweptCount = await sweepBudgets({ month: prevMonth, year: prevYear, householdId: householdId ?? undefined });
+          const rolloverCount = await rolloverBudgets({ month: prevMonth, year: prevYear, householdId: householdId ?? undefined });
+          
+          if (sweptCount > 0 || rolloverCount > 0) {
+              toast.success(`Processing complete: ${sweptCount} swept, ${rolloverCount} rolled over.`);
+          } else {
+              toast.info("No actions were needed.");
+          }
+          setShowMonthEndDialog(false);
+      } catch (e) {
+          toast.error("Failed to process month-end budgets.");
+      } finally {
+          setIsProcessingMonthEnd(false);
       }
   }
 
@@ -330,20 +350,30 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {hasLeftoverBudget && !isPastMonth && (
+      {monthEndProposals.length > 0 && !isPastMonth && (
         <div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/10 text-primary flex justify-between items-center">
             <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
                 <div>
-                    <h4 className="font-semibold text-sm">Unused funds from last month detected!</h4>
-                    <p className="text-xs text-primary/80">Sweep it to increase available cash.</p>
+                    <h4 className="font-semibold text-sm">Month-end processing required!</h4>
+                    <p className="text-xs text-primary/80">
+                        {monthEndProposals.length} pending actions (Sweep/Rollover) from last month.
+                    </p>
                 </div>
             </div>
-            <Button size="sm" onClick={handleSweep} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Sweep
+            <Button size="sm" onClick={() => setShowMonthEndDialog(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                Review & Process
             </Button>
         </div>
       )}
+
+      <MonthEndProcessDialog 
+        open={showMonthEndDialog} 
+        onOpenChange={setShowMonthEndDialog}
+        proposals={monthEndProposals}
+        onConfirm={handleSweep}
+        isProcessing={isProcessingMonthEnd}
+      />
 
       <BudgetDrawer
         open={open}
