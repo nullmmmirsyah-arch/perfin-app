@@ -330,7 +330,14 @@ export const getDashboardSummary = query({
 
     // 3. Recent Transactions
     const sortedTransactions = allTransactions
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateA !== dateB) {
+                return dateB - dateA;
+            }
+            return b._creationTime - a._creationTime;
+        })
         .slice(0, 10);
 
     // Batch Fetch Related Entities for Recent Transactions
