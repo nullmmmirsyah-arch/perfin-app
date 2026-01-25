@@ -7,7 +7,9 @@ import {
   AccountMap,
   isLiquidAccount,
   getFiscalMonthRange,
-  getFiscalDateDetails
+  getFiscalDateDetails,
+  analyzeTransactionFlow,
+  parseAmount
 } from "./lib/finance";
 import { TRANSACTION_TYPES, ACCOUNT_TYPES } from "./lib/constants";
 
@@ -321,7 +323,7 @@ export const getDashboardSummary = query({
 
     const remainingBudget = totalRemainingBudget;
 
-    // 2.2 Calculate Unassigned Cash (Using Helper)
+    // 2.2 Calculate Unassigned Cash & Obligation Breakdown (Using Helper logic but split)
     let allBudgets;
     if (householdId) {
         allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
@@ -329,6 +331,46 @@ export const getDashboardSummary = query({
         allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
     }
     
+    // We need category types to split obligations
+    const catMap = new Map(categories.map(c => [c._id, c]));
+    
+    // Group all transactions by month/category for historical obligation check
+    const monthlySpendingAll = new Map<string, Map<string, number>>();
+    allTransactions.forEach(t => {
+        const flows = analyzeTransactionFlow(t, accountsMap);
+        const { year, month } = getFiscalDateDetails(t.date, startDay);
+        const key = `${year}-${month}`; 
+        if (!monthlySpendingAll.has(key)) monthlySpendingAll.set(key, new Map());
+        const categoryMap = monthlySpendingAll.get(key)!;
+        flows.forEach((flow: any) => {
+            const catId = String(flow.categoryId);
+            categoryMap.set(catId, (categoryMap.get(catId) || 0) + (flow.type === 'SPENDING' ? flow.amount : 0));
+        });
+    });
+
+    let totalExpenseObligations = 0;
+    let totalSavingObligations = 0;
+    let totalDebtCovered = 0;
+
+    allBudgets.forEach(b => {
+        const key = `${b.year}-${b.month}`;
+        const spent = monthlySpendingAll.get(key)?.get(String(b.categoryId)) || 0;
+        const allocated = parseAmount(b.amount);
+        const carryover = parseAmount(b.carryoverAmount);
+        const swept = parseAmount(b.sweptAmount);
+        
+        const cat = catMap.get(b.categoryId);
+        const baseObligation = (allocated + carryover) - swept;
+        const remaining = Math.max(0, baseObligation - spent);
+
+        if (cat?.type === 'expense') {
+            totalExpenseObligations += remaining;
+            if (carryover < 0) totalDebtCovered += Math.abs(carryover);
+        } else if (cat?.type === 'saving') {
+            totalSavingObligations += remaining;
+        }
+    });
+
     const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
 
     // 3. Recent Transactions
@@ -406,6 +448,9 @@ export const getDashboardSummary = query({
       assetAccounts,
       remainingBudget,
       unassignedCash,
+      totalExpenseObligations,
+      totalSavingObligations,
+      totalDebtCovered,
       budgetBreakdown,
       recentTransactions,
     };

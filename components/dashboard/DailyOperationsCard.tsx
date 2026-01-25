@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react';      
+import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';      
 import { cn, formatCurrency } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,10 @@ type SummaryData = {
   remainingBudget: number;
   unassignedCash: number;
   liquidCash: number;
+  totalSavingsOnly: number;
+  totalExpenseObligations: number;
+  totalSavingObligations: number;
+  totalDebtCovered: number;
   budgetBreakdown: BudgetBreakdownItem[];
   cashAccounts: { 
       name: string; 
@@ -183,36 +187,79 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                             <Info className="h-4 w-4" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent align="end" className="w-72">
-                        <div className="space-y-3">
-                            <h4 className="font-medium text-sm border-b pb-2 flex items-center gap-2">
-                                <Info className="h-3 w-3" /> Budget Insights
-                            </h4>
-                            
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">Unassigned Cash</span>
-                                    <span className={cn(
-                                        "font-bold",
-                                        (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
-                                    )}>
-                                        {formatCurrency(summary?.unassignedCash, { isPrivacyMode })}
-                                    </span>
-                                </div>
+                    <PopoverContent align="end" className="w-80 p-0 overflow-hidden border-none shadow-2xl">
+                        <div className="bg-primary p-4 text-primary-foreground">
+                            <div className="flex items-center justify-between mb-1">
+                                <h4 className="font-bold text-sm flex items-center gap-2">
+                                    <Wallet className="h-4 w-4 text-emerald-300" /> Money Trace
+                                </h4>
+                            </div>
+                            <p className="text-[10px] text-primary-foreground/70">Rincian alokasi dari total uang fisik Anda.</p>
+                        </div>
 
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground flex items-center gap-1.5">
-                                        <CalendarClock className="h-3 w-3" /> Time Remaining
-                                    </span>
-                                    <span className="font-medium">
-                                        {daysRemaining} days left in cycle
-                                    </span>
+                        <div className="p-4 space-y-4 bg-background">
+                            {/* SECTION 1: PHYSICAL ASSETS */}
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">1. Sumber Uang (Fisik)</p>
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between text-xs">
+                                        <span>Saldo Cash & Bank</span>
+                                        <span className="font-medium">{formatCurrency(summary?.liquidCash, { isPrivacyMode })}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span>Saldo Tabungan (Goals)</span>
+                                        <span className="font-medium">{formatCurrency(summary?.totalSavingsOnly, { isPrivacyMode })}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5 border-dashed">
+                                        <span>Total Uang</span>
+                                        <span className="text-primary">{formatCurrency((summary?.liquidCash || 0) + (summary?.totalSavingsOnly || 0), { isPrivacyMode })}</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="text-[10px] text-muted-foreground bg-muted/50 p-2 rounded space-y-1">
-                                <p>• <strong>Safe Spend:</strong> You can spend <strong>{formatCurrency(dailySafeSpend, { isPrivacyMode })}</strong> today globally to stay on track.</p>
-                                <p>• <strong>Tip:</strong> Tap on any category below to see its specific daily limit.</p>
+                            {/* SECTION 2: ALLOCATIONS */}
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">2. Alokasi (Rencana)</p>
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between text-xs">
+                                        <span>Jatah Belanja (Budget Left)</span>
+                                        <span className="font-medium">{formatCurrency(summary?.totalExpenseObligations, { isPrivacyMode })}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span>Jatah Tabungan (Goals)</span>
+                                        <span className="font-medium">{formatCurrency((summary?.totalSavingObligations || 0) + (summary?.totalSavingsOnly || 0), { isPrivacyMode })}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="flex items-center gap-1">Uang Bebas (Unassigned) <Info className="h-3 w-3 opacity-30" /></span>
+                                        <span className={cn(
+                                            "font-medium",
+                                            (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
+                                        )}>
+                                            {formatCurrency(summary?.unassignedCash, { isPrivacyMode })}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5 border-dashed">
+                                        <span>Total Alokasi</span>
+                                        <span className="text-primary">{formatCurrency((summary?.totalExpenseObligations || 0) + (summary?.totalSavingObligations || 0) + (summary?.totalSavingsOnly || 0) + (summary?.unassignedCash || 0), { isPrivacyMode })}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* INSIGHTS */}
+                            <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                    <Wallet className="h-3 w-3" /> Money Insights
+                                </p>
+                                <div className="space-y-1.5">
+                                    {summary?.totalDebtCovered ? (
+                                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                                            • Jatah belanja Anda otomatis dipotong <span className="font-bold text-destructive">-{formatCurrency(summary.totalDebtCovered, { isPrivacyMode })}</span> untuk menutupi overspend bulan lalu.
+                                        </p>
+                                    ) : null}
+                                    <p className="text-[10px] leading-relaxed text-muted-foreground">
+                                        • Sebesar <span className="font-bold text-primary">{formatCurrency(summary?.totalSavingObligations, { isPrivacyMode })}</span> dijadwalkan masuk tabungan. Pastikan Anda melakukan transfer agar saldo Goals bertambah.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </PopoverContent>
