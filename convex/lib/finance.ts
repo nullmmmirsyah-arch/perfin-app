@@ -175,13 +175,18 @@ export function calculateUnassignedCash(
     const key = `${b.year}-${b.month}`;
     const categoryMap = monthlySpending.get(key);
     const spent = categoryMap?.get(String(b.categoryId)) || 0;
-    const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
-    const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
-    const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
     
-    // Fix: Allow negative remaining (overspending) so Unassigned Cash isn't reduced automatically.
-    // Remaining obligation must include carryover (rollover surplus/debt)
-    const remaining = (allocated + carryover - swept) - spent;
+    const allocated = parseAmount(b.amount);
+    const carryover = parseAmount(b.carryoverAmount);
+    const swept = parseAmount(b.sweptAmount);
+    
+    // Correct Obligation Logic:
+    // 1. If carryover is negative (debt), the obligation is the full 'allocated' amount.
+    // 2. If carryover is positive (surplus), the obligation is 'allocated' + 'carryover'.
+    // 3. Subtract money already 'spent' or 'swept' out.
+    const baseObligation = allocated + Math.max(0, carryover) - swept;
+    const remaining = Math.max(0, baseObligation - spent);
+    
     totalRemainingObligations += remaining;
   });
 
