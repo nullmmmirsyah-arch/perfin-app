@@ -193,7 +193,8 @@ export const getBudgetStatus = query({
     const thisMonthBudgeted = budgets.reduce((acc, b) => {
         const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
         const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
-        return acc + (allocated - swept);
+        const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
+        return acc + (allocated + carryover - swept);
     }, 0);
     
     const pastSurplus = unassignedCash - (thisMonthIncome - thisMonthBudgeted);

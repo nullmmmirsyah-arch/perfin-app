@@ -289,7 +289,10 @@ export const getDashboardSummary = query({
         })
         .map(cat => {
             const b = budgetMap.get(cat._id);
-            const limit = b ? parseFloat(b.amount.replace(/,/g, '') || '0') : 0;
+            const allocated = b ? parseFloat(b.amount.replace(/,/g, '') || '0') : 0;
+            const carryover = b ? parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0') : 0;
+            const limit = allocated + carryover;
+            
             const spent = spendingByCategory[cat._id] || 0;
             const accumulated = accumulatedMap[cat._id] || 0;
             
