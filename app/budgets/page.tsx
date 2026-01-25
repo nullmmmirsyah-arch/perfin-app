@@ -234,7 +234,9 @@ export default function BudgetsPage() {
 
   const totalRemainingExpenses = expenses.reduce((acc, item) => {
       const limit = item.budget ? parseFloat(item.budget.amount) : 0;
-      return acc + (limit - item.spent);
+      const carryover = item.budget?.carryoverAmount ? parseFloat(item.budget.carryoverAmount) : 0;
+      const effectiveLimit = limit + carryover;
+      return acc + (effectiveLimit - item.spent);
   }, 0);
 
   // Calculate Monthly Savings Aggregate (Goals Focus)
@@ -457,13 +459,21 @@ export default function BudgetsPage() {
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs text-muted-foreground">
-                                            {expenses.reduce((acc, i) => acc + i.spent, 0).toLocaleString()} / {expenses.reduce((acc, i) => acc + (i.budget ? parseFloat(i.budget.amount) : 0), 0).toLocaleString()}
+                                            {expenses.reduce((acc, i) => acc + i.spent, 0).toLocaleString()} / {expenses.reduce((acc, i) => {
+                                                const limit = i.budget ? parseFloat(i.budget.amount) : 0;
+                                                const carryover = i.budget?.carryoverAmount ? parseFloat(i.budget.carryoverAmount) : 0;
+                                                return acc + (limit + carryover);
+                                            }, 0).toLocaleString()}
                                         </p>
                                     </div>
                                 </div>
                                 <Progress 
                                     value={(() => {
-                                        const totalLimit = expenses.reduce((acc, i) => acc + (i.budget ? parseFloat(i.budget.amount) : 0), 0);
+                                        const totalLimit = expenses.reduce((acc, i) => {
+                                            const limit = i.budget ? parseFloat(i.budget.amount) : 0;
+                                            const carryover = i.budget?.carryoverAmount ? parseFloat(i.budget.carryoverAmount) : 0;
+                                            return acc + (limit + carryover);
+                                        }, 0);
                                         const totalSpent = expenses.reduce((acc, i) => acc + i.spent, 0);
                                         return totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
                                     })()} 
