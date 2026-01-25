@@ -181,10 +181,10 @@ export function calculateUnassignedCash(
     const swept = parseAmount(b.sweptAmount);
     
     // Correct Obligation Logic:
-    // 1. If carryover is negative (debt), the obligation is the full 'allocated' amount.
-    // 2. If carryover is positive (surplus), the obligation is 'allocated' + 'carryover'.
-    // 3. Subtract money already 'spent' or 'swept' out.
-    const baseObligation = allocated + Math.max(0, carryover) - swept;
+    // The obligation (money reserved from current cash) is simply the Effective Limit.
+    // 1. Surplus (+Carryover): Increases obligation (reserves existing cash).
+    // 2. Debt (-Carryover): Reduces obligation (we don't need to reserve cash for money that's already gone).
+    const baseObligation = (allocated + carryover) - swept;
     const remaining = Math.max(0, baseObligation - spent);
     
     totalRemainingObligations += remaining;
