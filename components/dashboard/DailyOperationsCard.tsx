@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails } from '@/lib/finance-utils';
 
 export type BudgetBreakdownItem = {
+  categoryId: string;
   categoryName: string;
   categoryType: string;
   targetAmount?: number;
@@ -102,7 +103,7 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: {
                 
                 {/* Safe Daily Badge - Always Visible if applicable */}
                 {!isOver && item.remaining > 0 && safeSpend > 0 ? (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-primary/5 text-primary border-primary/20 shrink-0">
+                    <Badge variant="outline" className="text-[10px] px-0 py-0 h-5 font-semibold text-primary border-0 shrink-0 shadow-none">
                         ~{formatCurrency(safeSpend, { isPrivacyMode })}/day
                     </Badge>
                 ) : isOver ? (
@@ -175,7 +176,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                               Monthly Budget Left
                           </p>
                           {remainingBudget > 0 && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20 cursor-help" title="Safe to spend daily"> 
+                              <Badge variant="outline" className="text-[10px] px-0 py-0 h-5 text-primary border-0 font-semibold shadow-none cursor-help" title="Safe to spend daily"> 
                                   ~{formatCurrency(dailySafeSpend, { isPrivacyMode })}/day
                               </Badge>
                           )}

@@ -299,6 +299,7 @@ export const getDashboardSummary = query({
             const accumulated = accumulatedMap[cat._id] || 0;
             
             return {
+                categoryId: cat._id,
                 categoryName: cat?.name || 'Unknown',
                 categoryType: cat?.type || 'expense',
                 targetAmount: cat?.targetAmount ? parseFloat(cat.targetAmount.replace(/,/g, '')) : undefined,

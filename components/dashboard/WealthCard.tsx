@@ -1,10 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatCurrency } from '@/lib/utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
 import { calculateGoalStrategy } from '@/lib/finance-utils';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 type SummaryData = {
   budgetBreakdown: BudgetBreakdownItem[];
@@ -25,7 +27,11 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground">Wealth & Goals</CardTitle>
-          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          <Button variant="ghost" size="sm" className="h-8 text-xs font-normal text-muted-foreground hover:text-primary px-2" asChild>
+            <Link href="/goals" className="flex items-center gap-1">
+              View All <ArrowRight className="h-3 w-3" />
+            </Link>
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -95,35 +101,41 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
 
                   return (
                     <div key={index} className="flex flex-col gap-1.5 pb-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline" className={`px-1 py-0 h-4 text-[9px] border gap-1 font-semibold ${typeColor}`}>
-                                <Icon className="h-2 w-2" />
-                                {typeLabel}
-                            </Badge>
-                            <span className="text-muted-foreground font-medium truncate max-w-[120px]">{item.categoryName}</span>
-                            {isMet && (
-                                <Badge variant="default" className="px-1 py-0 h-4 text-[9px] bg-success hover:bg-success/90 text-success-foreground border-0 gap-1">
-                                    Met
-                                </Badge>
-                            )}
+                      <Link 
+                        href={`/goals/${item.categoryId}`} 
+                        className="group block p-2 -mx-2 rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex justify-between items-center text-sm mb-1.5">
+                          <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={`px-1 py-0 h-4 text-[9px] border gap-1 font-semibold ${typeColor}`}>
+                                  <Icon className="h-2 w-2" />
+                                  {typeLabel}
+                              </Badge>
+                              <span className="text-muted-foreground font-medium truncate max-w-[120px] group-hover:text-foreground transition-colors">{item.categoryName}</span>
+                              {isMet && (
+                                  <Badge variant="default" className="px-1 py-0 h-4 text-[9px] bg-success hover:bg-success/90 text-success-foreground border-0 gap-1">
+                                      Met
+                                  </Badge>
+                              )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                              <span className={cn("font-bold text-xs block", isMet ? "text-success" : "text-foreground")}>
+                                  {formatCurrency(displayCurrent, { isPrivacyMode })}
+                              </span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+                          </div>
                         </div>
-                        <div className="text-right">
-                            <span className={cn("font-bold text-xs block", isMet ? "text-success" : "text-foreground")}>
-                                {formatCurrency(displayCurrent, { isPrivacyMode })}
-                            </span>
+                        
+                        {/* Progress Bar */}
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-500", isMet ? "bg-success" : "bg-primary")}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          />
                         </div>
-                      </div>
+                      </Link>
                       
-                      {/* Progress Bar */}
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn("h-full rounded-full transition-all duration-500", isMet ? "bg-success" : "bg-primary")}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        />
-                      </div>
-                      
-                      <div className="flex justify-between items-end text-[10px] text-muted-foreground">
+                      <div className="flex justify-between items-end text-[10px] text-muted-foreground px-2">
                         <div>
                             <span>{displayTarget ? `${Math.round(percentage)}%` : 'N/A'}</span>
                             <span className="mx-1">•</span>
@@ -132,7 +144,7 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                         
                         {/* Strategy Suggestion (Only show if NOT met yet to avoid confusion) */}
                         {!isMet && strategy && strategy.monthly > 0 && !strategy.isDone && (
-                            <div className="flex items-center gap-1 text-primary font-medium bg-primary/10 px-1.5 py-0.5 rounded-sm" title="Suggested monthly saving to reach goal on time">
+                            <div className="flex items-center gap-1 text-primary font-medium" title="Suggested monthly saving to reach goal on time">
                                 <TrendingUp className="h-3 w-3" />
                                 <span>Rec: +{formatCurrency(Math.ceil(strategy.monthly), { notation: "compact" })}/mo</span>
                             </div>
