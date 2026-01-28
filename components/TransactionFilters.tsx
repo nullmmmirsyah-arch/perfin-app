@@ -29,11 +29,13 @@ type TransactionFiltersProps = {
     dateRange: DateRange | undefined
   }
   onFilterChange: (filters: TransactionFiltersProps['filters']) => void
+  extraAction?: React.ReactNode
 }
 
 export default function TransactionFilters({
   filters,
   onFilterChange,
+  extraAction,
 }: TransactionFiltersProps) {
   const { householdId } = useHousehold()
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined })
@@ -61,7 +63,7 @@ export default function TransactionFilters({
   const labelOptions: Option[] = labels?.map(l => ({ label: l.name, value: l._id })) || [];
 
   return (
-    <div className="space-y-4 mb-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {/* Date Picker - Always Visible */}
         <Popover>
@@ -182,6 +184,8 @@ export default function TransactionFilters({
             </div>
           </PopoverContent>
         </Popover>
+        
+        {extraAction}
       </div>
 
       {/* Active Filter Badges */}

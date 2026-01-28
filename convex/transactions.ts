@@ -406,6 +406,178 @@ export const get = query({
   },
 });
 
+export const exportTransactions = query({
+  args: {
+    householdId: v.optional(v.id("households")),
+    type: v.optional(v.array(v.string())),
+    accountId: v.optional(v.array(v.string())),
+    categoryId: v.optional(v.array(v.string())),
+    labelId: v.optional(v.array(v.string())),
+    dateRange: v.optional(v.object({
+      start: v.optional(v.string()),
+      end: v.optional(v.string()),
+    })),
+    search: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { householdId, type, accountId, categoryId, labelId, dateRange, search } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    let queryBuilder;
+    if (householdId) {
+      if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) {
+        return [];
+      }
+      queryBuilder = ctx.db
+        .query("transactions")
+        .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId));
+    } else {
+      queryBuilder = ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) => q.eq("userId", identity.subject));
+    }
+
+    if (dateRange?.start) {
+      queryBuilder = queryBuilder.filter((q) => q.gte(q.field("date"), dateRange.start!));
+    }
+    if (dateRange?.end) {
+      queryBuilder = queryBuilder.filter((q) => q.lte(q.field("date"), dateRange.end!));
+    }
+
+    if (type && type.length > 0) {
+      queryBuilder = queryBuilder.filter((q) => 
+        q.or(...type.map(t => q.eq(q.field("type"), t)))
+      );
+    }
+
+    if (accountId && accountId.length > 0) {
+      queryBuilder = queryBuilder.filter((q) => 
+        q.or(
+           q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
+           q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
+        )
+      );
+    }
+
+    // Collect all candidates first (No pagination)
+    let results = await queryBuilder.order("desc").collect();
+
+    // JS Filtering for Complex logic (Search, Categories, Labels)
+    if (search || (categoryId && categoryId.length > 0) || (labelId && labelId.length > 0)) {
+        const searchLower = search?.toLowerCase();
+        
+        results = results.filter(t => {
+            let matches = true;
+
+            // Search Text
+            if (searchLower) {
+                const descMatch = t.description?.toLowerCase().includes(searchLower);
+                // We can't easily check category/account names here without joining first, 
+                // but usually search filters by description or amount.
+                // Let's stick to description for export filtering speed.
+                matches = matches && (!!descMatch);
+            }
+
+            // Categories
+            if (categoryId && categoryId.length > 0) {
+                 const catMatch = t.searchCategoryIds?.some(id => categoryId.includes(id));
+                 matches = matches && (!!catMatch);
+            }
+
+            // Labels
+            if (labelId && labelId.length > 0) {
+                 const lblMatch = t.searchLabelIds?.some(id => labelId.includes(id));
+                 matches = matches && (!!lblMatch);
+            }
+
+            return matches;
+        });
+    }
+
+    // Batch Fetch Details
+    const accountIds = new Set<Id<"accounts">>();
+    const categoryIds = new Set<Id<"categories">>();
+    const labelIds = new Set<Id<"labels">>();
+
+    results.forEach(t => {
+      accountIds.add(t.accountId);
+      if (t.toAccountId) accountIds.add(t.toAccountId);
+      if (t.categoryId) categoryIds.add(t.categoryId);
+      if (t.labelId) labelIds.add(t.labelId);
+      
+      t.splits?.forEach(s => {
+        categoryIds.add(s.categoryId);
+        if (s.labelId) labelIds.add(s.labelId);
+      });
+    });
+
+    const [accounts, categories, labels] = await Promise.all([
+      Promise.all(Array.from(accountIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(categoryIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(labelIds).map(id => ctx.db.get(id))),
+    ]);
+
+    const accountMap = new Map(accounts.filter(Boolean).map(a => [a!._id, a!]));
+    const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
+    const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
+
+    // Format for Export (Exploded Rows for Splits)
+    return results.flatMap((t) => {
+        const fromAccount = accountMap.get(t.accountId);
+        const toAccount = t.toAccountId ? accountMap.get(t.toAccountId) : null;
+        
+        // Base object common to all rows from this transaction
+        const baseRow = {
+            date: t.date,
+            type: t.type,
+            account: fromAccount?.name || "Unknown",
+            toAccount: toAccount?.name || "",
+            // Common description, can be appended later
+            description: t.description || "",
+            assetQuantity: t.assetDetails?.quantity || "",
+            isSplit: t.isSplit,
+        };
+
+        if (t.isSplit && t.splits && t.splits.length > 0) {
+             // EXPLODE: Create a row for each split item
+             return t.splits.map(split => {
+                 const splitCategory = categoryMap.get(split.categoryId);
+                 const splitLabel = split.labelId ? labelMap.get(split.labelId) : null;
+                 
+                 // If the split has no description, use the main transaction's description
+                 // or format it nicely like "Main Desc (Item Desc)"
+                 let rowDesc = baseRow.description;
+                 if (split.description) {
+                     rowDesc = rowDesc ? `${rowDesc} (${split.description})` : split.description;
+                 }
+
+                 return {
+                     ...baseRow,
+                     amount: split.amount, // Use split amount!
+                     category: splitCategory?.name || "Unknown",
+                     label: splitLabel?.name || "",
+                     description: rowDesc,
+                 };
+             });
+        } else {
+             // NORMAL: Return single row
+             const category = t.categoryId ? categoryMap.get(t.categoryId) : null;
+             const label = t.labelId ? labelMap.get(t.labelId) : null;
+
+             return [{
+                 ...baseRow,
+                 amount: t.amount,
+                 category: category?.name || "",
+                 label: label?.name || "",
+             }];
+        }
+    });
+  }
+});
+
 export const create = mutation({
   args: {
     householdId: v.optional(v.id("households")),

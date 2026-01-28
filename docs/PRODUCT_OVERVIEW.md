@@ -126,6 +126,22 @@
     - **Monthly History:** A detailed list showing Budget, Spent, Carryover, and Swept amounts for each fiscal month.
     - **Grouped Transactions:** A list of recent transactions grouped by date (e.g., "Today", "Yesterday") for easier review.
     - **Fiscal Awareness:** All data points respect the user's custom **Budget Start Day**.
+
+### 11. Export Transactions
+- **Format:** CSV (Comma Separated Values).
+- **Scope:** Respects current active filters (Date Range, Type, Account, Category, Label).
+- **Split Handling:** Uses **"Exploded Rows"** logic.
+    - A split transaction is not exported as a single summarized row.
+    - Instead, it is broken down into multiple rows, each representing a specific split item with its own category and amount.
+    - This ensures pivot tables and analysis in Excel/Google Sheets are accurate and granular.
+- **Access:** Available via the "Export" button on the Transactions page header.
+
+### 12. Dashboard Enhancements
+- **Interactive Wealth Card:**
+    - **Goal Navigation:** Users can click on individual goal items in the "Wealth & Goals" card to navigate directly to that goal's detail page.
+    - **Quick Access:** A "View All" link in the card header provides a shortcut to the main Goals list.
+    - **Visual Cues:** Hover effects and chevron icons clearly indicate interactive elements.
+- **Simplified UI:** Removed redundant containers for "Safe Daily Spend" and "Recommended Saving" badges to create a cleaner, more integrated look.
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is blocked if transactions exist.
 2.  **Account Type Locking:** Once an account has associated transactions, its **Type (Cash/Asset/Saving)** is permanently locked. This prevents data corruption (e.g., swapping Cash to Asset without quantity data) and historical report inconsistencies. Users must Archive the old account and create a new one if a type change is needed.
 3.  **Asset Inventory Safety:**

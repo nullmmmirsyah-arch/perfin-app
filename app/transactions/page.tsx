@@ -20,6 +20,7 @@ import { List, PieChart } from 'lucide-react'
 import { TransactionAnalytics } from '@/components/transactions/TransactionAnalytics'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { getFiscalMonthRange, getFiscalDateDetails } from '@/lib/finance-utils'
+import { ExportTransactionDialog } from '@/components/transactions/ExportTransactionDialog'
 
 import { 
   type CarouselApi, 
@@ -153,7 +154,13 @@ export default function TransactionsPage() {
                     </TabsTrigger>
                 </TabsList>
             </Tabs>
-            <TransactionFilters filters={filters} onFilterChange={setFilters} />
+            <div className="w-full md:w-auto">
+                <TransactionFilters 
+                    filters={filters} 
+                    onFilterChange={setFilters} 
+                    extraAction={<ExportTransactionDialog currentFilters={filters} />}
+                />
+            </div>
         </div>
 
         <TransactionDrawer

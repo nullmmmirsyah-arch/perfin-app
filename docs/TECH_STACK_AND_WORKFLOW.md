@@ -41,6 +41,7 @@
 1.  **Client-Side:**
     - Components use `useQuery(api.path.functionName)` to fetch data.
     - Components use `useMutation(api.path.functionName)` to modify data.
+    - **Client-Side CSV Generation:** `lib/export-utils.ts` handles the conversion of JSON data to CSV format and triggers the browser download, keeping the server focused on data retrieval.
     - **No REST API:** We rarely use `fetch()`. Convex handles the WebSocket connection.
 
 2.  **Server-Side (Convex):**
@@ -49,6 +50,9 @@
     - **Household Logic:** Most data queries must check `householdId` context.
         - If `householdId` is present -> Query by `by_householdId` index.
         - If `householdId` is missing -> Query by `by_userId` index (Personal).
+    - **Export Logic:** `convex/transactions.ts:exportTransactions`
+        - Uses `flatMap` to transform split transactions into "Exploded Rows" (1 split = 1 row).
+        - Returns unpaginated data based on applied filters.
 
 3.  **Centralized Logic (Important):**
     - To maintain data consistency across Dashboard, Budget, and Transactions, core business logic is centralized in `convex/lib/`.
