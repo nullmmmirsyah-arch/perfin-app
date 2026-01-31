@@ -330,7 +330,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
           return budgetStatus.data
             .filter(item => item.category.type === typeFilter)
             .map(item => {
-                const limit = item.budget ? parseFloat(item.budget.amount.replace(/,/g, '') || '0') : 0;
+                const allocated = item.budget ? parseFloat(item.budget.amount.replace(/,/g, '') || '0') : 0;
+                const carryover = item.budget ? parseFloat(item.budget.carryoverAmount?.replace(/,/g, '') || '0') : 0;
+                const limit = allocated + carryover;
                 // remaining can be negative
                 const remaining = limit - (item.spent || 0);
                 
