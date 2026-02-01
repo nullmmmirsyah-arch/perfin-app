@@ -19,6 +19,9 @@ This document outlines the design philosophy and user experience patterns used i
 - **Swipeable Tabs:** Use **Carousel** for major view switches within a page.
     - *Example:* Transactions Page (List <-> Analytics).
     - *Example:* Budgets Page (Expenses <-> Savings).
+- **Back Button Handling (Mobile):** 
+    - Drawers use `window.history.pushState` to intercept the hardware/gesture Back button.
+    - Pressing "Back" will close the active drawer (or sub-drawer like Split Editor) instead of navigating away from the application.
 
 ### 2. Forms & Data Entry
 - **Drawers (Sheet) over Modals:** Use `Drawer` (from `vaul`/shadcn) for almost all forms (Add Transaction, Edit Account, etc.).
@@ -29,6 +32,8 @@ This document outlines the design philosophy and user experience patterns used i
 - **Auto-Save/Validation:** Use `react-hook-form` + `zod` for instant validation.
 - **Submission Safety:**
     - **Double-Click Prevention:** Implement strict "Synchronous Locking" (`useRef` + `isProcessing` state) on all submit buttons to prevent duplicate data creation.
+    - **Unsaved Changes Confirmation (Dirty Check):** For complex forms, use `form.formState.isDirty` to detect changes. 
+        - If the user attempts to close a "dirty" form (via Back button, backdrop click, or Cancel), intercept the action and show an **AlertDialog** for confirmation.
     - **State Reset:** Ensure processing states and locks are reset when the drawer/dialog opens to prevent UI from getting stuck in a loading state if a previous attempt was interrupted or failed silently.
     - **Visual Feedback:** Buttons must show a "Loading/Saving..." state with a Spinner (`Loader2`) and be disabled during processing.
     - **Haptic Feedback:** Trigger a small vibration (`navigator.vibrate(10)`) on submit for tactile confirmation (Mobile).

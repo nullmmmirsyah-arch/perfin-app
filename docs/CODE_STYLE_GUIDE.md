@@ -29,6 +29,8 @@ export default function ComponentName({ open, onOpenChange }: Props) {
   // 3. Hooks (Query/Mutation/State)
   const data = useQuery(...)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
   const submitLock = useRef(false)
   
   // 4. Lifecycle (Reset locks on open)
@@ -37,10 +39,32 @@ export default function ComponentName({ open, onOpenChange }: Props) {
     if (open) {
       setIsProcessing(false);
       submitLock.current = false;
+      
+      // History Push for Back Button Handling
+      window.history.pushState({ drawer: 'component-name' }, '', window.location.href);
+      
+      const handlePopState = () => {
+        if (isDirty) {
+          window.history.pushState({ drawer: 'component-name' }, '', window.location.href);
+          setShowDiscardDialog(true);
+        } else {
+          onOpenChange(false);
+        }
+      };
+      
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
     }
-  }, [open]);
+  }, [open, isDirty, onOpenChange]);
 
   // 5. Handlers
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && isDirty) {
+      setShowDiscardDialog(true);
+      return;
+    }
+    onOpenChange(newOpen);
+  };
   const handleSubmit = async () => {
     // Synchronous Lock (Double-click prevention)
     if (submitLock.current || isProcessing) return;

@@ -37,6 +37,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   PlusCircle, 
@@ -237,48 +247,198 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
   const isEditMode = !!transaction;
   const title = isEditMode ? 'Edit transaction' : 'Create a new transaction';
 
-  if (isMobile) {
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[96dvh] flex flex-col bg-background">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>{title}</DrawerTitle>
-          </DrawerHeader>
-          
-          {/* Visual Handle for Mobile */}
-          <div className="pt-2 px-4 flex justify-center">
-             <div className="w-12 h-1.5 bg-muted rounded-full mb-4" />
-          </div>
-          
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
-             <TransactionForm {...props} isMobile={true} />
-          </div>
-        </DrawerContent>
-      </Drawer>
-    );
-  }
+  // State lifted from TransactionForm
+  const [splitDrawerOpen, setSplitDrawerOpen] = useState(false);
+  
+  // New States for Navigation Safety
+  const [isDirty, setIsDirty] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  
+  // History Management
+  useEffect(() => {
+    if (open) {
+      // 1. Push State when Drawer Opens
+      window.history.pushState({ drawer: 'transaction' }, '', window.location.href);
+
+      const handlePopState = (event: PopStateEvent) => {
+        // Handle Back Button Logic
+        
+        // Scenario A: Split Drawer is Open -> Close it
+        if (splitDrawerOpen) {
+           // We assume the split drawer pushed its own state or we handle it here.
+           // Ideally, if we use a stacked approach:
+           // If we are here, it means we popped a state.
+           // If we managed split drawer with its own pushState, good.
+           // Let's implement a simple robust check.
+           setSplitDrawerOpen(false);
+           // If we just popped the 'split' state, we are back to 'transaction' state.
+           // If we didn't push a split state, we might have popped 'transaction' state.
+           // To be safe, we always want to be in 'transaction' state if the main drawer is open.
+           // But simply preventing the default back behavior is tricky.
+           
+           // Simple Strategy: Check if we need to restore state
+           // If we want to stay on the page, we might need to push state back if we popped the LAST one.
+           // But if we had 2 states (Base -> Tx -> Split), popping Split leaves us at Tx. Correct.
+           return;
+        }
+
+        // Scenario B: Main Drawer Open (Split Closed) -> Check Dirty
+        if (isDirty) {
+            // User tried to go back but has unsaved changes.
+            // 1. Restore the history state because we want to stay here for the dialog.
+            window.history.pushState({ drawer: 'transaction' }, '', window.location.href);
+            // 2. Show Confirmation
+            setShowDiscardDialog(true);
+        } else {
+            // Scenario C: Clean State -> Allow Close
+            onOpenChange(false);
+        }
+      };
+
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        // Cleanup: If we are closing (and not because of back button), we might need to pop.
+        // But doing this reliably is hard. 
+        // Best effort: If we are still in the 'transaction' state according to history, back() it.
+        // However, checking history.state is not always reliable across browsers.
+        // We'll let the browser history naturally accumulate if user closes via UI, 
+        // or we can try to back() if we know we pushed.
+      };
+    }
+  }, [open, isDirty, splitDrawerOpen, onOpenChange]);
+
+  // Nested History for Split Drawer
+  useEffect(() => {
+    if (splitDrawerOpen) {
+        window.history.pushState({ drawer: 'split' }, '', window.location.href);
+    }
+  }, [splitDrawerOpen]);
+
+  // Intercept UI Close Attempts (Clicking outside / Close Button)
+  const handleOpenChangeWrapper = (newOpen: boolean) => {
+      if (!newOpen) {
+          // Attempting to close
+          if (isDirty) {
+              setShowDiscardDialog(true);
+              return;
+          }
+           // If closing via UI, we should technically clean up history, but it's often optional.
+           // Ideally: window.history.back();
+           // But only if the top state is ours.
+      }
+      onOpenChange(newOpen);
+  };
+
+  const handleDiscard = () => {
+      setShowDiscardDialog(false);
+      setIsDirty(false); // Reset dirty so we don't loop
+      onOpenChange(false);
+  };
+
+  const Content = (
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
+         <TransactionForm 
+            {...props} 
+            isMobile={isMobile} 
+            // Pass lifted props
+            splitDrawerOpen={splitDrawerOpen}
+            setSplitDrawerOpen={setSplitDrawerOpen}
+            onDirtyChange={setIsDirty}
+         />
+      </div>
+  );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-6 pb-2">
-           <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="flex-1 overflow-y-auto p-6 pt-2">
-            <TransactionForm {...props} isMobile={false} />
-        </div>
-      </DialogContent>
-    </Dialog>
+    <>
+        {isMobile ? (
+        <Drawer open={open} onOpenChange={handleOpenChangeWrapper}>
+            <DrawerContent className="max-h-[96dvh] flex flex-col bg-background" onInteractOutside={(e) => {
+                if(isDirty) {
+                    e.preventDefault();
+                    setShowDiscardDialog(true);
+                }
+            }}>
+            <DrawerHeader className="sr-only">
+                <DrawerTitle>{title}</DrawerTitle>
+            </DrawerHeader>
+            
+            {/* Visual Handle for Mobile */}
+            <div className="pt-2 px-4 flex justify-center">
+                <div className="w-12 h-1.5 bg-muted rounded-full mb-4" />
+            </div>
+            
+            {Content}
+            </DrawerContent>
+        </Drawer>
+        ) : (
+        <Dialog open={open} onOpenChange={handleOpenChangeWrapper}>
+            <DialogContent 
+                className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0"
+                onInteractOutside={(e) => {
+                    if(isDirty) {
+                        e.preventDefault();
+                        setShowDiscardDialog(true);
+                    }
+                }}
+            >
+            <DialogHeader className="p-6 pb-2">
+                <DialogTitle>{title}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto p-6 pt-2">
+                 <TransactionForm 
+                    {...props} 
+                    isMobile={false} 
+                    splitDrawerOpen={splitDrawerOpen}
+                    setSplitDrawerOpen={setSplitDrawerOpen}
+                    onDirtyChange={setIsDirty}
+                 />
+            </div>
+            </DialogContent>
+        </Dialog>
+        )}
+
+        <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        You have unsaved changes. Are you sure you want to discard them?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDiscard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Discard
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </>
   );
 };
 
 // --- Form Logic Component ---
-const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: TransactionDrawerProps & { isMobile: boolean }) => {
+const TransactionForm = ({ 
+    open, 
+    onOpenChange, 
+    transaction, 
+    isMobile,
+    splitDrawerOpen,
+    setSplitDrawerOpen,
+    onDirtyChange
+}: TransactionDrawerProps & { 
+    isMobile: boolean,
+    splitDrawerOpen: boolean,
+    setSplitDrawerOpen: (open: boolean) => void,
+    onDirtyChange: (isDirty: boolean) => void
+}) => {
   const { householdId } = useHousehold();
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
   
-  const [splitDrawerOpen, setSplitDrawerOpen] = useState(false);
+  // Removed local splitDrawerOpen state
   const [isProcessing, setIsProcessing] = useState(false);
   const submitLock = useRef(false);
   const editingTransactionId = useRef<string | null>(null);
@@ -303,7 +463,12 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
     }
   });
 
-  const { formState: { isSubmitting } } = form;
+  const { formState: { isSubmitting, isDirty } } = form;
+
+  // Sync dirty state with parent
+  useEffect(() => {
+      onDirtyChange(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const transactionType = useWatch({ control: form.control, name: 'type' });
   const transactionDate = useWatch({ control: form.control, name: 'date' });
