@@ -165,6 +165,43 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                     
                     {isMobile ? (
                         <div className="p-4 space-y-3">
+                            {/* Amount Input */}
+                             <FormField
+                                control={form.control}
+                                name={`splits.${index}.amount`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/50">
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                                                    <span className="font-serif font-bold text-sm">Rp</span>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
+                                                    <Input
+                                                        className="h-auto p-0 border-none shadow-none text-xl font-bold focus-visible:ring-0 w-full"
+                                                        placeholder="0"
+                                                        inputMode="numeric"
+                                                        {...field}
+                                                        value={field.value || ''}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            field.onChange(formatNumber(value));
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            const value = e.target.value;
+                                                            field.onBlur();
+                                                            field.onChange(formatNumber(value));
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
                              {/* Category Input */}
                              <FormField
                                 control={form.control}
@@ -204,43 +241,6 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                         </FormItem>
                                     );
                                 }}
-                            />
-
-                            {/* Amount Input */}
-                             <FormField
-                                control={form.control}
-                                name={`splits.${index}.amount`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/50">
-                                            <div className="flex items-center gap-4">
-                                                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
-                                                    <span className="font-serif font-bold text-sm">Rp</span>
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
-                                                    <Input
-                                                        className="h-auto p-0 border-none shadow-none text-xl font-bold focus-visible:ring-0 w-full"
-                                                        placeholder="0"
-                                                        inputMode="numeric"
-                                                        {...field}
-                                                        value={field.value || ''}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value;
-                                                            field.onChange(formatNumber(value));
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            const value = e.target.value;
-                                                            field.onBlur();
-                                                            field.onChange(formatNumber(value));
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
                             />
 
                             {/* Label Input */}
