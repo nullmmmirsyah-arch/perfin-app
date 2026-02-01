@@ -470,6 +470,15 @@ const TransactionForm = ({
       onDirtyChange(isDirty);
   }, [isDirty, onDirtyChange]);
 
+  // Re-validate splits when the sub-drawer closes to refresh error indicators
+  const splitWasOpen = useRef(false);
+  useEffect(() => {
+    if (splitWasOpen.current && !splitDrawerOpen) {
+        form.trigger('splits');
+    }
+    splitWasOpen.current = splitDrawerOpen;
+  }, [splitDrawerOpen, form]);
+
   const transactionType = useWatch({ control: form.control, name: 'type' });
   const transactionDate = useWatch({ control: form.control, name: 'date' });
   
@@ -1003,20 +1012,37 @@ const TransactionFormFields = ({
                             />
                         ) : (
                             <div 
-                                className="bg-card rounded-2xl p-4 shadow-sm border border-dashed border-primary/50 relative active:scale-[0.99] transition-transform flex items-center justify-between cursor-pointer"
+                                className={cn(
+                                    "rounded-2xl p-4 shadow-sm border border-dashed relative active:scale-[0.99] transition-transform flex items-center justify-between cursor-pointer",
+                                    form.formState.errors.splits 
+                                        ? "bg-destructive/5 border-destructive border-solid" 
+                                        : "bg-card border-primary/50"
+                                )}
                                 onClick={onEditSplit}
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                    <div className={cn(
+                                        "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+                                        form.formState.errors.splits ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                                    )}>
                                         <LayoutGrid className="h-5 w-5" />
                                     </div>
                                     <div>
                                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Category</p>
-                                        <p className="font-semibold text-primary">Split Transaction</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">{splitSummary?.count} Items • {formatCurrency(splitSummary?.total)}</p>
+                                        <p className={cn("font-semibold", form.formState.errors.splits ? "text-destructive" : "text-primary")}>
+                                            Split Transaction
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {splitSummary?.count} Items • {formatCurrency(splitSummary?.total)}
+                                        </p>
+                                        {form.formState.errors.splits && (
+                                            <p className="text-[10px] font-bold text-destructive mt-1 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3" /> Fix Errors
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                                <ArrowRight className="h-5 w-5 text-muted-foreground/50" />
+                                <ArrowRight className={cn("h-5 w-5", form.formState.errors.splits ? "text-destructive" : "text-muted-foreground/50")} />
                             </div>
                         )}
                     </div>
@@ -1242,15 +1268,29 @@ const TransactionFormFields = ({
                     />
                     ) : (
                         <div 
-                            className="p-3 border rounded-md bg-muted/30 flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
+                            className={cn(
+                                "p-3 border rounded-md flex items-center justify-between cursor-pointer transition-colors",
+                                form.formState.errors.splits 
+                                    ? "bg-destructive/10 border-destructive hover:bg-destructive/20" 
+                                    : "bg-muted/30 hover:bg-muted/50"
+                            )}
                             onClick={onEditSplit}
                         >
                             <div className="space-y-1">
-                                <p className="text-sm font-medium">{splitSummary?.count || 0} Items</p>
-                                <p className="text-xs text-muted-foreground">Total: {new Intl.NumberFormat().format(splitSummary?.total || 0)}</p>
+                                <p className={cn("text-sm font-medium", form.formState.errors.splits ? "text-destructive" : "")}>
+                                    {splitSummary?.count || 0} Items
+                                </p>
+                                <p className={cn("text-xs", form.formState.errors.splits ? "text-destructive/80" : "text-muted-foreground")}>
+                                    Total: {new Intl.NumberFormat().format(splitSummary?.total || 0)}
+                                </p>
+                                {form.formState.errors.splits && (
+                                    <p className="text-[10px] font-bold text-destructive uppercase tracking-wide flex items-center gap-1">
+                                        <AlertCircle className="h-3 w-3" /> Check Errors
+                                    </p>
+                                )}
                             </div>
-                            <div className="bg-background border rounded-full p-1">
-                                <PlusCircle className="h-4 w-4 text-muted-foreground" />
+                            <div className={cn("border rounded-full p-1", form.formState.errors.splits ? "bg-destructive/10 border-destructive" : "bg-background")}>
+                                <PlusCircle className={cn("h-4 w-4", form.formState.errors.splits ? "text-destructive" : "text-muted-foreground")} />
                             </div>
                         </div>
                     )}

@@ -30,6 +30,8 @@ This document outlines the design philosophy and user experience patterns used i
     - **Focused Interface:** Hide redundant global fields in the parent drawer when a sub-editor is active to maintain user focus on the relevant context.
 - **Unified Account & Goal:** For Saving/Asset accounts, provide optional "Goal Settings" directly in the `AccountDrawer`. This allows users to set targets without leaving the account context.
 - **Auto-Save/Validation:** Use `react-hook-form` + `zod` for instant validation.
+    - **FormMessage Placement:** Always ensure `<FormMessage />` is placed **INSIDE** the `<FormItem>` wrapper. This allows it to inherit the field context and display validation errors correctly.
+    - **Nested Validation:** For nested arrays (like splits), use explicit validation triggers (`form.trigger('field')`) when closing sub-drawers to ensure the parent form reflects the latest state.
 - **Submission Safety:**
     - **Double-Click Prevention:** Implement strict "Synchronous Locking" (`useRef` + `isProcessing` state) on all submit buttons to prevent duplicate data creation.
     - **Unsaved Changes Confirmation (Dirty Check):** For complex forms, use `form.formState.isDirty` to detect changes. 
