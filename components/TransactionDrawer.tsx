@@ -983,14 +983,24 @@ const TransactionFormFields = ({
                                             <MobileSelectionDrawer
                                                 title="Select Category"
                                                 value={field.value}
-                                                onSelect={field.onChange}
-                                                options={categories.map(cat => ({
-                                                    value: cat._id,
-                                                    label: cat.name,
-                                                    subLabel: cat.type === CATEGORY_TYPES.EXPENSE && (cat.budgetLimit || 0) > 0 
-                                                        ? `Available: ${formatCurrency(cat.remaining)}` 
-                                                        : undefined
-                                                }))}
+                                                onSelect={(val) => {
+                                                    if (val === 'ACTION_SPLIT') {
+                                                        onSplitToggle?.(true);
+                                                        setTimeout(() => onEditSplit?.(), 0);
+                                                        return;
+                                                    }
+                                                    field.onChange(val);
+                                                }}
+                                                options={[
+                                                    { value: 'ACTION_SPLIT', label: '🔀 Split Transaction', subLabel: 'Divide into multiple categories' },
+                                                    ...categories.map(cat => ({
+                                                        value: cat._id,
+                                                        label: cat.name,
+                                                        subLabel: cat.type === CATEGORY_TYPES.EXPENSE && (cat.budgetLimit || 0) > 0 
+                                                            ? `Available: ${formatCurrency(cat.remaining)}` 
+                                                            : undefined
+                                                    }))
+                                                ]}
                                                 trigger={
                                                     <button type="button" className="w-full text-left outline-none">
                                                         <MobileInputCard 
@@ -1143,20 +1153,15 @@ const TransactionFormFields = ({
                     />
                 )}
                 
-                {/* Split Toggle Button */}
-                <div 
-                    className="flex items-center justify-center gap-2 py-2 cursor-pointer text-muted-foreground hover:text-primary transition-colors"
-                    onClick={() => onSplitToggle?.(!isSplit)}
-                >
-                    {isSplit ? (
+                {/* Split Toggle Button - Only Revert Option Remaining */}
+                {isSplit && (
+                    <div 
+                        className="flex items-center justify-center gap-2 py-2 cursor-pointer text-muted-foreground hover:text-primary transition-colors"
+                        onClick={() => onSplitToggle?.(false)}
+                    >
                         <span className="text-sm font-medium">Revert to Single Category</span>
-                    ) : (
-                        <>
-                            <PlusCircle className="h-4 w-4" />
-                            <span className="text-sm font-medium">Split Transaction</span>
-                        </>
-                    )}
-                </div>
+                    </div>
+                )}
 
              </div>
           ) : (
@@ -1195,33 +1200,22 @@ const TransactionFormFields = ({
                 {/* Reusing existing logic blocks inside standard layout */}
                 <FormItem className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
                         <FormLabel className="mb-0">Category</FormLabel>
-                        <FormField
-                            control={form.control}
-                            name="isSplit"
-                            render={({ field }) => (
-                            <div 
-                                className={cn(
-                                    "flex items-center gap-1.5 px-2 py-0.5 rounded-md border cursor-pointer transition-colors select-none",
-                                    field.value ? "bg-primary/10 border-primary text-primary" : "bg-muted/20 hover:bg-muted/50 text-muted-foreground"
-                                )}
-                                onClick={() => onSplitToggle?.(!field.value)}
-                            >
-                                <input 
-                                type="checkbox" 
-                                className="h-3 w-3 pointer-events-none accent-primary" 
-                                checked={field.value} 
-                                readOnly
-                                />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Split</span>
-                            </div>
-                            )}
-                        />
-                        </div>
                         {isSplit && (
                             <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onEditSplit}>
                                 Edit Splits
+                            </Button>
+                        )}
+                        {/* Revert option for Desktop */}
+                        {isSplit && (
+                            <Button 
+                                type="button" 
+                                variant="link" 
+                                size="sm" 
+                                className="h-auto p-0 text-xs text-muted-foreground hover:text-destructive ml-2" 
+                                onClick={() => onSplitToggle?.(false)}
+                            >
+                                (Revert)
                             </Button>
                         )}
                     </div>
@@ -1232,13 +1226,28 @@ const TransactionFormFields = ({
                         name="categoryId"
                         render={({ field }) => (
                         <>
-                            <Select onValueChange={field.onChange} value={field.value} key={field.value}>
+                            <Select 
+                                onValueChange={(val) => {
+                                    if (val === 'ACTION_SPLIT') {
+                                        onSplitToggle?.(true);
+                                        // Small timeout to allow re-render before opening drawer
+                                        setTimeout(() => onEditSplit?.(), 0);
+                                        return;
+                                    }
+                                    field.onChange(val);
+                                }} 
+                                value={field.value} 
+                                key={field.value}
+                            >
                             <FormControl>
                                 <SelectTrigger>
                                 <SelectValue placeholder="Select a category" />
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                                <SelectItem value="ACTION_SPLIT" className="font-semibold text-primary">
+                                    🔀 Split Transaction
+                                </SelectItem>
                                 {categories.map(category => {
                                     const showBudget = category.type === CATEGORY_TYPES.EXPENSE && (category.budgetLimit || 0) > 0;
                                     const remaining = category.remaining || 0;
