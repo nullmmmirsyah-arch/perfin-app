@@ -22,12 +22,16 @@ This document outlines the design philosophy and user experience patterns used i
 - **Back Button Handling (Mobile):** 
     - Drawers use `window.history.pushState` to intercept the hardware/gesture Back button.
     - Pressing "Back" will close the active drawer (or sub-drawer like Split Editor) instead of navigating away from the application.
+- **Action Triggers in Selectors:**
+    - High-level actions (like **Split Transaction**) are integrated directly into selection drawers/dropdowns (e.g., Category Selector) for better discoverability.
+    - **Visual Hierarchy:** Action items are visually distinguished from data items (e.g., using dashed borders, background tints, or separators) to maintain clear intent.
 
 ### 2. Forms & Data Entry
 - **Drawers (Sheet) over Modals:** Use `Drawer` (from `vaul`/shadcn) for almost all forms (Add Transaction, Edit Account, etc.).
 - **Nested Drawers:** For complex sub-forms (like **Split Transactions**), DO NOT expand the form inline. Open a second, nested Drawer. 
     - **Visual Consistency:** The nested drawer (Split Editor) must use the same component patterns as the main drawer (`MobileInputCard`, `MobileSelectionDrawer`).
     - **Focused Interface:** Hide redundant global fields in the parent drawer when a sub-editor is active to maintain user focus on the relevant context.
+    - **Trigger Flow:** The Split Editor is triggered by selecting the "Split Transaction" option within the Category selector.
 - **Unified Account & Goal:** For Saving/Asset accounts, provide optional "Goal Settings" directly in the `AccountDrawer`. This allows users to set targets without leaving the account context.
 - **Auto-Save/Validation:** Use `react-hook-form` + `zod` for instant validation.
     - **FormMessage Placement:** Always ensure `<FormMessage />` is placed **INSIDE** the `<FormItem>` wrapper. This allows it to inherit the field context and display validation errors correctly.

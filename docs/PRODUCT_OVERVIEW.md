@@ -10,7 +10,7 @@
     - **Buy:** Decreases Cash, Increases Asset Quantity/Cost Basis.
     - **Sell:** Increases Cash, Decreases Asset Quantity/Cost Basis, calculates Realized Profit.
 - **Split Transactions:** Ability to split a single transaction into multiple categories.
-    - **Unified UI:** Uses a dedicated drawer with the same visual language as the main transaction entry.
+    - **Unified UI:** Accessed directly through the **Category Selector**. Selecting "Split Transaction" activates the dedicated drawer.
     - **Context-Aware Fields:** When Split mode is active, global fields (Category, Label, Description) are hidden to prevent redundancy, replaced by a "Split Summary Card" that shows item count and total allocated funds.
 - **Filtering:** Powerful **Multi-Select Filtering** allows users to combine multiple Accounts, Categories, or Types simultaneously. Supports Date Range filtering.
 

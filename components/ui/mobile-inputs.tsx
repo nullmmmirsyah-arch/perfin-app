@@ -9,7 +9,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const MobileSelectionDrawer = ({ 
@@ -21,7 +21,7 @@ export const MobileSelectionDrawer = ({
   children
 }: { 
   title: string, 
-  options?: { value: string, label: React.ReactNode, subLabel?: string }[], 
+  options?: { value: string, label: React.ReactNode, subLabel?: string, isAction?: boolean }[], 
   value?: string | Date, 
   onSelect?: (val: string) => void, 
   trigger: React.ReactNode,
@@ -51,7 +51,8 @@ export const MobileSelectionDrawer = ({
                     type="button"
                     className={cn(
                         "flex items-center justify-between p-4 rounded-xl border transition-all active:scale-[0.98] text-left",
-                        value === opt.value ? "border-primary bg-primary/5" : "border-border bg-card"
+                        value === opt.value ? "border-primary bg-primary/5" : "border-border bg-card",
+                        opt.isAction && "border-primary/50 border-dashed bg-primary/5 shadow-sm"
                     )}
                     onClick={() => {
                         onSelect?.(opt.value);
@@ -59,10 +60,18 @@ export const MobileSelectionDrawer = ({
                     }}
                     >
                     <div className="flex flex-col gap-0.5">
-                            <span className={cn("font-semibold text-base", value === opt.value ? "text-primary" : "text-foreground")}>{opt.label}</span>
+                            <span className={cn(
+                                "font-semibold text-base", 
+                                value === opt.value ? "text-primary" : "text-foreground",
+                                opt.isAction && "text-primary"
+                            )}>{opt.label}</span>
                             {opt.subLabel && <span className="text-xs text-muted-foreground">{opt.subLabel}</span>}
                     </div>
-                    {value === opt.value && <Check className="h-5 w-5 text-primary" />}
+                    {value === opt.value ? (
+                        <Check className="h-5 w-5 text-primary" />
+                    ) : (
+                        opt.isAction && <PlusCircle className="h-5 w-5 text-primary/60" />
+                    )}
                     </button>
                 ))
             )}

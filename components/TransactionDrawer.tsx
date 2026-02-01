@@ -36,6 +36,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
+  SelectSeparator,
 } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -992,7 +995,7 @@ const TransactionFormFields = ({
                                                     field.onChange(val);
                                                 }}
                                                 options={[
-                                                    { value: 'ACTION_SPLIT', label: '🔀 Split Transaction', subLabel: 'Divide into multiple categories' },
+                                                    { value: 'ACTION_SPLIT', label: '🔀 Split Transaction', subLabel: 'Divide into multiple categories', isAction: true },
                                                     ...categories.map(cat => ({
                                                         value: cat._id,
                                                         label: cat.name,
@@ -1245,30 +1248,36 @@ const TransactionFormFields = ({
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="ACTION_SPLIT" className="font-semibold text-primary">
-                                    🔀 Split Transaction
-                                </SelectItem>
-                                {categories.map(category => {
-                                    const showBudget = category.type === CATEGORY_TYPES.EXPENSE && (category.budgetLimit || 0) > 0;
-                                    const remaining = category.remaining || 0;
-                                    const isLow = remaining < 0;
-
-                                    return (
-                                    <SelectItem key={category._id} value={category._id}>
-                                        <div className="flex w-full items-center justify-between gap-4">
-                                            <span className="font-medium truncate">{category.name}</span>
-                                            {showBudget && (
-                                                <span className={cn(
-                                                    "text-xs font-normal shrink-0",
-                                                    isLow ? "text-destructive" : "text-muted-foreground"
-                                                )}>
-                                                    Avail: {formatCurrency(remaining)}
-                                                </span>
-                                            )}
-                                        </div>
+                                <SelectGroup>
+                                    <SelectItem value="ACTION_SPLIT" className="font-semibold text-primary">
+                                        🔀 Split Transaction
                                     </SelectItem>
-                                    );
-                                })}
+                                </SelectGroup>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                    <SelectLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 py-2">My Categories</SelectLabel>
+                                    {categories.map(category => {
+                                        const showBudget = category.type === CATEGORY_TYPES.EXPENSE && (category.budgetLimit || 0) > 0;
+                                        const remaining = category.remaining || 0;
+                                        const isLow = remaining < 0;
+
+                                        return (
+                                        <SelectItem key={category._id} value={category._id}>
+                                            <div className="flex w-full items-center justify-between gap-4">
+                                                <span className="font-medium truncate">{category.name}</span>
+                                                {showBudget && (
+                                                    <span className={cn(
+                                                        "text-xs font-normal shrink-0",
+                                                        isLow ? "text-destructive" : "text-muted-foreground"
+                                                    )}>
+                                                        Avail: {formatCurrency(remaining)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </SelectItem>
+                                        );
+                                    })}
+                                </SelectGroup>
                             </SelectContent>
                             </Select>
                             <FormMessage />
