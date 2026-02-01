@@ -4,8 +4,8 @@
 
 ### Frontend
 - **Framework:** [Next.js 16](https://nextjs.org/) (App Router).
-- **Language:** TypeScript.
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/).
+- **Core:** React 19.
+- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/) (CSS-first configuration).
 - **UI Library:** [shadcn/ui](https://ui.shadcn.com/) (based on Radix UI).
 - **Charts:** [Recharts](https://recharts.org/) (via shadcn/ui Charts).
 - **Icons:** [Lucide React](https://lucide.dev/).
@@ -128,7 +128,10 @@
 │   ├── households.ts    # Household logic
 │   ├── automations.ts   # Auto-Save & Scheduling logic (NEW)
 │   ├── crons.ts         # Cron Job definitions (NEW)
-│   ├── lib/             # Shared Business Logic & Helpers (Finance, Auth, Constants)
+│   ├── lib/             # Shared Business Logic & Helpers
+│   │   ├── finance.ts   # Financial calculations
+│   │   ├── auth.ts      # Authorization helpers
+│   │   └── constants.ts # Centralized constants (CRITICAL)
 │   ├── push.ts          # Web Push Actions
 │   ├── notifications.ts # In-app notification logic
 │   └── _generated/      # Auto-generated Types

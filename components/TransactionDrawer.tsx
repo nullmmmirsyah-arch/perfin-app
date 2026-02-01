@@ -56,6 +56,7 @@ import { useHousehold } from '@/components/HouseholdProvider';
 import { SplitEditorDrawer } from './SplitEditorDrawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
+import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -81,7 +82,11 @@ type CategoryOption = {
 };
 
 const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
-  type: z.enum(['expense', 'income', 'transfer']),
+  type: z.enum([
+    TRANSACTION_TYPES.EXPENSE, 
+    TRANSACTION_TYPES.INCOME, 
+    TRANSACTION_TYPES.TRANSFER
+  ]),
   amount: z.string()
     .min(1, "Amount is required")
     .refine(val => !isNaN(parseFloat(val.replace(/,/g, ''))), {
@@ -108,7 +113,7 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
     unitPrice: z.number().optional(),
   }).optional(),
 }).superRefine((data, ctx) => {
-  if (data.type === 'transfer') {
+  if (data.type === TRANSACTION_TYPES.TRANSFER) {
     if (!data.toAccountId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -129,7 +134,7 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
     const destAccount = accounts.find(a => a._id === data.toAccountId);
     
     // Helper to determine liquidity
-    const isLiquid = (type?: string) => !type || type === 'CASH';
+    const isLiquid = (type?: string) => !type || type === ACCOUNT_TYPES.CASH;
     const sourceIsSpecial = !isLiquid(sourceAccount?.type);
     const destIsSpecial = !isLiquid(destAccount?.type);
 
@@ -146,7 +151,7 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
       }
     }
 
-    if (sourceAccount?.type === 'ASSET' || destAccount?.type === 'ASSET') {
+    if (sourceAccount?.type === ACCOUNT_TYPES.ASSET || destAccount?.type === ACCOUNT_TYPES.ASSET) {
         if (!data.assetDetails?.quantity || parseFloat(data.assetDetails.quantity) <= 0) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -286,7 +291,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: 'expense',
+      type: TRANSACTION_TYPES.EXPENSE as any,
       amount: '',
       date: new Date(),
       description: '',
@@ -321,10 +326,10 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
 
   // Merge Data
   const categories: CategoryOption[] = useMemo(() => {
-      const typeFilter = transactionType === 'transfer' ? 'saving' : transactionType;
+      const typeFilter = transactionType === TRANSACTION_TYPES.TRANSFER ? CATEGORY_TYPES.SAVING : transactionType;
       
       // If Expense/Saving, prefer budgetStatus data
-      if (typeFilter === 'expense' || typeFilter === 'saving') {
+      if (typeFilter === TRANSACTION_TYPES.EXPENSE || typeFilter === CATEGORY_TYPES.SAVING) {
           if (!budgetStatus?.data) return [];
           
           return budgetStatus.data
@@ -369,7 +374,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
       if (isEditMode && transaction) {
         editingTransactionId.current = transaction._id;
         form.reset({
-          type: transaction.type as 'expense' | 'income' | 'transfer',
+          type: transaction.type as any,
           amount: transaction.amount,
           date: new Date(transaction.date),
           description: transaction.description || '',
@@ -392,7 +397,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
       } else {
         editingTransactionId.current = null;
         form.reset({
-          type: 'expense',
+          type: TRANSACTION_TYPES.EXPENSE as any,
           amount: '',
           date: new Date(),
           description: '',
@@ -412,7 +417,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   });
 
   const cashAccounts = useMemo(() => 
-    accounts?.filter(a => !a.type || a.type === 'CASH') || [], 
+    accounts?.filter(a => !a.type || a.type === ACCOUNT_TYPES.CASH) || [], 
   [accounts]);
 
   const onSubmit = async (data: TransactionFormValues) => {
@@ -511,7 +516,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
   };
   
   const handleTabChange = (value: string) => {
-    form.setValue('type', value as 'expense' | 'income' | 'transfer');
+    form.setValue('type', value as any);
   };
 
   return (
@@ -525,7 +530,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
               "p-1 w-full mb-6",
               isMobile ? "bg-muted/50 rounded-full h-12 flex items-center" : "grid grid-cols-3 h-11 bg-muted/30"
             )}>
-              {['expense', 'income', 'transfer'].map(t => (
+              {[TRANSACTION_TYPES.EXPENSE, TRANSACTION_TYPES.INCOME, TRANSACTION_TYPES.TRANSFER].map(t => (
                 <TabsTrigger 
                   key={t} 
                   value={t} 
@@ -533,9 +538,9 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
                     "rounded-full transition-all duration-200 font-semibold text-xs uppercase tracking-wider",
                     isMobile ? "h-10 flex-1" : "h-9",
                     // Custom active states for each tab type
-                    t === 'expense' && "data-[state=active]:bg-destructive! data-[state=active]:text-destructive-foreground! shadow-sm",
-                    t === 'income' && "data-[state=active]:bg-success! data-[state=active]:text-success-foreground! shadow-sm",
-                    t === 'transfer' && "data-[state=active]:bg-primary! data-[state=active]:text-primary-foreground! shadow-sm"
+                    t === TRANSACTION_TYPES.EXPENSE && "data-[state=active]:bg-destructive! data-[state=active]:text-destructive-foreground! shadow-sm",
+                    t === TRANSACTION_TYPES.INCOME && "data-[state=active]:bg-success! data-[state=active]:text-success-foreground! shadow-sm",
+                    t === TRANSACTION_TYPES.TRANSFER && "data-[state=active]:bg-primary! data-[state=active]:text-primary-foreground! shadow-sm"
                   )}
                 >
                   {t}
@@ -544,7 +549,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
             </TabsList>
 
             <div className="">
-                <TabsContent value="expense" className="space-y-4 mt-0 outline-none">
+                <TabsContent value={TRANSACTION_TYPES.EXPENSE} className="space-y-4 mt-0 outline-none">
                   <TransactionFormFields 
                     form={form} 
                     categories={categories || []} 
@@ -557,7 +562,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
                     open={open}
                   />
                 </TabsContent>
-                <TabsContent value="income" className="space-y-4 mt-0 outline-none">
+                <TabsContent value={TRANSACTION_TYPES.INCOME} className="space-y-4 mt-0 outline-none">
                   <TransactionFormFields 
                     form={form} 
                     categories={categories || []} 
@@ -570,7 +575,7 @@ const TransactionForm = ({ open, onOpenChange, transaction, isMobile }: Transact
                     open={open}
                   />
                 </TabsContent>
-                <TabsContent value="transfer" className="space-y-4 mt-0 outline-none">
+                <TabsContent value={TRANSACTION_TYPES.TRANSFER} className="space-y-4 mt-0 outline-none">
                   <TransferFormFields 
                     form={form} 
                     accounts={accounts || []} 
@@ -673,7 +678,7 @@ const TransactionFormFields = ({
 
   const amountValue = parseAmount(amount);
   const balanceValue = parseAmount(selectedAccount?.balance);
-  const isOverspent = (type === 'expense' || type === 'transfer') && selectedAccount && amountValue > balanceValue;
+  const isOverspent = (type === TRANSACTION_TYPES.EXPENSE || type === TRANSACTION_TYPES.TRANSFER) && selectedAccount && amountValue > balanceValue;
 
   // SAFE AUTO-FOCUS: Trigger every time 'open' becomes true.
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -808,7 +813,7 @@ const TransactionFormFields = ({
                                                 options={categories.map(cat => ({
                                                     value: cat._id,
                                                     label: cat.name,
-                                                    subLabel: cat.type === 'expense' && (cat.budgetLimit || 0) > 0 
+                                                    subLabel: cat.type === CATEGORY_TYPES.EXPENSE && (cat.budgetLimit || 0) > 0 
                                                         ? `Available: ${formatCurrency(cat.remaining)}` 
                                                         : undefined
                                                 }))}
@@ -818,7 +823,7 @@ const TransactionFormFields = ({
                                                             label="Category" 
                                                             icon={LayoutGrid}
                                                             valueDisplay={selectedCategory?.name}
-                                                            subValueDisplay={selectedCategory?.type === 'expense' && (selectedCategory.budgetLimit || 0) > 0 
+                                                            subValueDisplay={selectedCategory?.type === CATEGORY_TYPES.EXPENSE && (selectedCategory.budgetLimit || 0) > 0 
                                                                 ? `Avail: ${formatCurrency(selectedCategory.remaining)}` 
                                                                 : undefined
                                                             }
@@ -1044,7 +1049,7 @@ const TransactionFormFields = ({
                             </FormControl>
                             <SelectContent>
                                 {categories.map(category => {
-                                    const showBudget = category.type === 'expense' && (category.budgetLimit || 0) > 0;
+                                    const showBudget = category.type === CATEGORY_TYPES.EXPENSE && (category.budgetLimit || 0) > 0;
                                     const remaining = category.remaining || 0;
                                     const isLow = remaining < 0;
 
@@ -1172,14 +1177,14 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
   const toAccount = accounts.find(a => a._id === toAccountId);
   
   // Helper to determine liquidity
-  const isLiquid = (type?: string) => !type || type === 'CASH';
+  const isLiquid = (type?: string) => !type || type === ACCOUNT_TYPES.CASH;
   const sourceIsSpecial = !isLiquid(fromAccount?.type);
   const destIsSpecial = !isLiquid(toAccount?.type);
 
   // Show category selector if ANY side involves a Special Account
   const showCategory = sourceIsSpecial || destIsSpecial;
   
-  const isAssetTransaction = fromAccount?.type === 'ASSET' || toAccount?.type === 'ASSET';
+  const isAssetTransaction = fromAccount?.type === ACCOUNT_TYPES.ASSET || toAccount?.type === ACCOUNT_TYPES.ASSET;
 
   // Auto-linked category logic
   const linkedCategory = useMemo(() => {
@@ -1188,9 +1193,9 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
   }, [toAccount, fromAccount, categories]);
 
   let amountLabel = 'Amount';
-  if (fromAccount?.type !== 'ASSET' && toAccount?.type === 'ASSET') {
+  if (fromAccount?.type !== ACCOUNT_TYPES.ASSET && toAccount?.type === ACCOUNT_TYPES.ASSET) {
     amountLabel = 'Total Cost'; // Buy
-  } else if (fromAccount?.type === 'ASSET' && toAccount?.type !== 'ASSET') {
+  } else if (fromAccount?.type === ACCOUNT_TYPES.ASSET && toAccount?.type !== ACCOUNT_TYPES.ASSET) {
     amountLabel = 'Total Sale Value'; // Sell
   }
 
