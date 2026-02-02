@@ -70,6 +70,7 @@
     - **Expense Budget:** Tracks `Spent / Limit`.
     - **Savings/Goals Budget:** Tracks `Monthly Contribution / Monthly Target`. Shows a **"Monthly Goal Met"** celebration badge when the monthly saving target is reached.
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
+    - **Budget Transparency:** The system distinguishes between **New Planned (Assigned)** money for the current month and **Effective Spending Power** (which includes adjustments like rollovers).
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
     - **Flexible Overspending:** Overspending in a category results in a **Negative Available** balance for that category. It does **NOT** automatically deduct from Unassigned Cash. This preserves the user's original allocation plan ("Envelope Budgeting") while highlighting the deficit that needs to be covered.
     - **Smart Auto-Budgeting:** If a transaction is made to a category without a budget, the system automatically creates a budget with the **transaction amount**. *Exception: Goal Disbursement transactions do NOT trigger auto-budgeting.*

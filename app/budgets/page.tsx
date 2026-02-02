@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/popover'
 import BudgetDrawer from '@/components/BudgetDrawer'
 import { Doc, Id } from '../../convex/_generated/dataModel'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { addMonths, subMonths, format } from 'date-fns'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
@@ -232,12 +232,23 @@ export default function BudgetsPage() {
   const savings = budgetStatus?.filter(item => item.category.type === 'saving') || []
   const expenses = budgetStatus?.filter(item => item.category.type === 'expense') || []
 
-  const totalRemainingExpenses = expenses.reduce((acc, item) => {
-      const limit = item.budget ? parseFloat(item.budget.amount) : 0;
-      const carryover = item.budget?.carryoverAmount ? parseFloat(item.budget.carryoverAmount) : 0;
-      const effectiveLimit = limit + carryover;
-      return acc + (effectiveLimit - item.spent);
-  }, 0);
+  const expensesSummary = expenses.reduce((acc, item) => {
+    const limit = item.budget ? parseFloat(item.budget.amount) : 0;
+    const carryover = item.budget?.carryoverAmount ? parseFloat(item.budget.carryoverAmount) : 0;
+    const swept = item.budget?.sweptAmount ? parseFloat(item.budget.sweptAmount) : 0;
+    
+    const effectiveLimit = limit + carryover;
+    const remaining = Math.max(0, effectiveLimit - item.spent - swept);
+    
+    return {
+        totalAssigned: acc.totalAssigned + limit,
+        totalCarryover: acc.totalCarryover + carryover,
+        totalSwept: acc.totalSwept + swept,
+        totalSpent: acc.totalSpent + item.spent,
+        totalRemaining: acc.totalRemaining + remaining,
+        totalEffective: acc.totalEffective + effectiveLimit
+    };
+  }, { totalAssigned: 0, totalCarryover: 0, totalSwept: 0, totalSpent: 0, totalRemaining: 0, totalEffective: 0 });
 
   // Calculate Monthly Savings Aggregate (Goals Focus)
   const savingsAggregate = savings.reduce((acc, item) => {
@@ -448,37 +459,67 @@ export default function BudgetsPage() {
                     <CarouselItem className="basis-full pl-4">
                         <div className="h-full pr-4 space-y-4">
                             {/* Expenses Summary Card */}
-                            <div className="bg-card border rounded-xl p-4 shadow-sm">
-                                <div className="flex justify-between items-end mb-2">
+                            <div className="bg-card border rounded-xl p-5 shadow-sm overflow-hidden relative">
+                                {/* Decorative Background Pattern (Optional subtle touch) */}
+                                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                    <Wallet className="h-24 w-24 rotate-12" />
+                                </div>
+
+                                <div className="space-y-4 relative z-10">
+                                    {/* Main Display */}
                                     <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Monthly Budget</p>
-                                        <div className="flex items-baseline gap-2 mt-1">
-                                            <span className="text-2xl font-bold">{totalRemainingExpenses.toLocaleString()}</span>
-                                            <span className="text-sm text-muted-foreground">left</span>
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1.5">Effective Spending Power</p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={cn(
+                                                "text-4xl font-black tracking-tighter",
+                                                expensesSummary.totalRemaining < 0 ? "text-destructive" : "text-foreground"
+                                            )}>
+                                                {formatCurrency(expensesSummary.totalRemaining)}
+                                            </span>
+                                            <span className="text-sm text-muted-foreground font-medium">remaining</span>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-xs text-muted-foreground">
-                                            {expenses.reduce((acc, i) => acc + i.spent, 0).toLocaleString()} / {expenses.reduce((acc, i) => {
-                                                const limit = i.budget ? parseFloat(i.budget.amount) : 0;
-                                                const carryover = i.budget?.carryoverAmount ? parseFloat(i.budget.carryoverAmount) : 0;
-                                                return acc + (limit + carryover);
-                                            }, 0).toLocaleString()}
-                                        </p>
+                                    
+                                    {/* Stats Grid */}
+                                    <div className="flex flex-wrap gap-2">
+                                        <div className="flex-1 min-w-[120px] bg-muted/40 px-3 py-2 rounded-lg border border-muted/50">
+                                            <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-tight mb-0.5">New Planned</p>
+                                            <p className="text-sm font-bold tracking-tight">{formatCurrency(expensesSummary.totalAssigned)}</p>
+                                        </div>
+                                        
+                                        {expensesSummary.totalCarryover !== 0 && (
+                                            <div className={cn(
+                                                "flex-1 min-w-[120px] px-3 py-2 rounded-lg border",
+                                                expensesSummary.totalCarryover > 0 
+                                                    ? "bg-success/5 border-success/20 text-success" 
+                                                    : "bg-destructive/5 border-destructive/20 text-destructive"
+                                            )}>
+                                                <p className="text-[9px] font-bold uppercase tracking-tight mb-0.5 opacity-80">Adjustments</p>
+                                                <p className="text-sm font-bold tracking-tight">
+                                                    {expensesSummary.totalCarryover > 0 ? '+' : ''}{formatCurrency(expensesSummary.totalCarryover)}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Progress Section */}
+                                    <div className="space-y-2 pt-1">
+                                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                                            <span className="text-muted-foreground">Spending Progress</span>
+                                            <span className="text-foreground">{formatCurrency(expensesSummary.totalSpent)} / {formatCurrency(expensesSummary.totalEffective)}</span>
+                                        </div>
+                                        <Progress 
+                                            value={expensesSummary.totalEffective > 0 ? (expensesSummary.totalSpent / expensesSummary.totalEffective) * 100 : 0} 
+                                            className="h-2.5 bg-muted"
+                                        />
+                                        {expensesSummary.totalSwept > 0 && (
+                                            <div className="flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground italic">
+                                                <Info className="h-3 w-3" />
+                                                <span>{formatCurrency(expensesSummary.totalSwept)} swept back to wallet</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                <Progress 
-                                    value={(() => {
-                                        const totalLimit = expenses.reduce((acc, i) => {
-                                            const limit = i.budget ? parseFloat(i.budget.amount) : 0;
-                                            const carryover = i.budget?.carryoverAmount ? parseFloat(i.budget.carryoverAmount) : 0;
-                                            return acc + (limit + carryover);
-                                        }, 0);
-                                        const totalSpent = expenses.reduce((acc, i) => acc + i.spent, 0);
-                                        return totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0;
-                                    })()} 
-                                    className="h-2"
-                                />
                             </div>
 
                             {expenses.length === 0 ? (
@@ -514,19 +555,19 @@ export default function BudgetsPage() {
                             <div className="bg-card border rounded-xl p-4 shadow-sm">
                                 <div className="flex justify-between items-end mb-2">
                                     <div>
-                                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Total Monthly Savings Goal</p>
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Monthly Saving Progress</p>
                                         <div className="flex items-baseline gap-2 mt-1">
-                                            <span className="text-2xl font-bold text-success">
-                                                {savingsAggregate.totalSaved.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                            <span className="text-3xl font-black text-success tracking-tight">
+                                                {formatCurrency(savingsAggregate.totalSaved)}
                                             </span>
-                                            <span className="text-sm text-muted-foreground">saved</span>
+                                            <span className="text-sm text-muted-foreground font-medium">saved</span>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs text-muted-foreground">Monthly Target</p>
-                                        <p className="text-sm font-medium">
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Monthly Target</p>
+                                        <p className="text-sm font-bold text-foreground">
                                             {savingsAggregate.totalTarget > 0 
-                                                ? savingsAggregate.totalTarget.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                                ? formatCurrency(savingsAggregate.totalTarget)
                                                 : "No target set"
                                             }
                                         </p>

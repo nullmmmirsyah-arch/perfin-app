@@ -83,8 +83,12 @@ This document outlines the design philosophy and user experience patterns used i
 - **On-Demand Details:** Use interactive elements (like clicking a budget row) to reveal granular insights without cluttering the main view.
 - **Contextual Summary:** Place summary cards (Total Remaining, Total Saved) directly within their relevant tabs/slides, not in global headers.
 - **Wealth Dashboard:** Provide "Required Saving" insights (e.g., "+1.2M/mo") directly on the Wealth Card to guide user behavior.
-
-### 7. Privacy Mode
+- **Budget Transparency (Assigned vs. Effective):** 
+    - **Concept:** Clearly separate "New Money" allocated this month from "Adjustments" (rollover debt/surplus).
+    - **Visuals:** Use a **Stats Grid** in the header to show the breakdown (Planned + Adjustments = Effective).
+    - **Mobile-First:** Ensure the grid uses `flex-wrap` to stack gracefully on small screens without losing detail.
+    - **Transparency:** Explicitly show when funds are "swept back" to clarify why the remaining balance might have changed after a month-end process.
+- **Privacy Mode:**
 - **Purpose:** Protect sensitive financial data when using the app in public spaces.
 - **Default Behavior:** Privacy Mode defaults to **ON (Active)** every time the application is loaded or the user navigates back to the Dashboard. It does not persist the "OFF" state across sessions/navigation to ensure security.
 - **Visuals:** Sensitive amounts (Balances, Totals) are masked using bullet characters (`••••`) instead of asterisks.
