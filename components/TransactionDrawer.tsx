@@ -855,7 +855,18 @@ const TransactionFormFields = ({
 
   const amountValue = parseAmount(amount);
   const balanceValue = parseAmount(selectedAccount?.balance);
-  const isOverspent = (type === TRANSACTION_TYPES.EXPENSE || type === TRANSACTION_TYPES.TRANSFER) && selectedAccount && amountValue > balanceValue;
+  
+  // Logic for Edit Mode to prevent false "Insufficient Balance"
+  const originalAmount = form.formState.defaultValues?.amount 
+      ? parseAmount(form.formState.defaultValues.amount) 
+      : 0;
+  
+  const isEditingSameAccount = form.formState.defaultValues?.accountId === accountId;
+  const effectiveAmountToCheck = isEditingSameAccount ? (amountValue - originalAmount) : amountValue;
+
+  const isOverspent = (type === TRANSACTION_TYPES.EXPENSE || type === TRANSACTION_TYPES.TRANSFER) && 
+                      selectedAccount && 
+                      effectiveAmountToCheck > balanceValue;
 
   // SAFE AUTO-FOCUS: Trigger every time 'open' becomes true.
   const amountInputRef = useRef<HTMLInputElement>(null);
@@ -1424,7 +1435,16 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
 
   const amountValue = parseAmount(amount);
   const fromBalanceValue = parseAmount(fromAccount?.balance);
-  const isOverspent = fromAccount && amountValue > fromBalanceValue;
+
+  // Logic for Edit Mode to prevent false "Insufficient Balance"
+  const originalAmount = form.formState.defaultValues?.amount 
+      ? parseAmount(form.formState.defaultValues.amount) 
+      : 0;
+
+  const isEditingSameAccount = form.formState.defaultValues?.accountId === fromAccountId;
+  const effectiveAmountToCheck = isEditingSameAccount ? (amountValue - originalAmount) : amountValue;
+
+  const isOverspent = fromAccount && effectiveAmountToCheck > fromBalanceValue;
 
   const parsedAmount = parseFloat(amount?.replace(/,/g, '') || '0');
   const parsedQuantity = parseFloat(quantity || '0');
