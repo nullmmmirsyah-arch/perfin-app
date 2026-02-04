@@ -7,6 +7,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails } from '@/lib/finance-utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export type BudgetBreakdownItem = {
   categoryId: string;
@@ -220,18 +226,30 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
 
                             {/* SECTION 2: ALLOCATIONS */}
                             <div className="space-y-2">
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">2. Alokasi (Rencana)</p>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">2. Alokasi (Rencana)</p>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="h-3 w-3 text-muted-foreground cursor-help opacity-50" />
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-[200px] text-[10px]">
+                                                Angka alokasi bersifat &quot;Kewajiban&quot;. Jika pengeluaran melebihi budget, alokasi dianggap 0 karena uangnya sudah terpakai dari saldo fisik.
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                                 <div className="space-y-1.5">
                                     <div className="flex justify-between text-xs">
-                                        <span>Jatah Belanja (Budget Left)</span>
+                                        <span className="text-muted-foreground">Reserved for Expenses</span>
                                         <span className="font-medium">{formatCurrency(summary?.totalExpenseObligations, { isPrivacyMode })}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
-                                        <span>Jatah Tabungan (Goals)</span>
+                                        <span className="text-muted-foreground">Reserved for Savings</span>
                                         <span className="font-medium">{formatCurrency((summary?.totalSavingObligations || 0) + (summary?.totalSavingsOnly || 0), { isPrivacyMode })}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
-                                        <span className="flex items-center gap-1">Uang Bebas (Unassigned) <Info className="h-3 w-3 opacity-30" /></span>
+                                        <span className="flex items-center gap-1 text-muted-foreground">Free Cash (Unassigned)</span>
                                         <span className={cn(
                                             "font-medium",
                                             (summary?.unassignedCash ?? 0) < 0 ? "text-destructive" : "text-success"
@@ -240,7 +258,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5 border-dashed">
-                                        <span>Total Alokasi</span>
+                                        <span>Total Terencana</span>
                                         <span className="text-primary">{formatCurrency((summary?.totalExpenseObligations || 0) + (summary?.totalSavingObligations || 0) + (summary?.totalSavingsOnly || 0) + (summary?.unassignedCash || 0), { isPrivacyMode })}</span>
                                     </div>
                                 </div>

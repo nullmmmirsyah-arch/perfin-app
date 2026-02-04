@@ -228,27 +228,9 @@ export default function BudgetsPage() {
       calculatedDaysRemaining = 30;
   }
 
-  // Split logic
-  const savings = budgetStatus?.filter(item => item.category.type === 'saving') || []
-  const expenses = budgetStatus?.filter(item => item.category.type === 'expense') || []
-
-  const expensesSummary = expenses.reduce((acc, item) => {
-    const limit = item.budget ? parseFloat(item.budget.amount) : 0;
-    const carryover = item.budget?.carryoverAmount ? parseFloat(item.budget.carryoverAmount) : 0;
-    const swept = item.budget?.sweptAmount ? parseFloat(item.budget.sweptAmount) : 0;
-    
-    const effectiveLimit = limit + carryover;
-    const remaining = Math.max(0, effectiveLimit - item.spent - swept);
-    
-    return {
-        totalAssigned: acc.totalAssigned + limit,
-        totalCarryover: acc.totalCarryover + carryover,
-        totalSwept: acc.totalSwept + swept,
-        totalSpent: acc.totalSpent + item.spent,
-        totalRemaining: acc.totalRemaining + remaining,
-        totalEffective: acc.totalEffective + effectiveLimit
-    };
-  }, { totalAssigned: 0, totalCarryover: 0, totalSwept: 0, totalSpent: 0, totalRemaining: 0, totalEffective: 0 });
+  const savings = budgetData?.data?.filter(item => item.category.type === 'saving') || []
+  const expenses = budgetData?.data?.filter(item => item.category.type === 'expense') || []
+  const budgetSummary = budgetData?.budgetSummary;
 
   // Calculate Monthly Savings Aggregate (Goals Focus)
   const savingsAggregate = savings.reduce((acc, item) => {
@@ -468,13 +450,13 @@ export default function BudgetsPage() {
                                 <div className="space-y-4 relative z-10">
                                     {/* Main Display */}
                                     <div>
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1.5">Effective Spending Power</p>
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1.5">Monthly Budget Left</p>
                                         <div className="flex items-baseline gap-2">
                                             <span className={cn(
                                                 "text-4xl font-black tracking-tighter",
-                                                expensesSummary.totalRemaining < 0 ? "text-destructive" : "text-foreground"
+                                                (budgetSummary?.totalRemaining ?? 0) < 0 ? "text-destructive" : "text-foreground"
                                             )}>
-                                                {formatCurrency(expensesSummary.totalRemaining)}
+                                                {formatCurrency(budgetSummary?.totalRemaining ?? 0)}
                                             </span>
                                             <span className="text-sm text-muted-foreground font-medium">remaining</span>
                                         </div>
@@ -484,19 +466,19 @@ export default function BudgetsPage() {
                                     <div className="flex flex-wrap gap-2">
                                         <div className="flex-1 min-w-[120px] bg-muted/40 px-3 py-2 rounded-lg border border-muted/50">
                                             <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-tight mb-0.5">New Planned</p>
-                                            <p className="text-sm font-bold tracking-tight">{formatCurrency(expensesSummary.totalAssigned)}</p>
+                                            <p className="text-sm font-bold tracking-tight">{formatCurrency(budgetSummary?.totalAssigned ?? 0)}</p>
                                         </div>
                                         
-                                        {expensesSummary.totalCarryover !== 0 && (
+                                        {(budgetSummary?.totalCarryover ?? 0) !== 0 && (
                                             <div className={cn(
                                                 "flex-1 min-w-[120px] px-3 py-2 rounded-lg border",
-                                                expensesSummary.totalCarryover > 0 
+                                                (budgetSummary?.totalCarryover ?? 0) > 0 
                                                     ? "bg-success/5 border-success/20 text-success" 
                                                     : "bg-destructive/5 border-destructive/20 text-destructive"
                                             )}>
                                                 <p className="text-[9px] font-bold uppercase tracking-tight mb-0.5 opacity-80">Adjustments</p>
                                                 <p className="text-sm font-bold tracking-tight">
-                                                    {expensesSummary.totalCarryover > 0 ? '+' : ''}{formatCurrency(expensesSummary.totalCarryover)}
+                                                    {(budgetSummary?.totalCarryover ?? 0) > 0 ? '+' : ''}{formatCurrency(budgetSummary?.totalCarryover ?? 0)}
                                                 </p>
                                             </div>
                                         )}
@@ -506,16 +488,16 @@ export default function BudgetsPage() {
                                     <div className="space-y-2 pt-1">
                                         <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
                                             <span className="text-muted-foreground">Spending Progress</span>
-                                            <span className="text-foreground">{formatCurrency(expensesSummary.totalSpent)} / {formatCurrency(expensesSummary.totalEffective)}</span>
+                                            <span className="text-foreground">{formatCurrency(budgetSummary?.totalSpent ?? 0)} / {formatCurrency(budgetSummary?.totalEffective ?? 0)}</span>
                                         </div>
                                         <Progress 
-                                            value={expensesSummary.totalEffective > 0 ? (expensesSummary.totalSpent / expensesSummary.totalEffective) * 100 : 0} 
+                                            value={(budgetSummary?.totalEffective ?? 0) > 0 ? ((budgetSummary?.totalSpent ?? 0) / (budgetSummary?.totalEffective ?? 0)) * 100 : 0} 
                                             className="h-2.5 bg-muted"
                                         />
-                                        {expensesSummary.totalSwept > 0 && (
+                                        {(budgetSummary?.totalSwept ?? 0) > 0 && (
                                             <div className="flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground italic">
                                                 <Info className="h-3 w-3" />
-                                                <span>{formatCurrency(expensesSummary.totalSwept)} swept back to wallet</span>
+                                                <span>{formatCurrency(budgetSummary?.totalSwept ?? 0)} swept back to wallet</span>
                                             </div>
                                         )}
                                     </div>

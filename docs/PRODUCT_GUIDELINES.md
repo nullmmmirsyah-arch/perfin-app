@@ -86,6 +86,7 @@ This document outlines the design philosophy and user experience patterns used i
 - **Budget Transparency (Assigned vs. Effective):** 
     - **Concept:** Clearly separate "New Money" allocated this month from "Adjustments" (rollover debt/surplus).
     - **Visuals:** Use a **Stats Grid** in the header to show the breakdown (Planned + Adjustments = Effective).
+    - **Standardization:** Both the Dashboard and Budgets page use the same centralized function (`calculateMonthlyBudgetLeft`) and label ("Monthly Budget Left") to ensure consistency.
     - **Mobile-First:** Ensure the grid uses `flex-wrap` to stack gracefully on small screens without losing detail.
     - **Transparency:** Explicitly show when funds are "swept back" to clarify why the remaining balance might have changed after a month-end process.
 - **Privacy Mode:**

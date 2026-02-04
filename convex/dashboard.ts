@@ -4,6 +4,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { 
   calculateSpendingByCategory, 
   calculateUnassignedCash, 
+  calculateMonthlyBudgetLeft,
   AccountMap,
   isLiquidAccount,
   getFiscalMonthRange,
@@ -313,16 +314,8 @@ export const getDashboardSummary = query({
             };
     });
 
-    let totalRemainingBudget = 0;
-
-    budgetBreakdown.forEach(b => {
-      // Only count expense type for remaining budget logic to match "Spending Budget"
-      if (b.categoryType === 'expense') {
-          totalRemainingBudget += (b.limit - b.spent);
-      }
-    });
-
-    const remainingBudget = totalRemainingBudget;
+    const budgetSummary = calculateMonthlyBudgetLeft(budgets, categories, spendingByCategory);
+    const remainingBudget = budgetSummary.totalRemaining;
 
     // 2.2 Calculate Unassigned Cash & Obligation Breakdown (Using Helper logic but split)
     let allBudgets;

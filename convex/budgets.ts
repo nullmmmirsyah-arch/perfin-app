@@ -4,6 +4,7 @@ import { Id, Doc } from "./_generated/dataModel";
 import { 
   calculateSpendingByCategory, 
   calculateUnassignedCash, 
+  calculateMonthlyBudgetLeft,
   AccountMap,
   getFiscalMonthRange,
   getFiscalDateDetails 
@@ -185,6 +186,8 @@ export const getBudgetStatus = query({
             };
     });
 
+    const budgetSummary = calculateMonthlyBudgetLeft(budgets, categories, spendingByCategory);
+
     // Breakdown for UI
     const thisMonthIncome = allTransactions
         .filter(t => t.type === 'income' && t.date >= startOfFiscal && t.date <= endOfFiscal)
@@ -292,7 +295,7 @@ export const getBudgetStatus = query({
          }
     }
 
-    return { data, unassignedCash, monthEndProposals, breakdown };
+    return { data, unassignedCash, monthEndProposals, breakdown, budgetSummary };
   },
 });
 

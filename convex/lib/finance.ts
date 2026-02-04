@@ -128,6 +128,50 @@ export function calculateSpendingByCategory(
 }
 
 /**
+ * Centralized logic to calculate the monthly budget summary for expenses.
+ * Used by both Dashboard and Budgets page to ensure consistency.
+ */
+export function calculateMonthlyBudgetLeft(
+  budgets: Doc<"budgets">[],
+  categories: Doc<"categories">[],
+  spendingMap: Record<string, number>
+) {
+  const catMap = new Map(categories.map(c => [c._id, c]));
+  
+  return budgets.reduce((acc, b) => {
+    const cat = catMap.get(b.categoryId);
+    // Only calculate for 'expense' type categories
+    if (cat?.type !== 'expense') return acc;
+
+    const assigned = parseAmount(b.amount);
+    const carryover = parseAmount(b.carryoverAmount);
+    const swept = parseAmount(b.sweptAmount);
+    const spent = spendingMap[b.categoryId] || 0;
+
+    const effectiveLimit = assigned + carryover;
+    // Net Balance: We don't use Math.max(0, ...) here so that overspending 
+    // correctly reduces the total global spending power.
+    const remaining = effectiveLimit - swept - spent;
+
+    return {
+      totalAssigned: acc.totalAssigned + assigned,
+      totalCarryover: acc.totalCarryover + carryover,
+      totalSwept: acc.totalSwept + swept,
+      totalSpent: acc.totalSpent + spent,
+      totalEffective: acc.totalEffective + effectiveLimit,
+      totalRemaining: acc.totalRemaining + remaining
+    };
+  }, { 
+    totalAssigned: 0, 
+    totalCarryover: 0, 
+    totalSwept: 0, 
+    totalSpent: 0, 
+    totalEffective: 0, 
+    totalRemaining: 0 
+  });
+}
+
+/**
  * Calculates Unassigned Cash (Global Logic).
  * New Formula: Total Liquid Cash - Sum(Remaining Budget Obligations)
  * Remaining Obligation = Max(0, Budget Amount - Spent in that Period)
