@@ -166,6 +166,8 @@ Certain UI patterns are standardized to ensure consistency.
     - **Currency:** ALWAYS use `formatCurrency(value, { isPrivacyMode })` from `@/lib/utils`.
         - **Do NOT** manually implement `Intl.NumberFormat` or `.toLocaleString()` in components.
         - This ensures consistent styling (e.g., no decimals) and handles **Privacy Mode** masking (`••••`) centrally.
+    - **Parsing:** ALWAYS use `parseAmount(value)` from `@/lib/utils` when converting string inputs/database values to numbers for calculation. This safely handles commas and empty strings.
+    - **Thousand Separators:** Ensure all numeric inputs in forms are formatted using the helper `formatNumber` (local to Drawer) or similar patterns to keep separators visible during typing.
 
 4.  **Notifications:**
     - **In-App:** Use `sonner` (`toast.success(...)`).

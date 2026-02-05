@@ -40,6 +40,7 @@ import {
   SelectLabel,
   SelectSeparator,
 } from '@/components/ui/select';
+import { Switch } from "@/components/ui/switch"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +69,7 @@ import { toast } from 'sonner';
 import { useHousehold } from '@/components/HouseholdProvider';
 import { SplitEditorDrawer } from './SplitEditorDrawer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Badge } from '@/components/ui/badge';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
 
@@ -125,7 +127,23 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
     quantity: z.string().optional(),
     unitPrice: z.number().optional(),
   }).optional(),
+  // Receivables
+  isReimbursable: z.boolean().optional(),
+  owedBy: z.string().optional(),
+  reimbursementStatus: z.union([
+    z.literal("pending"),
+    z.literal("settled"),
+    z.literal("forgiven"),
+  ]).optional(),
 }).superRefine((data, ctx) => {
+  if (data.isReimbursable && !data.owedBy) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['owedBy'],
+        message: 'Name of person/entity is required',
+      });
+  }
+
   if (data.type === TRANSACTION_TYPES.TRANSFER) {
     if (!data.toAccountId) {
       ctx.addIssue({
@@ -234,6 +252,7 @@ type TransactionDrawerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction?: TransactionWithDetails;
+  initialData?: Partial<TransactionFormValues> & { parentTransactionId?: string };
 };
 
 const formatNumber = (value: string | undefined) => {
@@ -427,6 +446,7 @@ const TransactionForm = ({
     open, 
     onOpenChange, 
     transaction, 
+    initialData,
     isMobile,
     splitDrawerOpen,
     setSplitDrawerOpen,
@@ -445,6 +465,7 @@ const TransactionForm = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const submitLock = useRef(false);
   const editingTransactionId = useRef<string | null>(null);
+  const isSettlement = !!initialData?.parentTransactionId;
 
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
   const isEditMode = !!transaction;
@@ -504,18 +525,18 @@ const TransactionForm = ({
   // Merge Data
   const categories: CategoryOption[] = useMemo(() => {
       const typeFilter = transactionType === TRANSACTION_TYPES.TRANSFER ? CATEGORY_TYPES.SAVING : transactionType;
+      const initialCatId = initialData?.categoryId;
       
       // If Expense/Saving, prefer budgetStatus data
       if (typeFilter === TRANSACTION_TYPES.EXPENSE || typeFilter === CATEGORY_TYPES.SAVING) {
           if (!budgetStatus?.data) return [];
           
-          return budgetStatus.data
-            .filter(item => item.category.type === typeFilter)
+          const filtered = budgetStatus.data
+            .filter(item => item.category.type === typeFilter || item.category._id === initialCatId)
             .map(item => {
                 const allocated = item.budget ? parseFloat(item.budget.amount.replace(/,/g, '') || '0') : 0;
                 const carryover = item.budget ? parseFloat(item.budget.carryoverAmount?.replace(/,/g, '') || '0') : 0;
                 const limit = allocated + carryover;
-                // remaining can be negative
                 const remaining = limit - (item.spent || 0);
                 
                 return {
@@ -526,19 +547,20 @@ const TransactionForm = ({
                     remaining: remaining
                 };
             });
+          return filtered;
       }
       
       // Fallback for Income (or if budgetStatus fails)
       if (!allCategories) return [];
       return allCategories
-        .filter(c => c.type === typeFilter)
+        .filter(c => c.type === typeFilter || c._id === initialCatId)
         .map(c => ({
             _id: c._id,
             name: c.name,
             type: c.type
         }));
 
-  }, [transactionType, budgetStatus, allCategories]);
+  }, [transactionType, budgetStatus, allCategories, initialData?.categoryId]);
 
   const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
 
@@ -570,23 +592,31 @@ const TransactionForm = ({
             quantity: transaction.assetDetails.quantity,
             unitPrice: transaction.assetDetails.unitPrice,
           } : undefined,
+          // Receivables
+          isReimbursable: transaction.isReimbursable || false,
+          owedBy: transaction.owedBy || '',
+          reimbursementStatus: transaction.reimbursementStatus || 'pending',
         });
       } else {
         editingTransactionId.current = null;
         form.reset({
-          type: TRANSACTION_TYPES.EXPENSE as any,
-          amount: '',
-          date: new Date(),
-          description: '',
-          accountId: '',
-          isSplit: false,
-          splits: [{ categoryId: '', amount: '', description: '', labelId: '' }],
-          labelId: undefined,
-          assetDetails: { quantity: '', unitPrice: undefined },
+          type: initialData?.type || TRANSACTION_TYPES.EXPENSE as any,
+          amount: initialData?.amount ? formatNumber(initialData.amount) : '',
+          date: initialData?.date || new Date(),
+          description: initialData?.description || '',
+          accountId: initialData?.accountId || '',
+          categoryId: initialData?.categoryId || undefined,
+          isSplit: initialData?.isSplit || false,
+          splits: initialData?.splits || [{ categoryId: '', amount: '', description: '', labelId: '' }],
+          labelId: initialData?.labelId || undefined,
+          assetDetails: initialData?.assetDetails || { quantity: '', unitPrice: undefined },
+          isReimbursable: initialData?.isReimbursable || false,
+          owedBy: initialData?.owedBy || '',
+          reimbursementStatus: 'pending',
         });
       }
     }
-  }, [open, isEditMode, transaction, form]);
+  }, [open, isEditMode, transaction, form, initialData]);
 
   const { fields, append, replace, remove } = useFieldArray({
     control: form.control,
@@ -642,6 +672,10 @@ const TransactionForm = ({
               splits: finalSplits,
               labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
+              // Receivables
+              isReimbursable: data.isReimbursable,
+              owedBy: data.owedBy,
+              reimbursementStatus: data.reimbursementStatus,
             });
             toast.success("Transaction updated");
           } else {
@@ -658,6 +692,11 @@ const TransactionForm = ({
               splits: finalSplits,
               labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
               assetDetails,
+              // Receivables
+              isReimbursable: data.isReimbursable,
+              owedBy: data.owedBy,
+              reimbursementStatus: data.reimbursementStatus,
+              parentTransactionId: initialData?.parentTransactionId as Id<'transactions'> | undefined,
             });
             toast.success("Transaction created");
           }
@@ -737,6 +776,8 @@ const TransactionForm = ({
                     onEditSplit={() => setSplitDrawerOpen(true)}
                     isMobile={isMobile}
                     open={open}
+                    isEditMode={isEditMode}
+                    isSettlement={isSettlement}
                   />
                 </TabsContent>
                 <TabsContent value={TRANSACTION_TYPES.INCOME} className="space-y-4 mt-0 outline-none">
@@ -750,6 +791,8 @@ const TransactionForm = ({
                     onEditSplit={() => setSplitDrawerOpen(true)}
                     isMobile={isMobile}
                     open={open}
+                    isEditMode={isEditMode}
+                    isSettlement={isSettlement}
                   />
                 </TabsContent>
                 <TabsContent value={TRANSACTION_TYPES.TRANSFER} className="space-y-4 mt-0 outline-none">
@@ -828,7 +871,7 @@ const TransactionForm = ({
 }
 
 const TransactionFormFields = ({ 
-    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit, isMobile, open 
+    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit, isMobile, open, isEditMode, isSettlement 
 }: { 
     form: UseFormReturn<TransactionFormValues>, 
     categories: CategoryOption[], 
@@ -838,7 +881,9 @@ const TransactionFormFields = ({
     splitSummary?: { count: number, total: number },
     onEditSplit?: () => void,
     isMobile?: boolean,
-    open?: boolean
+    open?: boolean,
+    isEditMode?: boolean,
+    isSettlement?: boolean
 }) => {
   const isSplit = useWatch({ control: form.control, name: 'isSplit' });
   const type = useWatch({ control: form.control, name: 'type' });
@@ -1005,6 +1050,7 @@ const TransactionFormFields = ({
                                                     }
                                                     field.onChange(val);
                                                 }}
+                                                disabled={isSettlement}
                                                 options={[
                                                     { value: 'ACTION_SPLIT', label: '🔀 Split Transaction', subLabel: 'Divide into multiple categories', isAction: true },
                                                     ...categories.map(cat => ({
@@ -1016,14 +1062,16 @@ const TransactionFormFields = ({
                                                     }))
                                                 ]}
                                                 trigger={
-                                                    <button type="button" className="w-full text-left outline-none">
+                                                    <button type="button" className={cn("w-full text-left outline-none", isSettlement && "opacity-70 cursor-not-allowed")}>
                                                         <MobileInputCard 
-                                                            label="Category" 
+                                                            label={isSettlement ? "Category (Locked)" : "Category"}
                                                             icon={LayoutGrid}
                                                             valueDisplay={selectedCategory?.name}
-                                                            subValueDisplay={selectedCategory?.type === CATEGORY_TYPES.EXPENSE && (selectedCategory.budgetLimit || 0) > 0 
-                                                                ? `Avail: ${formatCurrency(selectedCategory.remaining)}` 
-                                                                : undefined
+                                                            subValueDisplay={isSettlement 
+                                                                ? "Locked for settlement integrity" 
+                                                                : (selectedCategory?.type === CATEGORY_TYPES.EXPENSE && (selectedCategory.budgetLimit || 0) > 0 
+                                                                    ? `Avail: ${formatCurrency(selectedCategory.remaining)}` 
+                                                                    : undefined)
                                                             }
                                                         />
                                                     </button>
@@ -1166,6 +1214,89 @@ const TransactionFormFields = ({
                         )}
                     />
                 )}
+
+                {/* Receivables Toggle (Mobile) */}
+                <FormField
+                    control={form.control}
+                    name="isReimbursable"
+                    render={({ field }) => (
+                        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/50 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", field.value ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground")}>
+                                        <ArrowRight className={cn("h-5 w-5 transition-transform", field.value ? "-rotate-45" : "")} />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-sm">To be reimbursed?</p>
+                                        <p className="text-xs text-muted-foreground">Mark as owed by someone else</p>
+                                    </div>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </div>
+
+                            {field.value && (
+                                <div className="space-y-4 animate-in slide-in-from-top-2 fade-in pt-2 border-t">
+                                    <FormField
+                                        control={form.control}
+                                        name="owedBy"
+                                        render={({ field: owedField }) => (
+                                            <div>
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Owed By</p>
+                                                <Input 
+                                                    placeholder="e.g. John, Office, Client" 
+                                                    {...owedField}
+                                                    className="bg-muted/30 border-none shadow-none focus-visible:ring-0 pl-0 h-auto py-1 font-medium"
+                                                />
+                                                <FormMessage />
+                                            </div>
+                                        )}
+                                    />
+
+                                    {/* Status Management */}
+                                    <FormField
+                                        control={form.control}
+                                        name="reimbursementStatus"
+                                        render={({ field: statusField }) => (
+                                            <div className="flex items-center justify-between bg-muted/20 p-2 rounded-lg border border-dashed border-muted-foreground/20">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Status</p>
+                                                    <p className="text-xs font-semibold capitalize">{statusField.value || 'pending'}</p>
+                                                </div>
+                                                
+                                                {statusField.value === 'forgiven' ? (
+                                                    <Button 
+                                                        type="button" 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="h-7 text-[10px] px-2 bg-background"
+                                                        onClick={() => statusField.onChange('pending')}
+                                                    >
+                                                        Re-open Debt
+                                                    </Button>
+                                                ) : statusField.value === 'pending' && isEditMode && (
+                                                    <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                                                        Active
+                                                    </Badge>
+                                                )}
+                                                
+                                                {statusField.value === 'settled' && (
+                                                    <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                                                        Settled ✅
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        )}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                />
                 
                 {/* Split Toggle Button - Only Revert Option Remaining */}
                 {isSplit && (
@@ -1252,6 +1383,7 @@ const TransactionFormFields = ({
                                 }} 
                                 value={field.value} 
                                 key={field.value}
+                                disabled={isSettlement}
                             >
                             <FormControl>
                                 <SelectTrigger>
@@ -1379,6 +1511,45 @@ const TransactionFormFields = ({
                         </FormControl>
                         <FormMessage />
                     </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="isReimbursable"
+                    render={({ field }) => (
+                        <div className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/10 mt-2">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Reimbursement</FormLabel>
+                                    <p className="text-sm text-muted-foreground">
+                                        Is this transaction owed by someone else?
+                                    </p>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </div>
+                            
+                            {field.value && (
+                                <FormField
+                                    control={form.control}
+                                    name="owedBy"
+                                    render={({ field: owedField }) => (
+                                        <FormItem>
+                                            <FormLabel>Owed By</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Person or Entity Name" {...owedField} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+                        </div>
                     )}
                 />
              </>

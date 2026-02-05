@@ -57,6 +57,14 @@
 3.  **Centralized Logic (Important):**
     - To maintain data consistency across Dashboard, Budget, and Transactions, core business logic is centralized in `convex/lib/`.
     - **`convex/lib/finance.ts`:** Contains pure functions for calculating Spending, Unassigned Cash, and Transaction Analysis. **ALWAYS** use these helpers instead of re-writing logic in queries.
+    - **`calculateMonthlyBudgetLeft` (Centralized Rule):** 
+        - The single source of truth for "Monthly Budget Left" and "Effective Spending Power".
+        - Formula: `Assigned + Carryover - Swept - Spent`.
+        - Uses **Net Balance** logic: Overspending in one category correctly reduces the total global spending power.
+    - **Netting Logic (Reimbursement Settlement):**
+        - If a transaction type is `INCOME` but its category is type `EXPENSE`, it is treated as **Negative Spending**.
+        - This reduces the `spent` amount of that category and restores the budget limit.
+        - **Critical:** This logic requires `categoriesMap` to be passed to `analyzeTransactionFlow` or `calculateSpendingByCategory`.
     - **`convex/lib/finance.ts` (Fiscal Logic):**
         - `getFiscalDateDetails(date, startDay)`: Converts a Calendar Date to Fiscal Year/Month.
         - `getFiscalMonthRange(year, month, startDay)`: Returns start/end timestamps for a fiscal period.
@@ -75,6 +83,10 @@
     - **Auto-Categorization:** Transfer mutations check for destination accounts with `linkedCategoryId` to automatically assign the correct category.
     - **Smart Auto-Budgeting:** Transaction mutations explicitly call `ensureBudgetExists`. *Enhancement:* It now checks for `isGoalDisbursement` flag to prevent inflating budget during goal withdrawals.
     - **Smart Disbursement Detection:** In `convex/transactions.ts`, system automatically detects Transfer from Special Account -> Liquid Account and flags it as `isGoalDisbursement`. This ensures accurate accounting (Neutral/Income effect instead of Negative Spending).
+    - **Receivables Integrity:**
+        - **Cascading Deletes:** Deleting a debt (Parent) transaction automatically deletes all its settlement history (Children).
+        - **Automatic Reversal:** Deleting a settlement transaction automatically re-opens the debt and reduces the `amountPaid` on the parent.
+        - **Anti-Overpay:** Validation in `create` mutation blocks payments that exceed the remaining debt.
     - **Goal Progress:** Inside `create` and `update` transaction mutations, we explicitly call `checkGoalProgress` to trigger notifications.
     - **Split Transaction Optimization (Search Indexing):**
         - To improve filtering performance, we use a **Denormalized Indexing** strategy.

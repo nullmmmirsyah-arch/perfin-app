@@ -1,7 +1,8 @@
 import { Doc } from "../_generated/dataModel";
 import { 
   TRANSACTION_TYPES, 
-  ACCOUNT_TYPES 
+  ACCOUNT_TYPES,
+  CATEGORY_TYPES 
 } from "./constants";
 
 export type AccountMap = Map<string, Doc<"accounts">>;
@@ -43,10 +44,12 @@ export function isSpecialAccount(account?: Doc<"accounts"> | null): boolean {
  * - Standard Expense/Income
  * - Splits
  * - Transfers (Liquid <-> Liquid, Liquid <-> Special)
+ * - Settlement Reversals (Income to Expense Category)
  */
 export function analyzeTransactionFlow(
   t: Doc<"transactions">,
-  accountsMap: AccountMap
+  accountsMap: AccountMap,
+  categoriesMap?: Map<string, Doc<"categories">>
 ): { categoryId: string; amount: number; type: 'SPENDING' | 'INCOME' | 'NEUTRAL' }[] {
   const effects: { categoryId: string; amount: number; type: 'SPENDING' | 'INCOME' | 'NEUTRAL' }[] = [];
   const baseAmount = parseFloat(t.amount.replace(/,/g, '') || '0');
@@ -64,10 +67,23 @@ export function analyzeTransactionFlow(
     return effects;
   }
 
-  // 2. Handle Standard Expense / Saving
-  if ((t.type === TRANSACTION_TYPES.EXPENSE || t.type === TRANSACTION_TYPES.SAVING) && t.categoryId) {
-    effects.push({ categoryId: String(t.categoryId), amount: baseAmount, type: 'SPENDING' });
-    return effects;
+  // 2. Handle Standard Expense / Saving / Settlement
+  if (t.categoryId) {
+    // Normal Expense/Saving
+    if (t.type === TRANSACTION_TYPES.EXPENSE || t.type === TRANSACTION_TYPES.SAVING) {
+      effects.push({ categoryId: String(t.categoryId), amount: baseAmount, type: 'SPENDING' });
+      return effects;
+    }
+    
+    // Settlement Reversal: Income to Expense Category
+    if (t.type === TRANSACTION_TYPES.INCOME && categoriesMap) {
+      const cat = categoriesMap.get(String(t.categoryId));
+      if (cat && cat.type === CATEGORY_TYPES.EXPENSE) {
+        // Treat as Negative Spending
+        effects.push({ categoryId: String(t.categoryId), amount: -baseAmount, type: 'SPENDING' });
+        return effects;
+      }
+    }
   }
 
   // 3. Handle Transfers
@@ -108,15 +124,22 @@ export function analyzeTransactionFlow(
 /**
  * Aggregates total spending per category from a list of transactions.
  * Returns a Map: CategoryID -> Total Spent Amount.
+ * 
+ * NEW LOGIC: Handles Reimbursement Settlements.
+ * If an INCOME transaction targets an EXPENSE category, it is treated as 
+ * NEGATIVE SPENDING (reducing the total spent), provided categoriesMap is supplied.
  */
 export function calculateSpendingByCategory(
   transactions: Doc<"transactions">[],
-  accountsMap: AccountMap
+  accountsMap: AccountMap,
+  categoriesMap?: Map<string, Doc<"categories">>
 ): Record<string, number> {
   const spendingMap: Record<string, number> = {};
 
   transactions.forEach(t => {
-    const flows = analyzeTransactionFlow(t, accountsMap);
+    // 1. Analyze Flows (Expense/Transfer/Settlement)
+    // analyzeTransactionFlow now handles everything if categoriesMap is provided
+    const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
     flows.forEach(flow => {
       if (flow.type === 'SPENDING') {
         spendingMap[flow.categoryId] = (spendingMap[flow.categoryId] || 0) + flow.amount;
@@ -180,7 +203,8 @@ export function calculateUnassignedCash(
   allTransactions: Doc<"transactions">[],
   allBudgets: Doc<"budgets">[],
   accountsMap: AccountMap,
-  budgetStartDay: number = 1
+  budgetStartDay: number = 1,
+  categoriesMap?: Map<string, Doc<"categories">>
 ): number {
   // 1. Calculate Total Liquid Cash (Current Reality)
   let totalLiquidCash = 0;
@@ -194,7 +218,7 @@ export function calculateUnassignedCash(
   const monthlySpending = new Map<string, Map<string, number>>();
 
   allTransactions.forEach(t => {
-    const flows = analyzeTransactionFlow(t, accountsMap);
+    const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
     const { year, month } = getFiscalDateDetails(t.date, budgetStartDay);
     const key = `${year}-${month}`; 
 

@@ -25,6 +25,7 @@ interface BudgetStatusItem {
   budget: any | null;
   spent: number;
   accumulated: number;
+  pendingReceivables?: number;
 }
 
 interface BudgetCardProps {
@@ -224,7 +225,7 @@ export default function BudgetCard({
               </div>
               <Progress 
                 value={Math.min(monthlyProgress, 100)} 
-                className={cn("h-2 bg-muted", isMonthlyGoalMet ? "[&>div]:bg-success" : "[&>div]:bg-blue-500")}
+                className={cn("h-2 bg-muted", isMonthlyGoalMet ? "[&>div]:bg-success" : "[&>div]:bg-primary")}
               />
               <div className="flex justify-between items-center text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
@@ -253,8 +254,8 @@ export default function BudgetCard({
                     <div className="text-right">
                         <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">Suggested</span>
                         <div className="flex items-center gap-1 justify-end">
-                            <Target className="h-3 w-3 text-blue-500" />
-                            <span className="text-sm font-bold text-blue-600">
+                            <Target className="h-3 w-3 text-primary" />
+                            <span className="text-sm font-bold text-primary">
                                 {formatCurrency(strategy.monthly)}
                             </span>
                         </div>
@@ -265,9 +266,16 @@ export default function BudgetCard({
           ) : (
             <>
               <div className="flex justify-between text-sm">
-                <span className="font-medium">
-                  {formatCurrency(spent)} <span className="text-muted-foreground font-normal">spent</span>
-                </span>
+                <div className="flex flex-col">
+                    <span className="font-medium">
+                    {formatCurrency(spent)} <span className="text-muted-foreground font-normal">spent</span>
+                    </span>
+                    {item.pendingReceivables && item.pendingReceivables > 0 ? (
+                        <span className="text-[10px] text-blue-600 font-medium">
+                            (incl. {formatCurrency(item.pendingReceivables)} to be reimbursed)
+                        </span>
+                    ) : null}
+                </div>
                 <span className="text-muted-foreground">
                   {budget ? `${formatCurrency(limit)} limit` : 'No limit set'}
                 </span>
@@ -275,14 +283,44 @@ export default function BudgetCard({
 
               {budget && (
                 <>
-                  <Progress 
-                    value={Math.min(percentage, 100)} 
-                    className={cn(
-                      "h-2",
-                      isOverBudget ? "bg-destructive/20 [&>div]:bg-destructive" : 
-                      (pacing?.status === 'warning' ? "bg-yellow-500/20 [&>div]:bg-yellow-500" : "")
-                    )}
-                  />
+                  {/* Layered Progress Bar */}
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
+                      {(() => {
+                          const receivables = item.pendingReceivables || 0;
+                          const personalSpent = Math.max(0, spent - receivables);
+                          
+                          const personalPct = (personalSpent / effectiveLimit) * 100;
+                          const receivablesPct = (receivables / effectiveLimit) * 100;
+                          
+                          return (
+                              <>
+                                  {/* Personal Spending Bar */}
+                                  <div 
+                                      className={cn(
+                                          "h-full transition-all",
+                                          isOverBudget ? "bg-destructive" : 
+                                          (pacing?.status === 'warning' ? "bg-yellow-500" : 
+                                           pacing?.status === 'danger' ? "bg-destructive" : "bg-primary")
+                                      )}
+                                      style={{ width: `${Math.min(personalPct, 100)}%` }}
+                                  />
+                                  {/* Receivables Bar (Striped) */}
+                                  <div 
+                                      className={cn(
+                                          "h-full transition-all opacity-80",
+                                          // Striped pattern using CSS linear gradient
+                                          "bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-size-[8px_8px]",
+                                          isOverBudget ? "bg-destructive/60" : 
+                                          (pacing?.status === 'warning' ? "bg-yellow-500/60" : 
+                                           pacing?.status === 'danger' ? "bg-destructive/60" : "bg-primary/60")
+                                      )}
+                                      style={{ width: `${Math.max(0, Math.min(receivablesPct, 100 - personalPct))}%` }}
+                                  />
+                              </>
+                          );
+                      })()}
+                  </div>
+
                   <div className="flex justify-between items-center">
                     <div className="flex flex-col">
                         <p className={cn(

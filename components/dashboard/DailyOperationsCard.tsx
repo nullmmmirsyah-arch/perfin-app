@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';      
-import { cn, formatCurrency } from '@/lib/utils';
+import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban } from 'lucide-react';      
+import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,7 @@ export type BudgetBreakdownItem = {
   limit: number;
   spent: number;
   remaining: number;
+  pendingReceivables?: number;
 };
 
 type SummaryData = {
@@ -43,6 +44,9 @@ type SummaryData = {
       allocations?: { name: string, amount: number }[];
       bankBalance?: number;
   }[];
+  // NEW
+  totalReceivables?: number;
+  pendingReceivables?: any[];
 };
 
 type Props = {
@@ -121,16 +125,38 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: {
                 )}
             </div>
             
-            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                <div
-                    className={cn(
-                        "h-full rounded-full transition-all duration-500", 
-                        isOver ? "bg-destructive" : 
-                        (pacing?.status === 'warning' ? "bg-yellow-500" : 
-                         pacing?.status === 'danger' ? "bg-destructive" : "bg-primary")
-                    )}
-                    style={{ width: `${Math.min(percentage, 100)}%` }}
-                />
+            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
+                {(() => {
+                    const receivables = item.pendingReceivables || 0;
+                    const personalSpent = Math.max(0, item.spent - receivables);
+                    
+                    const personalPct = (personalSpent / item.limit) * 100;
+                    const receivablesPct = (receivables / item.limit) * 100;
+                    
+                    return (
+                        <>
+                            <div 
+                                className={cn(
+                                    "h-full transition-all",
+                                    isOver ? "bg-destructive" : 
+                                    (pacing?.status === 'warning' ? "bg-yellow-500" : 
+                                     pacing?.status === 'danger' ? "bg-destructive" : "bg-primary")
+                                )}
+                                style={{ width: `${Math.min(personalPct, 100)}%` }}
+                            />
+                            <div 
+                                className={cn(
+                                    "h-full transition-all opacity-80",
+                                    "bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-size-[8px_8px]",
+                                    isOver ? "bg-destructive/60" : 
+                                    (pacing?.status === 'warning' ? "bg-yellow-500/60" : 
+                                     pacing?.status === 'danger' ? "bg-destructive/60" : "bg-primary/60")
+                                )}
+                                style={{ width: `${Math.max(0, Math.min(receivablesPct, 100 - personalPct))}%` }}
+                            />
+                        </>
+                    );
+                })()}
             </div>
             
             <div className="flex justify-between items-center text-[10px] text-muted-foreground">
@@ -165,9 +191,15 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="budget" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="cash">Cash</TabsTrigger>
+            <TabsTrigger value="lent" className="relative">
+                Lent
+                {summary?.totalReceivables && summary.totalReceivables > 0 ? (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+                ) : null}
+            </TabsTrigger>
           </TabsList>
 
           {/* BUDGET TAB */}
@@ -373,6 +405,93 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     </div>
                   );
               })}
+            </div>
+          </TabsContent>
+
+          {/* LENT TAB (RECEIVABLES) */}
+          <TabsContent value="lent" className="space-y-4 animate-in fade-in-5">
+            <div>
+              <div className="text-2xl font-bold text-primary">
+                {formatCurrency(summary?.totalReceivables || 0, { isPrivacyMode })}
+              </div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
+                Total Owed to You
+              </p>
+            </div>
+
+            <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin pb-4">
+              {(!summary?.pendingReceivables || summary.pendingReceivables.length === 0) && (
+                <div className="text-center py-8 border rounded-xl border-dashed bg-muted/20">
+                    <HandCoins className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground italic">No active receivables.</p>
+                </div>
+              )}
+              
+              {summary?.pendingReceivables?.map((tx, index) => (
+                <div key={index} className="flex flex-col gap-2 p-3 rounded-lg bg-card border shadow-sm group">
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-accent/50 text-accent-foreground border-accent">
+                                    {tx.owedBy || "Someone"}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">•</span>
+                                <span className="text-[10px] text-muted-foreground truncate">
+                                    {tx.categoryName || "Expense"}
+                                </span>
+                            </div>
+                            <p className="text-sm font-semibold truncate leading-tight">
+                                {tx.description || "No description"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                Paid from {tx.fromAccountName}
+                            </p>
+                        </div>
+                        <div className="text-right ml-2">
+                            <p className="text-sm font-bold text-foreground">
+                                {formatCurrency(parseAmount(tx.amount) - parseAmount(tx.amountPaid), { isPrivacyMode })}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground italic capitalize">
+                                {tx.settlementStatus || 'Pending'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Progress Bar for Partial Payments */}
+                    {tx.settlementStatus === 'partial' && (
+                        <div className="relative h-1 w-full bg-muted rounded-full mt-1">
+                            <div 
+                                className="absolute top-0 left-0 h-full bg-primary/30 rounded-full" 
+                                style={{ width: `${(parseAmount(tx.amountPaid) / parseAmount(tx.amount)) * 100}%`}} 
+                            />
+                        </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-dashed mt-1">
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="h-7 text-[10px] flex-1 bg-primary hover:bg-primary/90 text-primary-foreground border-none"
+                            onClick={() => {
+                                window.dispatchEvent(new CustomEvent('PERFIN_SETTLE_RECEIVABLE', { detail: tx }));
+                            }}
+                        >
+                            <Check className="h-3.5 w-3.5 mr-1" /> Settle up
+                        </Button>
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 text-[10px] px-2 text-muted-foreground hover:text-destructive"
+                            onClick={() => {
+                                window.dispatchEvent(new CustomEvent('PERFIN_FORGIVE_RECEIVABLE', { detail: tx }));
+                            }}
+                        >
+                            <Ban className="h-3 w-3 mr-1" /> Forgive
+                        </Button>
+                    </div>
+                </div>
+              ))}
             </div>
           </TabsContent>
         </Tabs>

@@ -89,6 +89,11 @@ This document outlines the design philosophy and user experience patterns used i
     - **Standardization:** Both the Dashboard and Budgets page use the same centralized function (`calculateMonthlyBudgetLeft`) and label ("Monthly Budget Left") to ensure consistency.
     - **Mobile-First:** Ensure the grid uses `flex-wrap` to stack gracefully on small screens without losing detail.
     - **Transparency:** Explicitly show when funds are "swept back" to clarify why the remaining balance might have changed after a month-end process.
+- **Receivables & Striped Bar:**
+    - **Problem:** User lent money, making the budget bar red/full, but it's not their actual expense.
+    - **Solution:** Use a **Striped (Arsir) Bar** pattern.
+    - **Visuals:** Personal spending is a solid color (Primary/Blue). Pending receivables (lent money) use a striped pattern overlay.
+    - **Partial Support:** The striped portion shrinks as the borrower pays back installments.
 - **Privacy Mode:**
 - **Purpose:** Protect sensitive financial data when using the app in public spaces.
 - **Default Behavior:** Privacy Mode defaults to **ON (Active)** every time the application is loaded or the user navigates back to the Dashboard. It does not persist the "OFF" state across sessions/navigation to ensure security.

@@ -143,6 +143,17 @@
     - **Quick Access:** A "View All" link in the card header provides a shortcut to the main Goals list.
     - **Visual Cues:** Hover effects and chevron icons clearly indicate interactive elements.
 - **Simplified UI:** Removed redundant containers for "Safe Daily Spend" and "Recommended Saving" badges to create a cleaner, more integrated look.
+
+### 13. Receivables & Debt Tracking (Lent)
+- **Concept:** Track money lent to others (friends, office reimbursements) without losing sight of personal budget integrity.
+- **Workflow:**
+    - **Mark as Reimbursable:** Expenses can be flagged as "To be reimbursed" with the name of the debtor.
+    - **Dashboard Tracking:** Active debts appear in the "Lent" tab of the Daily Operations card.
+    - **Partial Settlements:** Supports installments. Each payment is linked to the original debt.
+    - **Netting Logic:** Settlement (Income) to an Expense category acts as "Negative Spending", restoring the original budget limit.
+    - **Forgiveness:** Debts can be "Forgiven", converting them into permanent personal expenses and removing them from the tracking list.
+
+## Business Rules & Integrity
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is blocked if transactions exist.
 2.  **Account Type Locking:** Once an account has associated transactions, its **Type (Cash/Asset/Saving)** is permanently locked. This prevents data corruption (e.g., swapping Cash to Asset without quantity data) and historical report inconsistencies. Users must Archive the old account and create a new one if a type change is needed.
 3.  **Asset Inventory Safety:**
@@ -155,3 +166,7 @@
     - Transfer Saving -> Liquid = "Income" (releasing funds).
     - **Smart Disbursement:** If a transfer is detected from Special (Saving) -> Liquid (Cash), it is automatically flagged as **Disbursement**. It increases Unassigned Cash but does **NOT** count as negative spending (to preserve historical accumulated stats) and does **NOT** auto-inflate the budget.
     - **Buyback/Sell Asset:** Treated as Income (Capital + Profit) to Unassigned Cash (if recorded as split) or Net Reversal of Spending.
+5.  **Receivables Integrity:**
+    - **Cascading Deletes:** Deleting a debt transaction automatically deletes all its settlement history to maintain balance.
+    - **Automatic Reversal:** Deleting a settlement transaction automatically reopens the debt and reduces the "Amount Paid" on the parent.
+    - **Anti-Overpay:** The system blocks payments that exceed the remaining debt balance.

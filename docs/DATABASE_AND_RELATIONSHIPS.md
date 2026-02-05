@@ -1,0 +1,61 @@
+# Database Schema & Entity Relationships
+
+This document explains how data is structured in Perfin and how different entities interact. Understanding these relationships is critical to maintaining data integrity.
+
+## Core Entities
+
+### 1. Households & Members
+- **Relation:** One `household` has many `householdMembers`.
+- **Ownership:** Every data point (Transactions, Accounts, Budgets) belongs to either a `userId` (Personal) or a `householdId` (Shared).
+- **Rule:** Always use the `by_householdId` index when fetching shared data to ensure privacy and security.
+
+### 2. Accounts & Categories (Atomic Mirroring)
+This is a unique architectural pattern in Perfin.
+- **Linked Goal:** Every `SAVING` or `ASSET` account is linked to a specific `category` (type: `saving`).
+- **Sync Logic:** 
+    - Renaming an account renames the category.
+    - Archiving an account archives the category.
+    - Total Balance of the account MUST reflect the accumulated net transfers to that category.
+- **Reference:** Stored in `accounts.linkedCategoryId`.
+
+### 3. Transactions (The Ledger)
+The `transactions` table is the source of truth for all balances.
+- **Types:** `expense`, `income`, `transfer`.
+- **Split Logic:** A single transaction can have many `splits`. Each split has its own `categoryId` and `amount`.
+- **Search Optimization:** Uses `searchCategoryIds` and `searchLabelIds` (arrays) to index both the main category and all split categories for fast filtering.
+
+## Advanced Relationships
+
+### 4. Receivables (Parent-Child Transactions)
+To support partial settlements (installments), we use a self-referential relationship in the `transactions` table.
+
+- **Parent (The Debt):**
+    - `isReimbursable: true`
+    - `reimbursementStatus: 'pending' | 'settled' | 'forgiven'`
+    - `amountPaid`: Denormalized field tracking the sum of all settlements.
+    - `settlementStatus: 'unpaid' | 'partial' | 'settled'`
+- **Child (The Settlement):**
+    - `type: 'income'`
+    - `parentTransactionId`: Points to the Parent's `_id`.
+    - **Rule:** The `categoryId` of the child MUST match the `categoryId` of the parent to trigger the **Netting Logic**.
+
+### 5. Budgets & Fiscal Periods
+- **Relation:** A `budget` document exists for a unique combination of `categoryId`, `year`, and `month`.
+- **Fiscal Start Day:** All monthly groupings are calculated using `budgetStartDay` from the household settings. 
+    - *Example:* If Start Day is 25, a transaction on Jan 26 belongs to the "February" budget period.
+- **Swept/Carryover:** 
+    - `sweptAmount`: Funds returned to the wallet from previous months.
+    - `carryoverAmount`: Debt or surplus carried forward (only for Paced budgets).
+
+## Integrity Triggers (Backend Logic)
+
+| Action | Impact |
+| :--- | :--- |
+| **Delete Parent Debt** | **Cascade Delete:** Automatically deletes all related settlement transactions. |
+| **Delete Settlement** | **Reverse Update:** Subtracts the amount from the Parent's `amountPaid` and reopens the debt status. |
+| **Create Asset Buy** | **Inventory Update:** Increases `quantity` and `totalCostBasis` on the Asset Account. |
+| **Create Asset Sell** | **Profit Calculation:** Decreases `quantity` and calculates `totalRealizedProfit` based on average cost. |
+
+## Query Guidelines
+- **NEVER** calculate `spent` amounts manually in a query. Use `calculateSpendingByCategory` from `convex/lib/finance.ts`.
+- **NEVER** ignore the `categoriesMap` when analyzing flows, or settlements will be misclassified as regular income.

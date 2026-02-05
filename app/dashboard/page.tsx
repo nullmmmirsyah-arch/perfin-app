@@ -23,9 +23,22 @@ import { WealthCard } from '@/components/dashboard/WealthCard'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
+import { parseAmount, formatCurrency } from '@/lib/utils'
 
 import { PageHeader } from '@/components/PageHeader'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
+import { useEffect } from 'react'
+import { TRANSACTION_TYPES } from '../../convex/lib/constants'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function Dashboard() {
   const { householdId, households } = useHousehold()
@@ -39,16 +52,65 @@ export default function Dashboard() {
   // Edit & Delete State
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithDetails | undefined>(undefined)
+  const [initialFormData, setInitialFormData] = useState<any>(undefined)
   const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithDetails | undefined>(undefined)
+  const [receivableToForgive, setReceivableToForgive] = useState<any>(undefined)
   
   // Privacy Mode
   const { isPrivacyMode, togglePrivacyMode, isLoaded } = usePrivacyMode()
 
   const deleteTransaction = useMutation(api.transactions.deleteTransaction)
+  const forgiveReceivable = useMutation(api.transactions.forgiveReceivable)
 
   const handleEdit = (transaction: TransactionWithDetails) => {
     setSelectedTransaction(transaction)
+    setInitialFormData(undefined) // Clear pre-fill
     setEditDrawerOpen(true)
+  }
+
+  // --- Receivables Event Handlers ---
+  useEffect(() => {
+    const handleSettle = (e: any) => {
+        const tx = e.detail;
+        const amountValue = parseAmount(tx.amount);
+        const paidValue = parseAmount(tx.amountPaid);
+        const remaining = amountValue - paidValue;
+
+        // Pre-fill for Income
+        setInitialFormData({
+            type: TRANSACTION_TYPES.INCOME,
+            amount: new Intl.NumberFormat('en-US').format(remaining), // Format with separators
+            categoryId: tx.categoryId,
+            description: `Settlement: ${tx.description || tx.categoryName}`,
+            owedBy: tx.owedBy,
+            parentTransactionId: tx._id // The secret sauce for partial payments
+        });
+        setSelectedTransaction(undefined); // Create mode
+        setEditDrawerOpen(true);
+    };
+
+    const handleForgive = (e: any) => {
+        setReceivableToForgive(e.detail);
+    };
+
+    window.addEventListener('PERFIN_SETTLE_RECEIVABLE', handleSettle);
+    window.addEventListener('PERFIN_FORGIVE_RECEIVABLE', handleForgive);
+    return () => {
+        window.removeEventListener('PERFIN_SETTLE_RECEIVABLE', handleSettle);
+        window.removeEventListener('PERFIN_FORGIVE_RECEIVABLE', handleForgive);
+    };
+  }, []);
+
+  const handleForgiveConfirm = async () => {
+    if (receivableToForgive) {
+        try {
+            await forgiveReceivable({ id: receivableToForgive._id });
+            toast.success("Debt forgiven");
+            setReceivableToForgive(undefined);
+        } catch (err) {
+            toast.error("Failed to forgive debt");
+        }
+    }
   }
 
   const handleDeleteConfirm = async () => {
@@ -76,6 +138,7 @@ export default function Dashboard() {
         open={editDrawerOpen}
         onOpenChange={setEditDrawerOpen}
         transaction={selectedTransaction}
+        initialData={initialFormData}
       />
       
       <DeleteTransactionDialog 
@@ -84,6 +147,33 @@ export default function Dashboard() {
         transaction={transactionToDelete}
         onConfirm={handleDeleteConfirm}
       />
+
+      <AlertDialog open={!!receivableToForgive} onOpenChange={(open) => !open && setReceivableToForgive(undefined)}>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-md rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold">Forgive this debt?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm space-y-3">
+                <p>
+                  Are you sure you want to forgive the remaining <span className="font-bold text-foreground">{receivableToForgive ? formatCurrency(parseAmount(receivableToForgive.amount) - parseAmount(receivableToForgive.amountPaid)) : ""}</span> from <span className="font-bold text-foreground">{receivableToForgive?.owedBy || "this person"}</span>?
+                </p>
+                <div className="bg-muted/50 p-3 rounded-lg border border-dashed text-xs italic">
+                  This transaction will disappear from your &quot;Lent&quot; list but will remain as a personal expense in your budget history.
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <AlertDialogCancel className="w-full sm:w-auto rounded-full">Keep Waiting</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={handleForgiveConfirm} 
+                className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 rounded-full"
+            >
+              Forgive Debt
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Mobile: Swipeable Cards (Carousel) */}
       <div className="block md:hidden mb-8 -mx-4 px-4">

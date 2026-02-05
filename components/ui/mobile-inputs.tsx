@@ -18,21 +18,23 @@ export const MobileSelectionDrawer = ({
   value, 
   onSelect, 
   trigger,
-  children
+  children,
+  disabled
 }: { 
   title: string, 
   options?: { value: string, label: React.ReactNode, subLabel?: string, isAction?: boolean }[], 
   value?: string | Date, 
   onSelect?: (val: string) => void, 
   trigger: React.ReactNode,
-  children?: React.ReactNode | ((props: { close: () => void }) => React.ReactNode)
+  children?: React.ReactNode | ((props: { close: () => void }) => React.ReactNode),
+  disabled?: boolean
 }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+    <Drawer open={disabled ? false : open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild disabled={disabled}>
         {trigger}
       </DrawerTrigger>
       <DrawerContent className="z-50 max-h-[85vh]">

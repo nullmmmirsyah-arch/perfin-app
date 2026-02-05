@@ -76,9 +76,9 @@ export function MonthEndProcessDialog({
             {/* ROLLOVERS SECTION */}
             {rollovers.length > 0 && (
                 <div className="space-y-2">
-                    <div className="flex justify-between items-center bg-blue-500/10 p-3 rounded-lg">
+                    <div className="flex justify-between items-center bg-primary/10 p-3 rounded-lg">
                         <span className="font-semibold text-sm">Rollover to This Month</span>
-                        <span className={cn("font-bold", totalRollover >= 0 ? "text-blue-600" : "text-destructive")}>
+                        <span className={cn("font-bold", totalRollover >= 0 ? "text-primary" : "text-destructive")}>
                             {totalRollover > 0 ? '+' : ''}{formatCurrency(totalRollover)}
                         </span>
                     </div>
@@ -86,7 +86,7 @@ export function MonthEndProcessDialog({
                         {rollovers.map((item, idx) => (
                             <div key={idx} className="flex justify-between items-center p-2 text-xs">
                                 <span className="text-muted-foreground">{item.categoryName}</span>
-                                <span className={cn(item.amount >= 0 ? "text-blue-600" : "text-destructive")}>
+                                <span className={cn(item.amount >= 0 ? "text-primary" : "text-destructive")}>
                                     {formatCurrency(item.amount)}
                                 </span>
                             </div>

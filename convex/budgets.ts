@@ -5,6 +5,8 @@ import {
   calculateSpendingByCategory, 
   calculateUnassignedCash, 
   calculateMonthlyBudgetLeft,
+  analyzeTransactionFlow,
+  parseAmount,
   AccountMap,
   getFiscalMonthRange,
   getFiscalDateDetails 
@@ -132,12 +134,33 @@ export const getBudgetStatus = query({
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
+    const categoriesMap = new Map(categories.map(c => [c._id, c]));
 
     // 6. Calculate Spending using Helper
-    const spendingByCategory = calculateSpendingByCategory(transactionsInMonth, accountsMap);
+    const spendingByCategory = calculateSpendingByCategory(transactionsInMonth, accountsMap, categoriesMap);
+
+    // 6.1 Calculate Pending Receivables Per Category (For Visual Arsir)
+    const pendingReceivablesByCategory: Record<string, number> = {};
+    transactionsInMonth.forEach(t => {
+        if (t.isReimbursable && (t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial')) {
+            const amountValue = parseAmount(t.amount);
+            const paidValue = parseAmount(t.amountPaid);
+            const remaining = Math.max(0, amountValue - paidValue);
+
+            const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
+            flows.forEach(flow => {
+                if (flow.type === 'SPENDING') {
+                    // Calculate proportional remaining for this flow (important for future split support)
+                    const flowRatio = flow.amount / amountValue;
+                    const flowRemaining = remaining * flowRatio;
+                    pendingReceivablesByCategory[flow.categoryId] = (pendingReceivablesByCategory[flow.categoryId] || 0) + flowRemaining;
+                }
+            });
+        }
+    });
 
     // 7. Calculate Accumulated (All Time) for Savings
-    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap);
+    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap, categoriesMap);
 
     // 8. Calculate Unassigned Cash using Helper
     // Need ALL budgets for this
@@ -148,7 +171,7 @@ export const getBudgetStatus = query({
         allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
     }
     
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
 
     // 9. Combine data for Response
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
@@ -174,7 +197,7 @@ export const getBudgetStatus = query({
                     return false;
                 });
                 
-                const cycleMap = calculateSpendingByCategory(relevantTx, accountsMap);
+                const cycleMap = calculateSpendingByCategory(relevantTx, accountsMap, categoriesMap);
                 accumulated = cycleMap[category._id] || 0;
             }
             
@@ -183,6 +206,7 @@ export const getBudgetStatus = query({
                 budget,
                 spent,
                 accumulated,
+                pendingReceivables: pendingReceivablesByCategory[category._id] || 0,
             };
     });
 
@@ -190,7 +214,14 @@ export const getBudgetStatus = query({
 
     // Breakdown for UI
     const thisMonthIncome = allTransactions
-        .filter(t => t.type === 'income' && t.date >= startOfFiscal && t.date <= endOfFiscal)
+        .filter(t => {
+            const isDateMatch = t.date >= startOfFiscal && t.date <= endOfFiscal;
+            if (!isDateMatch || t.type !== 'income') return false;
+            
+            // Only count as income if category is of type income (not settlement)
+            const category = t.categoryId ? categoriesMap.get(t.categoryId) : null;
+            return category?.type === 'income';
+        })
         .reduce((acc, t) => acc + parseFloat(t.amount.replace(/,/g, '') || '0'), 0);
 
     const thisMonthBudgeted = budgets.reduce((acc, b) => {
@@ -343,8 +374,17 @@ export const getBudgetAssistance = query({
     }
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
+    // Fetch categories for accurate flow analysis
+    let allCategories;
+    if (householdId) {
+        allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+    }
+    const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
     // 2. Calculate Unassigned Cash (Helper)
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
 
     // 3. Previous Month's Budget
     let prevMonth = targetMonth - 1;
@@ -381,7 +421,7 @@ export const getBudgetAssistance = query({
        return tDate >= startOfPrevObj && tDate <= endOfPrevObj;
     });
 
-    const prevMonthSpendingMap = calculateSpendingByCategory(prevMonthTransactions, accountsMap);
+    const prevMonthSpendingMap = calculateSpendingByCategory(prevMonthTransactions, accountsMap, categoriesMap);
     const prevMonthSpent = prevMonthSpendingMap[categoryId] || 0;
 
     // 5. Average Spending (Last 3 months)
@@ -402,7 +442,7 @@ export const getBudgetAssistance = query({
             return tDate >= startObj && tDate <= endObj;
         });
         
-        const monthSpendingMap = calculateSpendingByCategory(monthTx, accountsMap);
+        const monthSpendingMap = calculateSpendingByCategory(monthTx, accountsMap, categoriesMap);
         const val = monthSpendingMap[categoryId] || 0;
 
         if (val > 0) {
@@ -480,7 +520,15 @@ export const upsertBudget = mutation({
     }
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
+    let allCategories;
+    if (householdId) {
+        allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allCategories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
+    const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
 
     // Logic: 
     // We need to check if (Available Unassigned + Old Budget Amount) >= New Budget Amount
@@ -599,7 +647,15 @@ export const moveBudgetFunds = mutation({
         }
         const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
-        const spendingMap = calculateSpendingByCategory(transactions, accountsMap);
+        let allCategories;
+        if (householdId) {
+            allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        } else {
+            allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+        }
+        const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+        const spendingMap = calculateSpendingByCategory(transactions, accountsMap, categoriesMap);
         const sourceSpent = spendingMap[fromCategoryId] || 0;
         const sourceAvailable = Math.max(0, sourceLimit - sourceSpent);
 
@@ -631,7 +687,16 @@ export const moveBudgetFunds = mutation({
         }
         
         const accMap = new Map(allAcc.map(a => [a._id, a]));
-        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap, startDay);
+        
+        let allCategories;
+        if (householdId) {
+            allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        } else {
+            allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+        }
+        const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap, startDay, categoriesMap);
 
         if (moveAmount > unassigned) {
              throw new Error(`Insufficient Unassigned Cash. Available: ${unassigned.toLocaleString()}`);
@@ -708,7 +773,15 @@ export const sweepBudgets = mutation({
     }
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
-    const spendingByCategory = calculateSpendingByCategory(monthTransactions, accountsMap);
+    let allCategories;
+    if (householdId) {
+        allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
+    }
+    const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+    const spendingByCategory = calculateSpendingByCategory(monthTransactions, accountsMap, categoriesMap);
 
     // 3. Update budgets where Allocated > Spent
     let sweptCount = 0;
@@ -787,7 +860,16 @@ export const rolloverBudgets = mutation({
             allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
         }
         const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
-        const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap);
+
+        let allCategories;
+        if (householdId) {
+            allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        } else {
+            allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+        }
+        const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+        const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap, categoriesMap);
 
         // 4. Process Rollover
         let rolloverCount = 0;

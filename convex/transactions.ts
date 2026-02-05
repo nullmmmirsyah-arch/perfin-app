@@ -7,7 +7,8 @@ import {
   AccountMap, 
   analyzeTransactionFlow,
   getFiscalDateDetails,
-  getFiscalMonthRange 
+  getFiscalMonthRange,
+  parseAmount
 } from "./lib/finance";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
 import { 
@@ -601,6 +602,15 @@ export const create = mutation({
       unitPrice: v.optional(v.number()),
     })),
     isGoalDisbursement: v.optional(v.boolean()),
+    // Receivables
+    isReimbursable: v.optional(v.boolean()),
+    owedBy: v.optional(v.string()),
+    reimbursementStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("settled"),
+      v.literal("forgiven")
+    )),
+    parentTransactionId: v.optional(v.id("transactions")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -608,8 +618,45 @@ export const create = mutation({
       throw new Error("Not authenticated");
     }
 
+    const { parentTransactionId, ...insertArgs } = args;
+
     if (args.householdId) {
       await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
+    }
+
+    // --- SETTLEMENT Logic (Partial Support) ---
+    if (parentTransactionId) {
+        const originalTx = await ctx.db.get(parentTransactionId);
+        if (!originalTx) throw new Error("Original debt transaction not found");
+
+        const currentPaid = parseFloat(originalTx.amountPaid?.replace(/,/g, '') || '0');
+        const originalAmount = parseFloat(originalTx.amount.replace(/,/g, ''));
+        const newPayment = parseFloat(args.amount.replace(/,/g, ''));
+
+        const totalAfterPayment = currentPaid + newPayment;
+
+        // 1. Anti-Overpay Validation
+        // Allow tiny floating point tolerance (0.01)
+        if (totalAfterPayment > (originalAmount + 0.01)) {
+             const remaining = originalAmount - currentPaid;
+             throw new Error(`Overpayment detected! Remaining debt is only ${remaining.toLocaleString()}. You are trying to pay ${newPayment.toLocaleString()}.`);
+        }
+
+        // 2. Determine New Status
+        let newStatus: "pending" | "settled" = "pending";
+        let newSettlementStatus: "unpaid" | "partial" | "settled" = "partial";
+
+        if (totalAfterPayment >= (originalAmount - 0.01)) {
+            newStatus = "settled";
+            newSettlementStatus = "settled";
+        }
+
+        // 3. Update Parent
+        await ctx.db.patch(originalTx._id, {
+            amountPaid: totalAfterPayment.toString(),
+            reimbursementStatus: newStatus,
+            settlementStatus: newSettlementStatus
+        });
     }
 
     let finalCategoryId = args.categoryId;
@@ -748,18 +795,26 @@ export const create = mutation({
     }
 
     const { searchCategoryIds, searchLabelIds } = generateSearchTags({
-        ...args,
+        ...insertArgs,
         categoryId: finalCategoryId as string | undefined,
     });
 
     const transaction = await ctx.db.insert("transactions", {
-      ...args,
+      ...insertArgs,
       categoryId: finalCategoryId as Id<"categories"> | undefined,
       userId: identity.subject,
       householdId: args.householdId,
       isGoalDisbursement, // Use the auto-detected or provided flag
       searchCategoryIds,
       searchLabelIds,
+      // Receivables
+      isReimbursable: args.isReimbursable,
+      owedBy: args.owedBy,
+      reimbursementStatus: args.reimbursementStatus || (args.isReimbursable ? 'pending' : undefined),
+      // Initialize partial fields for new debts
+      amountPaid: args.isReimbursable ? "0" : undefined,
+      settlementStatus: args.isReimbursable ? "unpaid" : undefined,
+      parentTransactionId: args.parentTransactionId,
     });
 
     if (args.isSplit && args.splits) {
@@ -836,6 +891,14 @@ export const update = mutation({
       unitPrice: v.optional(v.number()),
     })),
     isGoalDisbursement: v.optional(v.boolean()),
+    // Receivables
+    isReimbursable: v.optional(v.boolean()),
+    owedBy: v.optional(v.string()),
+    reimbursementStatus: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("settled"),
+      v.literal("forgiven")
+    )),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -1093,12 +1156,26 @@ export const update = mutation({
         categoryId: finalCategoryId as string | undefined,
     });
 
+    const newReimbursementStatus = args.isReimbursable === true 
+            ? (args.reimbursementStatus as "pending" | "settled" | "forgiven" | undefined || originalTransaction.reimbursementStatus || 'pending') 
+            : (args.isReimbursable === false ? undefined : originalTransaction.reimbursementStatus);
+
+    let newSettlementStatus = originalTransaction.settlementStatus;
+    if (newReimbursementStatus === 'forgiven' || newReimbursementStatus === 'settled') {
+        newSettlementStatus = 'settled';
+    } else if (newReimbursementStatus === 'pending') {
+        const paid = parseAmount(originalTransaction.amountPaid);
+        newSettlementStatus = paid > 0 ? 'partial' : 'unpaid';
+    }
+
     await ctx.db.patch(id, { 
         ...rest, 
         categoryId: finalCategoryId, 
         isGoalDisbursement,
         searchCategoryIds,
         searchLabelIds,
+        reimbursementStatus: newReimbursementStatus,
+        settlementStatus: newSettlementStatus,
     });
 
     if (newTx.isSplit && newTx.splits) {
@@ -1145,6 +1222,43 @@ export const deleteTransaction = mutation({
       await ensureHouseholdAccess(ctx, transaction.householdId, identity.subject);
     } else {
       if (transaction.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    // --- REVERSAL Logic for Receivables (Partial Support) ---
+    
+    // Case A: Deleting a Settlement Transaction (Child)
+    if (transaction.parentTransactionId) {
+        const parentTx = await ctx.db.get(transaction.parentTransactionId);
+        if (parentTx) {
+            const currentPaid = parseFloat(parentTx.amountPaid?.replace(/,/g, '') || '0');
+            const refundAmount = parseFloat(transaction.amount.replace(/,/g, ''));
+            const newPaid = Math.max(0, currentPaid - refundAmount);
+            
+            await ctx.db.patch(parentTx._id, {
+                amountPaid: newPaid.toString(),
+                reimbursementStatus: 'pending', // Reopen debt
+                settlementStatus: newPaid === 0 ? 'unpaid' : 'partial'
+            });
+        }
+    }
+
+    // Case B: Deleting an Original Reimbursable Transaction (Parent)
+    // Cascade delete all settlement transactions
+    const children = await ctx.db
+        .query("transactions")
+        .withIndex("by_parentTransactionId", q => q.eq("parentTransactionId", args.id))
+        .collect();
+
+    for (const child of children) {
+        // Adjust balance for the account where the settlement was received
+        const settleAcc = await ctx.db.get(child.accountId);
+        if (settleAcc) {
+            const currentBal = parseFloat(settleAcc.balance.replace(/,/g, ''));
+            const settleAmt = parseFloat(child.amount.replace(/,/g, ''));
+            // Revert the income (decrease balance)
+            await ctx.db.patch(settleAcc._id, { balance: (currentBal - settleAmt).toString() });
+        }
+        await ctx.db.delete(child._id);
     }
 
     const amount = parseFloat(transaction.amount.replace(/,/g, ''));
@@ -1233,6 +1347,28 @@ export const deleteTransaction = mutation({
     if (transaction.categoryId) {
         await checkGoalProgress(ctx, transaction.categoryId, transaction.householdId, transaction.userId);
     }
+  },
+});
+
+export const forgiveReceivable = mutation({
+  args: { id: v.id("transactions") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const transaction = await ctx.db.get(args.id);
+    if (!transaction) throw new Error("Transaction not found");
+
+    if (transaction.householdId) {
+      await ensureHouseholdAccess(ctx, transaction.householdId, identity.subject);
+    } else {
+      if (transaction.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, { 
+        reimbursementStatus: 'forgiven',
+        settlementStatus: 'settled'
+    });
   },
 });
 

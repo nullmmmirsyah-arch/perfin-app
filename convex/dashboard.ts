@@ -270,16 +270,39 @@ export const getDashboardSummary = query({
       return t.date >= startOfFiscal && t.date <= endOfFiscal;
     });
 
-    const spendingByCategory = calculateSpendingByCategory(currentMonthTransactions, accountsMap);
-    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap);
-
-    // 2.1 Categories Info
     let categories;
     if (householdId) {
         categories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         categories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
+    const categoriesMap = new Map(categories.map(c => [c._id, c]));
+
+    const spendingByCategory = calculateSpendingByCategory(currentMonthTransactions, accountsMap, categoriesMap);
+    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap, categoriesMap);
+
+    // 2.0.1 Calculate Pending Receivables Per Category (For Visual Arsir)
+    const pendingReceivablesByCategory: Record<string, number> = {};
+    currentMonthTransactions.forEach(t => {
+        if (t.isReimbursable && (t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial')) {
+            const amountValue = parseAmount(t.amount);
+            const paidValue = parseAmount(t.amountPaid);
+            const remaining = Math.max(0, amountValue - paidValue);
+
+            const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
+            flows.forEach(flow => {
+                if (flow.type === 'SPENDING') {
+                    // Proportional remaining
+                    const flowRatio = flow.amount / amountValue;
+                    const flowRemaining = remaining * flowRatio;
+                    pendingReceivablesByCategory[flow.categoryId] = (pendingReceivablesByCategory[flow.categoryId] || 0) + flowRemaining;
+                }
+            });
+        }
+    });
+
+    // 2.1 Categories Info
+    // Categories already fetched above
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
 
     const budgetBreakdown = categories
@@ -311,6 +334,7 @@ export const getDashboardSummary = query({
                 limit,
                 spent,
                 remaining: Math.max(0, limit - spent),
+                pendingReceivables: pendingReceivablesByCategory[cat._id] || 0,
             };
     });
 
@@ -331,7 +355,7 @@ export const getDashboardSummary = query({
     // Group all transactions by month/category for historical obligation check
     const monthlySpendingAll = new Map<string, Map<string, number>>();
     allTransactions.forEach(t => {
-        const flows = analyzeTransactionFlow(t, accountsMap);
+        const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
         const { year, month } = getFiscalDateDetails(t.date, startDay);
         const key = `${year}-${month}`; 
         if (!monthlySpendingAll.has(key)) monthlySpendingAll.set(key, new Map());
@@ -365,7 +389,17 @@ export const getDashboardSummary = query({
         }
     });
 
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
+
+    // 2.3 Calculate Receivables (Pending & Partial Only)
+    const pendingReceivablesList = allTransactions
+        .filter(t => t.isReimbursable && t.reimbursementStatus === 'pending' && (t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial'))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const totalReceivables = pendingReceivablesList.reduce((acc, t) => {
+        const remaining = parseAmount(t.amount) - parseAmount(t.amountPaid);
+        return acc + remaining;
+    }, 0);
 
     // 3. Recent Transactions
     const sortedTransactions = allTransactions
@@ -433,6 +467,16 @@ export const getDashboardSummary = query({
             };
     });
 
+    const pendingReceivables = pendingReceivablesList.map(t => {
+        const fromAccount = accountsMap.get(String(t.accountId));
+        const category = t.categoryId ? catMap.get(t.categoryId) : null;
+        return {
+            ...t,
+            fromAccountName: fromAccount?.name,
+            categoryName: category?.name,
+        };
+    });
+
     return {
       liquidCash,
       totalSavingsOnly,
@@ -447,6 +491,9 @@ export const getDashboardSummary = query({
       totalDebtCovered,
       budgetBreakdown,
       recentTransactions,
+      // NEW
+      totalReceivables,
+      pendingReceivables,
     };
   },
 });

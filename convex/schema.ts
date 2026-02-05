@@ -53,6 +53,23 @@ export default defineSchema({
     isGoalDisbursement: v.optional(v.boolean()),
     searchCategoryIds: v.optional(v.array(v.string())),
     searchLabelIds: v.optional(v.array(v.string())),
+    
+    // --- Receivables / Reimbursement Fields ---
+    isReimbursable: v.optional(v.boolean()), 
+    owedBy: v.optional(v.string()), 
+    reimbursementStatus: v.optional(v.union(
+      v.literal("pending"), 
+      v.literal("settled"), 
+      v.literal("forgiven")
+    )),
+    // New Partial Settlement Fields
+    amountPaid: v.optional(v.string()), // Total settled so far
+    settlementStatus: v.optional(v.union(
+      v.literal("unpaid"),
+      v.literal("partial"),
+      v.literal("settled")
+    )),
+    parentTransactionId: v.optional(v.id("transactions")), // Link to the original debt
   })
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"])
@@ -63,7 +80,11 @@ export default defineSchema({
     .index("by_household_search_category", ["householdId", "searchCategoryIds"])
     .index("by_household_search_label", ["householdId", "searchLabelIds"])
     .index("by_accountId", ["accountId"])
-    .index("by_toAccountId", ["toAccountId"]),
+    .index("by_toAccountId", ["toAccountId"])
+    // Index for finding Active Receivables
+    .index("by_receivables_status", ["householdId", "isReimbursable", "reimbursementStatus"])
+    // Index for cascading deletes and calculations
+    .index("by_parentTransactionId", ["parentTransactionId"]),
   accounts: defineTable({
     userId: v.string(),
     householdId: v.optional(v.id("households")),
