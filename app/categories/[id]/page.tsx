@@ -1,32 +1,88 @@
 'use client'
 
-import { useQuery } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Id } from '../../../convex/_generated/dataModel'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, TrendingUp, History, Wallet } from 'lucide-react'
+import { ArrowLeft, TrendingUp, History, Wallet, CalendarIcon, X, Filter } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
-import { format, isToday, isYesterday } from 'date-fns'
+import { format } from 'date-fns'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { Bar, BarChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { LoadingScreen } from '@/components/LoadingScreen'
+import { useState, useMemo } from 'react'
+import { DateRange } from 'react-day-picker'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { getFiscalDate, getFiscalMonthRange } from '@/lib/finance-utils'
+import { Badge } from '@/components/ui/badge'
+import { MultiSelect } from '@/components/ui/multi-select'
+import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
+import { TransactionWithDetails } from '@/components/transactions/types'
+import TransactionDrawer from '@/components/TransactionDrawer'
+import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
+import { toast } from 'sonner'
 
 export default function CategoryDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as Id<"categories">
-  const { householdId } = useHousehold()
+  const { householdId, households } = useHousehold()
+  
+  const currentHousehold = households.find(h => h._id === householdId)
+  const budgetStartDay = currentHousehold?.budgetStartDay || 1
+
+  const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined })
+  const accountOptions = useMemo(() => 
+    accounts?.map(a => ({ label: a.name, value: a._id })) || [], 
+  [accounts])
+
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
+
+  // Edit & Delete State
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithDetails | undefined>(undefined)
+  const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithDetails | undefined>(undefined)
+
+  const deleteTransaction = useMutation(api.transactions.deleteTransaction)
+
+  const defaultDateRange = useMemo(() => {
+    const now = new Date()
+    const fiscalDate = getFiscalDate(now, budgetStartDay)
+    const range = getFiscalMonthRange(fiscalDate.getFullYear(), fiscalDate.getMonth(), budgetStartDay)
+    return { from: range.start, to: range.end }
+  }, [budgetStartDay])
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(defaultDateRange)
 
   const data = useQuery(api.categories.getCategoryDetails, {
     id,
     householdId: householdId ?? undefined,
+    dateRange: dateRange?.from ? {
+        start: dateRange.from.toISOString(),
+        end: (dateRange.to || dateRange.from).toISOString(),
+    } : undefined,
+    accountIds: selectedAccountIds.length > 0 ? selectedAccountIds : undefined
   })
 
   if (!data) return <LoadingScreen />
 
   const { category, historyData, recentTransactions } = data
+
+  const handleEdit = (transaction: TransactionWithDetails) => {
+    setSelectedTransaction(transaction)
+    setEditDrawerOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (transactionToDelete) {
+        await deleteTransaction({ id: transactionToDelete._id });
+        toast.success("Transaction deleted");
+        setTransactionToDelete(undefined);
+    }
+  }
 
   // Filter only active months (with data)
   const activeHistory = historyData.filter(d => 
@@ -36,22 +92,22 @@ export default function CategoryDetailPage() {
   // List view: Recent First (Reverse Chronological)
   const listHistory = [...activeHistory].reverse();
 
-  // Group Transactions Logic
-  const groupedTransactions = recentTransactions.reduce((groups, t) => {
-      const date = new Date(t.date);
-      let key = format(date, 'MMMM d, yyyy');
-      if (isToday(date)) key = 'Today';
-      else if (isYesterday(date)) key = 'Yesterday';
-      
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(t);
-      return groups;
-  }, {} as Record<string, typeof recentTransactions>);
-
-  const groupKeys = Object.keys(groupedTransactions);
-
   return (
     <div className="pb-24 p-4 md:p-8 space-y-6">
+      {/* Transaction Actions Components */}
+      <TransactionDrawer
+        open={editDrawerOpen}
+        onOpenChange={setEditDrawerOpen}
+        transaction={selectedTransaction}
+      />
+      
+      <DeleteTransactionDialog 
+        open={!!transactionToDelete} 
+        onOpenChange={(open) => !open && setTransactionToDelete(undefined)}
+        transaction={transactionToDelete}
+        onConfirm={handleDeleteConfirm}
+      />
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
@@ -171,44 +227,122 @@ export default function CategoryDetailPage() {
 
       {/* Transaction History Grouped */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-lg flex items-center gap-2 px-1">
-            <Wallet className="h-5 w-5" />
-            Recent Transactions
-        </h3>
-        
-        {recentTransactions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm border rounded-xl border-dashed">
-                No recent transactions.
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Recent Transactions
+            </h3>
+
+            <div className="flex items-center gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-9 relative border-dashed">
+                            <Filter className="h-4 w-4 mr-2" />
+                            Accounts
+                            {selectedAccountIds.length > 0 && (
+                                <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full text-[10px]">
+                                    {selectedAccountIds.length}
+                                </Badge>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[200px] p-2" align="end">
+                        <MultiSelect
+                            placeholder="Filter Accounts"
+                            options={accountOptions}
+                            selected={selectedAccountIds}
+                            onChange={setSelectedAccountIds}
+                        />
+                    </PopoverContent>
+                </Popover>
+
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={'outline'}
+                            className={cn(
+                                'w-[240px] justify-start text-left font-normal',
+                                !dateRange && 'text-muted-foreground'
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                                dateRange.to ? (
+                                    <>
+                                        {format(dateRange.from, 'LLL dd')} -{' '}
+                                        {format(dateRange.to, 'LLL dd')}
+                                    </>
+                                ) : (
+                                    format(dateRange.from, 'LLL dd')
+                                )
+                            ) : (
+                                <span>Pick a date</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                        />
+                    </PopoverContent>
+                </Popover>
+
+                {dateRange && (
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDateRange(undefined)}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
-        ) : (
-            groupKeys.map(dateKey => (
-                <div key={dateKey} className="space-y-2">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                        {dateKey}
-                    </h4>
-                    <div className="space-y-2">
-                        {groupedTransactions[dateKey].map((t) => (
-                            <div key={t._id} className="bg-card p-4 rounded-xl border shadow-sm flex justify-between items-center">
-                                <div className="flex flex-col gap-1">
-                                    <span className="font-medium text-sm line-clamp-1">{t.description || 'No description'}</span>
-                                    {t.accountName && (
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{t.accountName}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <span className={cn(
-                                    "font-bold text-sm",
-                                    t.type === 'income' ? "text-success" : "text-foreground"
-                                )}>
-                                    {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ))
+        </div>
+
+        {(dateRange || selectedAccountIds.length > 0) && (
+            <div className="px-1 flex flex-wrap items-center gap-2">
+                 {dateRange && (
+                    <Badge variant="secondary" className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border-none">
+                        Filtered by Date
+                    </Badge>
+                 )}
+                 {selectedAccountIds.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border-none">
+                        {selectedAccountIds.length} Account{selectedAccountIds.length > 1 ? 's' : ''}
+                    </Badge>
+                 )}
+                 <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 text-[10px] text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                        setDateRange(undefined);
+                        setSelectedAccountIds([]);
+                    }}
+                 >
+                    Clear All Filters
+                 </Button>
+                 {dateRange?.from && !dateRange.to && (
+                     <span className="text-[10px] text-muted-foreground italic">Select end date to apply range</span>
+                 )}
+            </div>
         )}
+        
+        <div className="mt-4">
+            <TransactionListGrouped 
+                transactions={recentTransactions as TransactionWithDetails[] || []}
+                onEdit={handleEdit}
+                onDelete={setTransactionToDelete}
+                highlightCategoryId={[id]} 
+            />
+        </div>
       </div>
     </div>
   )

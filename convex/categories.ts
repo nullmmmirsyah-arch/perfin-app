@@ -162,8 +162,13 @@ export const getCategoryDetails = query({
   args: {
     id: v.id("categories"),
     householdId: v.optional(v.id("households")),
+    dateRange: v.optional(v.object({
+      start: v.string(),
+      end: v.string(),
+    })),
+    accountIds: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, { id, householdId }) => {
+  handler: async (ctx, { id, householdId, dateRange, accountIds }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -267,21 +272,100 @@ export const getCategoryDetails = query({
     }
 
     // 3. Recent Transactions
-    const recentTransactions = allTransactions
+    let filteredTransactions = allTransactions
         .filter(t => {
             const isMain = t.categoryId === id;
             const isSplit = t.isSplit && t.splits?.some(s => s.categoryId === id);
             return isMain || isSplit;
-        })
+        });
+
+    if (dateRange?.start) {
+        filteredTransactions = filteredTransactions.filter(t => t.date >= dateRange.start!);
+    }
+    if (dateRange?.end) {
+        filteredTransactions = filteredTransactions.filter(t => t.date <= dateRange.end!);
+    }
+
+    if (accountIds && accountIds.length > 0) {
+        filteredTransactions = filteredTransactions.filter(t => 
+            accountIds.includes(String(t.accountId)) || 
+            (t.toAccountId && accountIds.includes(String(t.toAccountId)))
+        );
+    }
+
+    const sortedTransactions = filteredTransactions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 20)
-        .map(t => {
-            const account = accountsMap.get(String(t.accountId));
+        .slice(0, 50);
+
+    // Batch Fetch Related Entities for Recent Transactions (MATCH DASHBOARD LOGIC)
+    const txAccountIds = new Set<Id<"accounts">>();
+    const txCategoryIds = new Set<Id<"categories">>();
+    const txLabelIds = new Set<Id<"labels">>();
+
+    sortedTransactions.forEach(t => {
+        txAccountIds.add(t.accountId);
+        if (t.toAccountId) txAccountIds.add(t.toAccountId);
+        if (t.categoryId) txCategoryIds.add(t.categoryId);
+        if (t.labelId) txLabelIds.add(t.labelId);
+
+        t.splits?.forEach(s => {
+            txCategoryIds.add(s.categoryId);
+            if (s.labelId) txLabelIds.add(s.labelId);
+        });
+    });
+
+    const [txAccounts, txCategories, txLabels] = await Promise.all([
+        Promise.all(Array.from(txAccountIds).map(id => ctx.db.get(id))),
+        Promise.all(Array.from(txCategoryIds).map(id => ctx.db.get(id))),
+        Promise.all(Array.from(txLabelIds).map(id => ctx.db.get(id))),
+    ]);
+
+    const txAccountMap = new Map(txAccounts.filter(Boolean).map(a => [a!._id, a!]));
+    const txCategoryMap = new Map(txCategories.filter(Boolean).map(c => [c!._id, c!]));
+    const txLabelMap = new Map(txLabels.filter(Boolean).map(l => [l!._id, l!]));
+
+    const recentTransactions = sortedTransactions.map((t) => {
+            const fromAccount = txAccountMap.get(t.accountId);
+            const toAccount = t.toAccountId ? txAccountMap.get(t.toAccountId) : null;
+            const category = t.categoryId ? txCategoryMap.get(t.categoryId) : null;
+            const label = t.labelId ? txLabelMap.get(t.labelId) : null;
+
+            let displayAmount = t.amount;
+            let displayDescription = t.description;
+
+            // Contextual handling for Split Transactions
+            if (t.isSplit && t.splits) {
+                const matchingSplits = t.splits.filter(s => String(s.categoryId) === String(id));
+                if (matchingSplits.length > 0) {
+                    const totalSplitAmt = matchingSplits.reduce((acc, s) => acc + parseFloat(s.amount.replace(/,/g, '') || '0'), 0);
+                    displayAmount = totalSplitAmt.toString();
+                    const specificDesc = matchingSplits.find(s => s.description)?.description;
+                    if (specificDesc) displayDescription = specificDesc;
+                }
+            }
+
+            const splitsWithDetails = t.splits?.map((split) => {
+                    const splitCategory = txCategoryMap.get(split.categoryId);
+                    const splitLabel = split.labelId ? txLabelMap.get(split.labelId) : null;
+                    return {
+                        ...split,
+                        categoryName: splitCategory?.name,
+                        labelName: splitLabel?.name,
+                        labelColor: splitLabel?.color,
+                    };
+                });
+
             return {
                 ...t,
-                accountName: account?.name
+                amount: displayAmount,
+                description: displayDescription,
+                fromAccountName: fromAccount?.name,
+                toAccountName: toAccount?.name,
+                categoryName: category?.name,
+                label,
+                splits: splitsWithDetails,
             };
-        });
+    });
 
     return {
         category,

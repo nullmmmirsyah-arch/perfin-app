@@ -125,8 +125,10 @@
 - **Features:**
     - **Performance Trend:** A 12-month bar chart visualizing **Budget vs. Actual Spending**. It correctly reflects historical budgets even after funds have been swept.
     - **Monthly History:** A detailed list showing Budget, Spent, Carryover, and Swept amounts for each fiscal month.
-    - **Grouped Transactions:** A list of recent transactions grouped by date (e.g., "Today", "Yesterday") for easier review.
-    - **Fiscal Awareness:** All data points respect the user's custom **Budget Start Day**.
+    - **Grouped & Actionable Transactions:** A detailed list of recent transactions grouped by date with **daily net flow totals**. Includes full support for editing and deleting transactions.
+    - **Contextual Data:** For split transactions, the list intelligently displays only the description and amount relevant to the current category.
+    - **Interactive Filtering:** Features powerful filters for **Date Range** and **Accounts**. By default, the page filters transactions for the **Current Fiscal Period**.
+    - **Fiscal Awareness:** All data points, including charts and history lists, automatically align with the user's custom `budgetStartDay`.
 
 ### 11. Export Transactions
 - **Format:** CSV (Comma Separated Values).
