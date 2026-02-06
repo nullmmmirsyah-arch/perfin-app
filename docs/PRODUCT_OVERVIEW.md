@@ -138,11 +138,11 @@
 - **Access:** Available via the "Export" button on the Transactions page header.
 
 ### 12. Dashboard Enhancements
-- **Interactive Wealth Card:**
-    - **Goal Navigation:** Users can click on individual goal items in the "Wealth & Goals" card to navigate directly to that goal's detail page.
-    - **Quick Access:** A "View All" link in the card header provides a shortcut to the main Goals list.
-    - **Visual Cues:** Hover effects and chevron icons clearly indicate interactive elements.
-- **Simplified UI:** Removed redundant containers for "Safe Daily Spend" and "Recommended Saving" badges to create a cleaner, more integrated look.
+- **Interactive Navigation:**
+    - **Wealth Card:** Users can click on individual goal items to navigate directly to that goal's detail page.
+    - **Daily Operations Card:** Users can click on individual budget rows to navigate directly to the category's detail page for performance analysis and history.
+    - **Visual Cues:** Both cards use consistent hover effects and chevron icons to indicate interactivity.
+- **Quick Access:** A "View All" link in the card headers provides a shortcut to the main Goals or Transactions lists.
 
 ### 13. Receivables & Debt Tracking (Lent)
 - **Concept:** Track money lent to others (friends, office reimbursements) without losing sight of personal budget integrity.

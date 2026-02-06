@@ -80,7 +80,7 @@ This document outlines the design philosophy and user experience patterns used i
     - **Visuals:** Use colored dots (Green/Yellow/Red) next to category names to indicate spending velocity.
     - **Interaction:** Clicking the dot reveals a **Popover** with detailed context ("Time Passed: 30%, Budget Used: 60%") and specific advice ("Reduce spending to 50k/day").
     - **Prioritization:** In Dashboard, sort budget items by urgency (Danger > Warning > Safe) so users see critical issues first.
-- **On-Demand Details:** Use interactive elements (like clicking a budget row) to reveal granular insights without cluttering the main view.
+- **On-Demand Details:** Use interactive elements (like clicking a budget row or a goal) to reveal granular insights and full transaction history by navigating to their respective detail pages.
 - **Contextual Summary:** Place summary cards (Total Remaining, Total Saved) directly within their relevant tabs/slides, not in global headers.
 - **Wealth Dashboard:** Provide "Required Saving" insights (e.g., "+1.2M/mo") directly on the Wealth Card to guide user behavior.
 - **Budget Transparency (Assigned vs. Effective):** 

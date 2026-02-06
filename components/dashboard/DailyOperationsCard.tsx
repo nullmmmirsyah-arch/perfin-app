@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban } from 'lucide-react';      
+import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban, ChevronRight } from 'lucide-react';      
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
+import Link from 'next/link';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -70,106 +71,114 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: {
         : null;
 
     return (
-        <div className="flex flex-col gap-1.5 pb-2 border-b border-border/40 last:border-0 last:pb-0">
-            <div className="flex justify-between items-start">
-                <div className="flex items-center gap-1.5 truncate pr-2">
-                    <span className="text-sm font-medium truncate">
-                        {item.categoryName}
-                    </span>
-                    {pacing && (
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <div className={cn(
-                                    "h-2 w-2 rounded-full animate-pulse cursor-pointer shrink-0",
-                                    pacing.status === 'safe' ? "bg-success" : 
-                                    pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
-                                )} />
-                            </PopoverTrigger>
-                            <PopoverContent className="w-56 p-3" align="start">
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 border-b pb-1">
-                                        <div className={cn(
-                                            "h-2 w-2 rounded-full",
-                                            pacing.status === 'safe' ? "bg-success" : 
-                                            pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
-                                        )} />
-                                        <h4 className="font-semibold text-xs">
-                                            {pacing.status === 'safe' ? "On Track" : 
-                                             pacing.status === 'warning' ? "Spending Alert" : "Critical"}
-                                        </h4>
-                                    </div>
-                                    <p className="text-[10px] text-muted-foreground">    
-                                        {pacing.status === 'safe'
-                                            ? "Pace is healthy."
-                                            : pacing.status === 'warning'
-                                            ? `Spending fast! Limit: ~${formatCurrency(pacing.dailyLimit)}/day`
-                                            : `Too fast! Reduce to ~${formatCurrency(pacing.dailyLimit)}/day`
-                                        }
-                                    </p>                                </div>
-                            </PopoverContent>
-                        </Popover>
-                    )}
+        <div className="pb-2 border-b border-border/40 last:border-0 last:pb-0">
+            <Link 
+                href={`/categories/${item.categoryId}`} 
+                className="group flex flex-col gap-1.5 p-2 -mx-2 rounded-lg hover:bg-accent/50 transition-colors"
+            >
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-1.5 truncate pr-2">
+                        <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                            {item.categoryName}
+                        </span>
+                        {pacing && (
+                            <Popover>
+                                <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <div className={cn(
+                                        "h-2 w-2 rounded-full animate-pulse cursor-pointer shrink-0",
+                                        pacing.status === 'safe' ? "bg-success" : 
+                                        pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
+                                    )} />
+                                </PopoverTrigger>
+                                <PopoverContent className="w-56 p-3" align="start">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 border-b pb-1">
+                                            <div className={cn(
+                                                "h-2 w-2 rounded-full",
+                                                pacing.status === 'safe' ? "bg-success" : 
+                                                pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
+                                            )} />
+                                            <h4 className="font-semibold text-xs">
+                                                {pacing.status === 'safe' ? "On Track" : 
+                                                pacing.status === 'warning' ? "Spending Alert" : "Critical"}
+                                            </h4>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">    
+                                            {pacing.status === 'safe'
+                                                ? "Pace is healthy."
+                                                : pacing.status === 'warning'
+                                                ? `Spending fast! Limit: ~${formatCurrency(pacing.dailyLimit)}/day`
+                                                : `Too fast! Reduce to ~${formatCurrency(pacing.dailyLimit)}/day`
+                                            }
+                                        </p>                                </div>
+                                </PopoverContent>
+                            </Popover>
+                        )}
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                        {/* Safe Daily Badge - Always Visible if applicable */}
+                        {!isOver && item.remaining > 0 && safeSpend > 0 ? (
+                            <Badge variant="outline" className="text-[10px] px-0 py-0 h-5 font-semibold text-primary border-0 shrink-0 shadow-none">
+                                ~{formatCurrency(safeSpend, { isPrivacyMode })}/day
+                            </Badge>
+                        ) : isOver ? (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 font-normal shrink-0">
+                                Over Budget
+                            </Badge>
+                        ) : (
+                            <span className="text-[10px] text-muted-foreground font-medium">Done</span>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
+                    </div>
                 </div>
                 
-                {/* Safe Daily Badge - Always Visible if applicable */}
-                {!isOver && item.remaining > 0 && safeSpend > 0 ? (
-                    <Badge variant="outline" className="text-[10px] px-0 py-0 h-5 font-semibold text-primary border-0 shrink-0 shadow-none">
-                        ~{formatCurrency(safeSpend, { isPrivacyMode })}/day
-                    </Badge>
-                ) : isOver ? (
-                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 font-normal shrink-0">
-                        Over Budget
-                    </Badge>
-                ) : (
-                    <span className="text-[10px] text-muted-foreground font-medium">Done</span>
-                )}
-            </div>
-            
-            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
-                {(() => {
-                    const receivables = item.pendingReceivables || 0;
-                    const personalSpent = Math.max(0, item.spent - receivables);
-                    
-                    const personalPct = (personalSpent / item.limit) * 100;
-                    const receivablesPct = (receivables / item.limit) * 100;
-                    
-                    return (
-                        <>
-                            <div 
-                                className={cn(
-                                    "h-full transition-all",
-                                    isOver ? "bg-destructive" : 
-                                    (pacing?.status === 'warning' ? "bg-yellow-500" : 
-                                     pacing?.status === 'danger' ? "bg-destructive" : "bg-primary")
-                                )}
-                                style={{ width: `${Math.min(personalPct, 100)}%` }}
-                            />
-                            <div 
-                                className={cn(
-                                    "h-full transition-all opacity-80",
-                                    "bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-size-[8px_8px]",
-                                    isOver ? "bg-destructive/60" : 
-                                    (pacing?.status === 'warning' ? "bg-yellow-500/60" : 
-                                     pacing?.status === 'danger' ? "bg-destructive/60" : "bg-primary/60")
-                                )}
-                                style={{ width: `${Math.max(0, Math.min(receivablesPct, 100 - personalPct))}%` }}
-                            />
-                        </>
-                    );
-                })()}
-            </div>
-            
-            <div className="flex justify-between items-center text-[10px] text-muted-foreground">
-                <span>
-                    {formatCurrency(item.spent, { isPrivacyMode })} / {formatCurrency(item.limit, { isPrivacyMode })}
-                </span>
-                <span className={isOver ? "text-destructive font-bold" : "text-foreground font-medium"}>
-                    {isOver
-                        ? `-${formatCurrency(item.spent - item.limit, { isPrivacyMode })}`
-                        : `${formatCurrency(item.remaining, { isPrivacyMode })} left`
-                    }
-                </span>
-            </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex">
+                    {(() => {
+                        const receivables = item.pendingReceivables || 0;
+                        const personalSpent = Math.max(0, item.spent - receivables);
+                        
+                        const personalPct = (personalSpent / item.limit) * 100;
+                        const receivablesPct = (receivables / item.limit) * 100;
+                        
+                        return (
+                            <>
+                                <div 
+                                    className={cn(
+                                        "h-full transition-all",
+                                        isOver ? "bg-destructive" : 
+                                        (pacing?.status === 'warning' ? "bg-yellow-500" : 
+                                        pacing?.status === 'danger' ? "bg-destructive" : "bg-primary")
+                                    )}
+                                    style={{ width: `${Math.min(personalPct, 100)}%` }}
+                                />
+                                <div 
+                                    className={cn(
+                                        "h-full transition-all opacity-80",
+                                        "bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-size-[8px_8px]",
+                                        isOver ? "bg-destructive/60" : 
+                                        (pacing?.status === 'warning' ? "bg-yellow-500/60" : 
+                                        pacing?.status === 'danger' ? "bg-destructive/60" : "bg-primary/60")
+                                    )}
+                                    style={{ width: `${Math.max(0, Math.min(receivablesPct, 100 - personalPct))}%` }}
+                                />
+                            </>
+                        );
+                    })()}
+                </div>
+                
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                    <span>
+                        {formatCurrency(item.spent, { isPrivacyMode })} / {formatCurrency(item.limit, { isPrivacyMode })}
+                    </span>
+                    <span className={isOver ? "text-destructive font-bold" : "text-foreground font-medium"}>
+                        {isOver
+                            ? `-${formatCurrency(item.spent - item.limit, { isPrivacyMode })}`
+                            : `${formatCurrency(item.remaining, { isPrivacyMode })} left`
+                        }
+                    </span>
+                </div>
+            </Link>
         </div>
     );
 };
