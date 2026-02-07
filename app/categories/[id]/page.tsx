@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, TrendingUp, History, Wallet, CalendarIcon, X, Filter } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
-import { format } from 'date-fns'
+import { format, isToday, isYesterday } from 'date-fns'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { Bar, BarChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { LoadingScreen } from '@/components/LoadingScreen'
@@ -16,7 +16,7 @@ import { useState, useMemo } from 'react'
 import { DateRange } from 'react-day-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import { getFiscalDate, getFiscalMonthRange } from '@/lib/finance-utils'
+import { getFiscalDate, getFiscalMonthRange, calculateBudgetPace } from '@/lib/finance-utils'
 import { Badge } from '@/components/ui/badge'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
@@ -89,8 +89,46 @@ export default function CategoryDetailPage() {
       d.budgetAmount > 0 || d.spent > 0 || d.carryoverAmount !== 0 || d.sweptAmount > 0
   );
 
+  // Prepare Chart Data & Colors (Consistent with Dashboard Pacing)
+  const now = new Date()
+  const fiscalToday = getFiscalDate(now, budgetStartDay)
+  const currentFYear = fiscalToday.getFullYear()
+  const currentFMonth = fiscalToday.getMonth()
+
+  const chartData = activeHistory.map(d => {
+      const receivables = d.pendingReceivables || 0;
+      const personal = Math.max(0, d.spent - receivables);
+      const isCurrentMonth = d.year === currentFYear && d.month === currentFMonth;
+      
+      // Determine Status/Color Logic
+      let status: 'safe' | 'warning' | 'danger' = 'safe';
+      if (d.spent > d.budgetAmount && d.budgetAmount > 0) {
+          status = 'danger';
+      } else if (isCurrentMonth && category.enablePacing && d.budgetAmount > 0) {
+          const pacing = calculateBudgetPace(d.spent, d.budgetAmount, d.year, d.month, budgetStartDay);
+          status = pacing.status;
+      }
+
+      // Hex Colors
+      const colors = {
+          safe: { solid: '#3b82f6', light: '#93c5fd' },
+          warning: { solid: '#eab308', light: '#fde047' },
+          danger: { solid: '#ef4444', light: '#fca5a5' }
+      };
+
+      return {
+          ...d,
+          personalSpent: personal,
+          receivables: receivables,
+          totalSpent: d.spent,
+          color: colors[status].solid,
+          lightColor: colors[status].light,
+          status
+      };
+  });
+
   // List view: Recent First (Reverse Chronological)
-  const listHistory = [...activeHistory].reverse();
+  const listHistory = [...chartData].reverse();
 
   return (
     <div className="pb-24 p-4 md:p-8 space-y-6">
@@ -136,7 +174,7 @@ export default function CategoryDetailPage() {
         </CardHeader>
         <CardContent className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activeHistory}>
+                <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
                     <XAxis 
                         dataKey="label" 
@@ -150,22 +188,47 @@ export default function CategoryDetailPage() {
                             if (active && payload && payload.length) {
                                 const d = payload[0].payload;
                                 return (
-                                    <div className="bg-popover border text-popover-foreground p-2 rounded-lg shadow-lg text-xs">
-                                        <p className="font-bold mb-1">{d.label} {d.year}</p>
-                                        <p>Budget: {formatCurrency(d.budgetAmount)}</p>
-                                        <p>Spent: {formatCurrency(d.spent)}</p>
-                                        {d.sweptAmount > 0 && <p className="text-muted-foreground italic">Swept: {formatCurrency(d.sweptAmount)}</p>}
-                                        {d.carryoverAmount !== 0 && <p className={d.carryoverAmount > 0 ? "text-success" : "text-destructive"}>Rollover: {formatCurrency(d.carryoverAmount)}</p>}
+                                    <div className="bg-popover border text-popover-foreground p-3 rounded-lg shadow-lg text-xs space-y-2">
+                                        <div className="flex justify-between items-center border-b pb-1">
+                                            <p className="font-bold">{d.label} {d.year}</p>
+                                            {d.status === 'warning' && <span className="text-[10px] text-yellow-600 font-bold ml-2">⚡ Pacing Alert</span>}
+                                            {d.status === 'danger' && <span className="text-[10px] text-destructive font-bold ml-2">⚠️ High Spending</span>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between gap-4">
+                                                <span>Budget:</span>
+                                                <span className="font-semibold">{formatCurrency(d.budgetAmount)}</span>
+                                            </div>
+                                            <div className="flex justify-between gap-4">
+                                                <span>Spent:</span>
+                                                <span className="font-semibold">{formatCurrency(d.totalSpent)}</span>
+                                            </div>
+                                            {d.receivables > 0 && (
+                                                <div className="pl-2 border-l-2 border-blue-400 text-[10px] text-muted-foreground">
+                                                    <p>• Personal: {formatCurrency(d.personalSpent)}</p>
+                                                    <p>• Owed to you: {formatCurrency(d.receivables)}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {d.sweptAmount > 0 && <p className="text-muted-foreground italic pt-1 border-t">Swept: {formatCurrency(d.sweptAmount)}</p>}
+                                        {d.carryoverAmount !== 0 && <p className={cn("pt-1 border-t", d.carryoverAmount > 0 ? "text-success" : "text-destructive")}>Rollover: {formatCurrency(d.carryoverAmount)}</p>}
                                     </div>
                                 );
                             }
                             return null;
                         }}
                     />
-                    <Bar dataKey="budgetAmount" fill="#e2e8f0" radius={[4, 4, 0, 0]} stackId="a" />
-                    <Bar dataKey="spent" radius={[4, 4, 0, 0]} stackId="b">
-                        {activeHistory.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.spent > entry.budgetAmount ? '#ef4444' : '#3b82f6'} />
+                    <Bar dataKey="budgetAmount" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+                    
+                    {/* Stacked Bar for Spent & Receivables */}
+                    <Bar dataKey="personalSpent" stackId="spent" radius={[0, 0, 0, 0]}>
+                        {chartData.map((entry, index) => (
+                            <Cell key={`cell-p-${index}`} fill={entry.color} />
+                        ))}
+                    </Bar>
+                    <Bar dataKey="receivables" stackId="spent" radius={[4, 4, 0, 0]}>
+                        {chartData.map((entry, index) => (
+                            <Cell key={`cell-r-${index}`} fill={entry.lightColor} />
                         ))}
                     </Bar>
                 </BarChart>
@@ -190,7 +253,7 @@ export default function CategoryDetailPage() {
                     <div key={`${month.year}-${month.month}`} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
                         <div className="flex flex-col gap-0.5">
                             <span className="font-medium">{month.label} {month.year}</span>
-                            <div className="flex gap-2 text-[10px] text-muted-foreground">
+                            <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
                                 {month.carryoverAmount !== 0 && (
                                     <span className={cn(month.carryoverAmount > 0 ? "text-success" : "text-destructive")}>
                                         {month.carryoverAmount > 0 ? '+' : ''}{formatCurrency(month.carryoverAmount)} Roll
@@ -201,20 +264,35 @@ export default function CategoryDetailPage() {
                                         {formatCurrency(month.sweptAmount)} Swept
                                     </span>
                                 )}
+                                {month.receivables > 0 && (
+                                    <span className="text-blue-600 font-medium italic">
+                                        (incl. {formatCurrency(month.receivables)} lent)
+                                    </span>
+                                )}
                             </div>
                         </div>
                         
                         <div className="text-right">
                             <div className="text-sm font-semibold">
-                                {formatCurrency(month.spent)}
+                                {formatCurrency(month.totalSpent)}
                                 <span className="text-muted-foreground font-normal text-xs ml-1">
                                     / {formatCurrency(month.budgetAmount)}
                                 </span>
                             </div>
-                            <div className="w-24 h-1.5 bg-muted rounded-full ml-auto mt-1 overflow-hidden">
+                            <div className="w-24 h-1.5 bg-muted rounded-full ml-auto mt-1 overflow-hidden flex">
                                 <div 
-                                    className={cn("h-full rounded-full", month.spent > month.budgetAmount ? "bg-destructive" : "bg-primary")} 
-                                    style={{ width: `${Math.min(100, (month.spent / (month.budgetAmount || 1)) * 100)}%` }}
+                                    className="h-full" 
+                                    style={{ 
+                                        width: `${Math.min(100, (month.personalSpent / (month.budgetAmount || 1)) * 100)}%`,
+                                        backgroundColor: month.color
+                                    }}
+                                />
+                                <div 
+                                    className="h-full opacity-60" 
+                                    style={{ 
+                                        width: `${Math.min(100, (month.receivables / (month.budgetAmount || 1)) * 100)}%`,
+                                        backgroundColor: month.color
+                                    }}
                                 />
                             </div>
                         </div>
