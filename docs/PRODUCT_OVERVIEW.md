@@ -123,7 +123,9 @@
 ### 10. Category Insights & Analytics
 - **Category Detail Page:** A dedicated view for deep-diving into a specific category's performance.
 - **Features:**
-    - **Performance Trend:** A 12-month bar chart visualizing **Budget vs. Actual Spending**. It correctly reflects historical budgets even after funds have been swept.
+    - **Performance Trend:** A 12-month bar chart visualizing **Effective Budget** (Planned + Adjustments) vs. Actual Spending. It correctly reflects historical budgets even after funds have been swept.
+    - **Effective Budget Logic:** Pacing indicators and color schemes are calculated against the total effective capacity (Planned + Rollover), ensuring 100% consistency with the Dashboard and Budget cards.
+    - **Transparent Breakdown:** Interactive tooltips reveal the exact composition of the monthly budget (e.g., "Planned + Rollover") for full historical clarity.
     - **Monthly History:** A detailed list showing Budget, Spent, Carryover, and Swept amounts for each fiscal month.
     - **Grouped & Actionable Transactions:** A detailed list of recent transactions grouped by date with **daily net flow totals**. Includes full support for editing and deleting transactions.
     - **Contextual Data:** For split transactions, the list intelligently displays only the description and amount relevant to the current category.

@@ -101,8 +101,8 @@ This document outlines the design philosophy and user experience patterns used i
 - **Interaction:** Toggled via the **Eye Icon** in the Dashboard Page Header.
 
 ### 7. Category Detail Page
-- **Performance Trend:** A 12-month bar chart visualizing **Budget vs. Actual Spending**. 
-- **Monthly History:** A detailed list showing Budget, Spent, Carryover, and Swept amounts for each fiscal month.
+- **Performance Trend:** A 12-month bar chart visualizing **Effective Budget** (Planned + Carryover) vs. Actual Spending. 
+- **Monthly History:** A detailed list showing Budget (Effective), Spent, Carryover, and Swept amounts for each fiscal month.
 - **Grouped & Actionable Transactions:** A list of recent transactions grouped by date with **daily totals**. Users can directly Edit or Delete transactions from this view.
 - **Advanced Filtering:** Supports multi-select filtering by **Account** and **Date Range**, allowing for deep-dive analysis of spending patterns.
 - **Fiscal Awareness:** All data points and default filters respect the user's custom **Budget Start Day**.

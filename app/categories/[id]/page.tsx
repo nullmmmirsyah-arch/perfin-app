@@ -100,12 +100,15 @@ export default function CategoryDetailPage() {
       const personal = Math.max(0, d.spent - receivables);
       const isCurrentMonth = d.year === currentFYear && d.month === currentFMonth;
       
-      // Determine Status/Color Logic
+      // Calculate Effective Budget (Planned + Adjustments)
+      const effectiveBudget = d.budgetAmount + d.carryoverAmount;
+
+      // Determine Status/Color Logic based on Effective Budget
       let status: 'safe' | 'warning' | 'danger' = 'safe';
-      if (d.spent > d.budgetAmount && d.budgetAmount > 0) {
+      if (d.spent > effectiveBudget && effectiveBudget > 0) {
           status = 'danger';
-      } else if (isCurrentMonth && category.enablePacing && d.budgetAmount > 0) {
-          const pacing = calculateBudgetPace(d.spent, d.budgetAmount, d.year, d.month, budgetStartDay);
+      } else if (isCurrentMonth && category.enablePacing && effectiveBudget > 0) {
+          const pacing = calculateBudgetPace(d.spent, effectiveBudget, d.year, d.month, budgetStartDay);
           status = pacing.status;
       }
 
@@ -121,6 +124,7 @@ export default function CategoryDetailPage() {
           personalSpent: personal,
           receivables: receivables,
           totalSpent: d.spent,
+          effectiveBudget,
           color: colors[status].solid,
           lightColor: colors[status].light,
           status
@@ -197,7 +201,14 @@ export default function CategoryDetailPage() {
                                         <div className="space-y-1">
                                             <div className="flex justify-between gap-4">
                                                 <span>Budget:</span>
-                                                <span className="font-semibold">{formatCurrency(d.budgetAmount)}</span>
+                                                <div className="text-right">
+                                                    <p className="font-semibold">{formatCurrency(d.effectiveBudget)}</p>
+                                                    {d.carryoverAmount !== 0 && (
+                                                        <p className="text-[9px] text-muted-foreground">
+                                                            ({formatCurrency(d.budgetAmount)} + {formatCurrency(d.carryoverAmount)} roll)
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex justify-between gap-4">
                                                 <span>Spent:</span>
@@ -276,21 +287,21 @@ export default function CategoryDetailPage() {
                             <div className="text-sm font-semibold">
                                 {formatCurrency(month.totalSpent)}
                                 <span className="text-muted-foreground font-normal text-xs ml-1">
-                                    / {formatCurrency(month.budgetAmount)}
+                                    / {formatCurrency(month.effectiveBudget)}
                                 </span>
                             </div>
                             <div className="w-24 h-1.5 bg-muted rounded-full ml-auto mt-1 overflow-hidden flex">
                                 <div 
                                     className="h-full" 
                                     style={{ 
-                                        width: `${Math.min(100, (month.personalSpent / (month.budgetAmount || 1)) * 100)}%`,
+                                        width: `${Math.min(100, (month.personalSpent / (month.effectiveBudget || 1)) * 100)}%`,
                                         backgroundColor: month.color
                                     }}
                                 />
                                 <div 
                                     className="h-full opacity-60" 
                                     style={{ 
-                                        width: `${Math.min(100, (month.receivables / (month.budgetAmount || 1)) * 100)}%`,
+                                        width: `${Math.min(100, (month.receivables / (month.effectiveBudget || 1)) * 100)}%`,
                                         backgroundColor: month.color
                                     }}
                                 />
