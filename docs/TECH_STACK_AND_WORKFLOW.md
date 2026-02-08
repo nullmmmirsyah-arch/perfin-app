@@ -115,7 +115,14 @@
 5.  **Performance Optimization:**
     - **Avoid N+1 Queries:** When fetching lists of items with related data (e.g., Transactions with Accounts/Categories), always use **Batch Fetching**.
     - **Pattern:** Collect all IDs first -> `Promise.all(ids.map(ctx.db.get))` -> Map results back. **Do NOT** await `ctx.db.get` inside a loop.
+    - **Intentional Global Fetching (`allTransactions`):** In queries like `getBudgetStatus`, fetching the entire transaction history for a user/household is **intentional**.
+        - *Reasoning:* It is required for cumulative calculations (e.g., Accumulated Savings progress) and global "Unassigned Cash" logic which relies on historical data. Since this data is already in memory for these core features, filtering it for smaller tasks (like `thisMonthIncome`) is more efficient than making multiple targeted database queries.
     - **Memoization (Frontend):** Use `useMemo` for heavy client-side grouping or filtering operations (e.g., `TransactionListGrouped`), especially when dealing with large datasets on mobile devices.
+
+6.  **Context-Specific Logic vs. Centralized Helpers:**
+    - While we prioritize centralized logic in `convex/lib/finance.ts`, some manual calculations in specific queries are **intentional**.
+    - **`thisMonthBudgeted` in `getBudgetStatus`:** This calculation is kept manual because it must include **all** category types (Expenses + Savings) to accurately reflect the "Unassigned Cash" breakdown in the UI. 
+    - *Contrast:* The centralized `calculateMonthlyBudgetLeft` helper is strictly filtered to `expense` type categories for specific UI slides. Developer should NOT replace the manual breakdown calculation with the centralized helper unless the helper is updated to support multi-context filtering.
 
 ## Directory Structure
 
