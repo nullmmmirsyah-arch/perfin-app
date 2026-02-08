@@ -88,6 +88,10 @@
         - **Automatic Reversal:** Deleting a settlement transaction automatically re-opens the debt and reduces the `amountPaid` on the parent.
         - **Anti-Overpay:** Validation in `create` mutation blocks payments that exceed the remaining debt.
     - **Goal Progress:** Inside `create` and `update` transaction mutations, we explicitly call `checkGoalProgress` to trigger notifications.
+    - **Navigation Safety (History Sentinel):**
+        - To intercept browser/hardware back buttons at the application root, we use a **Double-State Sentinel** in `LayoutWrapper.tsx`.
+        - **Logic:** Upon authentication, the app pushes two states: `perfinRoot` (index 0) and `perfinEntry` (index 1). 
+        - When a user pops back into `perfinRoot`, the `popstate` listener triggers the Logout Confirmation dialog and immediately pushes `perfinEntry` back to prevent the browser from leaving the domain.
     - **Split Transaction Optimization (Search Indexing):**
         - To improve filtering performance, we use a **Denormalized Indexing** strategy.
         - **Schema:** Added `searchCategoryIds` and `searchLabelIds` (Array of Strings) to `transactions` table.

@@ -25,6 +25,9 @@ This document outlines the design philosophy and user experience patterns used i
 - **Action Triggers in Selectors:**
     - High-level actions (like **Split Transaction**) are integrated directly into selection drawers/dropdowns (e.g., Category Selector) for better discoverability.
     - **Visual Hierarchy:** Action items are visually distinguished from data items (e.g., using dashed borders, background tints, or separators) to maintain clear intent.
+- **Application Exit Interception:**
+    - To prevent accidental logout, the application intercepts the "Back" action when it would lead out of the app.
+    - This is implemented globally in `LayoutWrapper` and should NOT be overridden by individual pages unless specifically required for complex multi-step wizards.
 
 ### 2. Forms & Data Entry
 - **Drawers (Sheet) over Modals:** Use `Drawer` (from `vaul`/shadcn) for almost all forms (Add Transaction, Edit Account, etc.).

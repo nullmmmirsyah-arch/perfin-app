@@ -157,6 +157,14 @@
     - **Netting Logic:** Settlement (Income) to an Expense category acts as "Negative Spending", restoring the original budget limit.
     - **Forgiveness:** Debts can be "Forgiven", converting them into permanent personal expenses and removing them from the tracking list.
 
+### 14. Navigation Safety (Logout Confirmation)
+- **Concept:** Prevents accidental app exit and ensures session security.
+- **Trigger:** When a user attempts to go "Back" from the first page of the application (potentially leaving the domain to an external site or empty tab).
+- **Behavior:** Intercepts the navigation and displays a confirmation dialog.
+- **Options:** 
+    - **Stay:** Returns the user to the application.
+    - **Logout:** Explicitly signs the user out via Clerk and redirects to the Hero/Landing Page.
+
 ## Business Rules & Integrity
 1.  **Deletion vs Archiving:** Prefer Archiving for Accounts and Categories to preserve historical transaction data. Hard delete is blocked if transactions exist.
 2.  **Account Type Locking:** Once an account has associated transactions, its **Type (Cash/Asset/Saving)** is permanently locked. This prevents data corruption (e.g., swapping Cash to Asset without quantity data) and historical report inconsistencies. Users must Archive the old account and create a new one if a type change is needed.
