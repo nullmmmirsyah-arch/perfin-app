@@ -32,11 +32,11 @@
 - **Types:** Expense, Income, Saving (Goal).
 - **Smart Goals Structure:**
   - **🛡️ Wealth (Investment):** Long-term accumulation (e.g., Emergency Fund, Gold, Stocks).
-    - *Achievement Flow:* Increase Target (Growth).
+    - *Achievement Flow:** Increase Target (Growth).
   - **📅 Bill (Sinking Fund):** Recurring obligations (e.g., Annual Tax, Insurance).
-    - *Achievement Flow:* Pay & Reset Cycle. Uses **Cycle Tracking** to reset the target period. Any **surplus funds** remaining after payment are automatically carried over (rolled over) to jumpstart the next cycle's progress.
+    - *Achievement Flow:** Pay & Reset Cycle. Uses **Cycle Tracking** to reset the target period. Any **surplus funds** remaining after payment are automatically carried over (rolled over) to jumpstart the next cycle's progress.
   - **✨ Goal (Purchase/Wishlist):** One-off purchases (e.g., Vacation, Gadget).
-    - *Achievement Flow:* Spend & Archive.
+    - *Achievement Flow:** Spend & Archive.
 - **Account-Goal Mirroring (Atomic):**
   - Creating a **Saving/Asset Account** automatically creates a linked **Goal**.
   - Creating a **Goal** automatically creates a linked **Account**.
@@ -71,9 +71,16 @@
     - **Savings/Goals Budget:** Tracks `Monthly Contribution / Monthly Target`. Shows a **"Monthly Goal Met"** celebration badge when the monthly saving target is reached.
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
     - **Budget Transparency:** The system distinguishes between **New Planned (Assigned)** money for the current month and **Effective Spending Power** (which includes adjustments like rollovers).
+    - **Settlement Integrity:** Income categorized into an expense category (reimbursements/settlements) acts as **Negative Spending**, accurately increasing the available budget for that category.
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
-    - **Flexible Overspending:** Overspending in a category results in a **Negative Available** balance for that category. It does **NOT** automatically deduct from Unassigned Cash. This preserves the user's original allocation plan ("Envelope Budgeting") while highlighting the deficit that needs to be covered.
-    - **Smart Auto-Budgeting:** If a transaction is made to a category without a budget, the system automatically creates a budget with the **transaction amount**. *Exception: Goal Disbursement transactions do NOT trigger auto-budgeting.*
+    - **Flexible Overspending:** Overspending in a category results in a **Negative Available** balance. 
+- **Month-End Processing (Review & Process):**
+    - **Concept:** A unified action to finalize the previous month's budget and start the new month with accurate balances.
+    - **Accurate Settlement Handling:** Corrects for reimbursements by using **Net Spending** in the surplus calculation.
+    - **Non-Destructive Sweep:** For standard budgets, unspent funds are "swept" back to **Unassigned Cash** for the current month. The historical budget limit remains unchanged.
+    - **Smart Rollover (Carryover):** For categories with **Smart Budget (Pacing)** enabled, any remaining balance (positive or negative) is **automatically carried over** to the current month.
+        - *Positive Carryover (Surplus):* Increases available budget.
+        - *Negative Carryover (Debt):* Carried forward as a budget deficit that must be covered.
 - **Smart Budget Pace (New):**
     - **Concept:** Proactive warning system for variable expenses.
     - **Logic:** Compares "Time Passed %" vs "Budget Used %".
@@ -82,12 +89,6 @@
         - 🟡 **Warning:** Spending pace is matching time (+10% tolerance).
         - 🔴 **Danger:** Spending is significantly faster than time.
     - **Opt-In:** Users can enable/disable this per category.
-- **Month-End Processing (Sweep & Rollover):**
-    - **Concept:** A unified action to finalize the previous month's budget.
-    - **Non-Destructive Sweep:** For standard budgets, unspent funds are "swept" back to **Unassigned Cash** for the current month. Importantly, this action is **non-destructive**; the historical budget limit remains unchanged in reports, but the "swept" amount is logged to balance the books.
-    - **Smart Rollover:** For categories with **Smart Budget (Pacing)** enabled, any remaining balance (positive or negative) is **automatically carried over** to the current month.
-        - *Positive Carryover:* Increases the available budget for this month.
-        - *Negative Carryover:* Reduces the available budget (debt), forcing users to cover overspending from the past.
 
 ### 6. Households & Collaboration
 - **Multi-User:** Support for shared financial tracking (e.g., couples, families).

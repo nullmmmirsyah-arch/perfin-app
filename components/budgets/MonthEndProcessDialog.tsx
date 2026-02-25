@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Id } from '../../convex/_generated/dataModel'
-import { formatCurrency } from '@/lib/utils'
-import { Loader2, ArrowRight } from 'lucide-react'
+import { formatCurrency, cn } from '@/lib/utils'
+import { Loader2, ArrowRight, AlertTriangle } from 'lucide-react'
 
 type ProposalItem = {
     type: 'sweep' | 'rollover';
@@ -76,17 +76,32 @@ export function MonthEndProcessDialog({
             {/* ROLLOVERS SECTION */}
             {rollovers.length > 0 && (
                 <div className="space-y-2">
-                    <div className="flex justify-between items-center bg-primary/10 p-3 rounded-lg">
-                        <span className="font-semibold text-sm">Rollover to This Month</span>
-                        <span className={cn("font-bold", totalRollover >= 0 ? "text-primary" : "text-destructive")}>
+                    <div className={cn(
+                        "flex justify-between items-center p-3 rounded-lg",
+                        totalRollover >= 0 ? "bg-success/10" : "bg-destructive/10"
+                    )}>
+                        <div className="flex flex-col">
+                            <span className="font-semibold text-sm">
+                                {totalRollover >= 0 ? "Rollover Surplus" : "Carryover Debt"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                                {totalRollover >= 0 ? "Moving savings forward" : "Budget deficit must be closed"}
+                            </span>
+                        </div>
+                        <span className={cn("font-bold", totalRollover >= 0 ? "text-success" : "text-destructive")}>
                             {totalRollover > 0 ? '+' : ''}{formatCurrency(totalRollover)}
                         </span>
                     </div>
-                    <div className="border rounded-md divide-y">
+                    <div className="border rounded-md divide-y overflow-hidden">
                         {rollovers.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-2 text-xs">
-                                <span className="text-muted-foreground">{item.categoryName}</span>
-                                <span className={cn(item.amount >= 0 ? "text-primary" : "text-destructive")}>
+                            <div key={idx} className="flex justify-between items-center p-3 text-xs bg-card">
+                                <div className="flex flex-col">
+                                    <span className="font-medium">{item.categoryName}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                        {item.amount >= 0 ? "Remaining balance" : "Overspent this month"}
+                                    </span>
+                                </div>
+                                <span className={cn("font-semibold", item.amount >= 0 ? "text-success" : "text-destructive")}>
                                     {formatCurrency(item.amount)}
                                 </span>
                             </div>
@@ -96,17 +111,23 @@ export function MonthEndProcessDialog({
             )}
 
             {proposals.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                    No pending actions found.
+                <div className="text-center py-12 bg-muted/20 rounded-xl border-2 border-dashed border-muted">
+                    <div className="flex justify-center mb-2">
+                         <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center">
+                            <ArrowRight className="h-6 w-6 text-muted-foreground rotate-45" />
+                         </div>
+                    </div>
+                    <p className="font-medium text-sm">No actions required</p>
+                    <p className="text-xs text-muted-foreground px-4">All budgets were either spent exactly or are already finalized.</p>
                 </div>
             )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>
+        <DialogFooter className="border-t pt-4 sm:pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing} className="flex-1 sm:flex-none">
             Cancel
           </Button>
-          <Button onClick={onConfirm} disabled={isProcessing || proposals.length === 0}>
+          <Button onClick={onConfirm} disabled={isProcessing || proposals.length === 0} className="flex-1 sm:flex-none">
             {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirm Process"}
           </Button>
         </DialogFooter>
@@ -114,6 +135,3 @@ export function MonthEndProcessDialog({
     </Dialog>
   );
 }
-
-// Helper util import (needed because I used cn without importing it)
-import { cn } from '@/lib/utils';

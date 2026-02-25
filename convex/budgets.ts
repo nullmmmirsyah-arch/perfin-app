@@ -270,30 +270,31 @@ export const getBudgetStatus = query({
             return tDate >= startOfPrevObj && tDate <= endOfPrevObj;
          });
          
-         const prevSpending = calculateSpendingByCategory(prevTransactions, accountsMap);
+         const prevSpending = calculateSpendingByCategory(prevTransactions, accountsMap, categoriesMap);
 
          for (const b of prevBudgets) {
              const category = categories.find(c => c._id === b.categoryId);
              const spent = prevSpending[b.categoryId] || 0;
              const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
              const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
-             const sisa = (allocated - swept) - spent;
+             const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
+             
+             // The effective remaining amount from the previous month
+             const sisa = (allocated + carryover - swept) - spent;
 
-             // Case 1: Standard Sweepable Leftover
-             // Only for standard Expenses or Savings without pacing (though savings usually want to keep it, logic assumes simple sweep unless paced)
-             if (!category?.enablePacing && allocated > (spent + swept)) {
-                 const amountToSweep = allocated - (spent + swept);
+             // Case 1: Standard Sweepable Leftover (Positive balance, no pacing)
+             if (!category?.enablePacing && sisa > 0) {
                  monthEndProposals.push({
                      type: 'sweep',
                      categoryId: b.categoryId,
                      categoryName: category?.name || 'Unknown',
-                     amount: amountToSweep
+                     amount: sisa
                  });
              }
 
-             // Case 2: Smart Rollover (Positive or Negative)
+             // Case 2: Smart Rollover (Positive or Negative balance, with pacing)
              if (category?.enablePacing && sisa !== 0) {
-                 // Check if it's already rolled over
+                 // Check if it's already rolled over accurately to the current month
                  let targetBudget;
                  if (householdId) {
                      targetBudget = await ctx.db.query("budgets")
@@ -313,8 +314,10 @@ export const getBudgetStatus = query({
                          ).first();
                  }
 
-                 // If not yet rolled over, OR if the amount changed (re-run scenario)
-                 if (!targetBudget || targetBudget.carryoverAmount !== sisa.toString()) {
+                 // If not yet rolled over, OR if the carryover amount in target doesn't match the actual 'sisa'
+                 const targetCarryoverValue = targetBudget ? parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0') : 0;
+                 
+                 if (!targetBudget || Math.abs(targetCarryoverValue - sisa) > 0.01) {
                      monthEndProposals.push({
                          type: 'rollover',
                          categoryId: b.categoryId,
@@ -783,18 +786,26 @@ export const sweepBudgets = mutation({
 
     const spendingByCategory = calculateSpendingByCategory(monthTransactions, accountsMap, categoriesMap);
 
-    // 3. Update budgets where Allocated > Spent
+    // 3. Update budgets where Remaining Balance > 0
     let sweptCount = 0;
     for (const budget of budgets) {
-        const spent = spendingByCategory[budget.categoryId] || 0;
-        const allocated = parseFloat(budget.amount.replace(/,/g, '') || '0');
-        const currentSwept = parseFloat(budget.sweptAmount?.replace(/,/g, '') || '0');
-        
-        // Only sweep if there is new leftover to sweep
-        if (allocated > (spent + currentSwept)) {
-            const newSweptValue = allocated - spent;
-            await ctx.db.patch(budget._id, { sweptAmount: newSweptValue.toString() });
-            sweptCount++;
+        const category = categoriesMap.get(budget.categoryId);
+        // Only sweep if it's NOT a rollover category (Standard categories only)
+        if (!category?.enablePacing) {
+            const spent = spendingByCategory[budget.categoryId] || 0;
+            const allocated = parseFloat(budget.amount.replace(/,/g, '') || '0');
+            const carryover = parseFloat(budget.carryoverAmount?.replace(/,/g, '') || '0');
+            const currentSwept = parseFloat(budget.sweptAmount?.replace(/,/g, '') || '0');
+            
+            // Total effective funds available this month
+            const totalAvailable = allocated + carryover;
+            const remaining = totalAvailable - spent;
+
+            // Only update if there is something to sweep and it's different from the current sweep
+            if (remaining > 0 && Math.abs(remaining - currentSwept) > 0.01) {
+                await ctx.db.patch(budget._id, { sweptAmount: remaining.toString() });
+                sweptCount++;
+            }
         }
     }
 
@@ -874,17 +885,19 @@ export const rolloverBudgets = mutation({
         // 4. Process Rollover
         let rolloverCount = 0;
         for (const b of sourceBudgets) {
-            const category = await ctx.db.get(b.categoryId);
+            const category = categoriesMap.get(b.categoryId);
             // ONLY rollover if Smart Pacing is enabled
             if (category?.enablePacing) {
                 const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
                 const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+                const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
                 const spent = spendingMap[b.categoryId] || 0;
                 
-                const sisa = (allocated - swept) - spent;
+                // Final balance to roll over (positive or negative)
+                const sisa = (allocated + carryover - swept) - spent;
                 
                 if (sisa !== 0) {
-                    // Find or create target budget
+                    // Find or create target budget in the NEXT month
                     let targetBudget;
                     if (householdId) {
                         targetBudget = await ctx.db.query("budgets")
@@ -905,19 +918,25 @@ export const rolloverBudgets = mutation({
                     }
 
                     if (targetBudget) {
-                        await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
+                        // Update existing carryover if it differs
+                        const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
+                        if (Math.abs(targetCarryover - sisa) > 0.01) {
+                            await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
+                            rolloverCount++;
+                        }
                     } else {
+                        // Insert new budget record with the carryover
                         await ctx.db.insert("budgets", {
                             userId,
                             householdId,
                             categoryId: b.categoryId,
-                            amount: "0", // Initial allocation is 0 if not set
+                            amount: "0", 
                             year: targetYear,
                             month: targetMonth,
                             carryoverAmount: sisa.toString()
                         });
+                        rolloverCount++;
                     }
-                    rolloverCount++;
                 }
             }
         }

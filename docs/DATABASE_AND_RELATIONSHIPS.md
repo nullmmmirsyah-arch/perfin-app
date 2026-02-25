@@ -43,9 +43,14 @@ To support partial settlements (installments), we use a self-referential relatio
 - **Relation:** A `budget` document exists for a unique combination of `categoryId`, `year`, and `month`.
 - **Fiscal Start Day:** All monthly groupings are calculated using `budgetStartDay` from the household settings. 
     - *Example:* If Start Day is 25, a transaction on Jan 26 belongs to the "February" budget period.
-- **Swept/Carryover:** 
-    - `sweptAmount`: Funds returned to the wallet from previous months.
-    - `carryoverAmount`: Debt or surplus carried forward (only for Paced budgets).
+- **Month-End Processing (Review & Process):**
+    - **Formula for Remaining Funds:** `(Allocated + Carryover - Swept) - Spent`.
+    - **The `categoriesMap` Rule:** To accurately calculate `Spent`, you **MUST** provide `categoriesMap` to include settlements/reimbursements in the netting logic.
+    - **Standard Categories:** Positive remaining funds are **Swept** (returned to Unassigned Cash). Negative balances are closed.
+    - **Paced Categories:** Both Surplus and Debt (negative balances) are **Rolled Over** to the next month's `carryoverAmount`.
+- **Swept/Carryover Fields:** 
+    - `sweptAmount`: Funds already returned to the wallet (prevents double-counting).
+    - `carryoverAmount`: Debt or surplus carried forward (Paced budgets only).
 
 ## Integrity Triggers (Backend Logic)
 
