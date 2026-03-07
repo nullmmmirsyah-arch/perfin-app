@@ -276,58 +276,31 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
   const [isDirty, setIsDirty] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   
+  // Defensive lock to prevent re-triggering the dialog after choosing "Keep Editing"
+  const [isLocked, setIsLocked] = useState(false);
+
   // History Management
   useEffect(() => {
     if (open) {
-      // 1. Push State when Drawer Opens
       window.history.pushState({ drawer: 'transaction' }, '', window.location.href);
 
       const handlePopState = (event: PopStateEvent) => {
-        // Handle Back Button Logic
-        
-        // Scenario A: Split Drawer is Open -> Close it
         if (splitDrawerOpen) {
-           // We assume the split drawer pushed its own state or we handle it here.
-           // Ideally, if we use a stacked approach:
-           // If we are here, it means we popped a state.
-           // If we managed split drawer with its own pushState, good.
-           // Let's implement a simple robust check.
            setSplitDrawerOpen(false);
-           // If we just popped the 'split' state, we are back to 'transaction' state.
-           // If we didn't push a split state, we might have popped 'transaction' state.
-           // To be safe, we always want to be in 'transaction' state if the main drawer is open.
-           // But simply preventing the default back behavior is tricky.
-           
-           // Simple Strategy: Check if we need to restore state
-           // If we want to stay on the page, we might need to push state back if we popped the LAST one.
-           // But if we had 2 states (Base -> Tx -> Split), popping Split leaves us at Tx. Correct.
            return;
         }
 
-        // Scenario B: Main Drawer Open (Split Closed) -> Check Dirty
         if (isDirty) {
-            // User tried to go back but has unsaved changes.
-            // 1. Restore the history state because we want to stay here for the dialog.
+            // Restore state and show dialog
             window.history.pushState({ drawer: 'transaction' }, '', window.location.href);
-            // 2. Show Confirmation
             setShowDiscardDialog(true);
         } else {
-            // Scenario C: Clean State -> Allow Close
             onOpenChange(false);
         }
       };
 
       window.addEventListener('popstate', handlePopState);
-
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-        // Cleanup: If we are closing (and not because of back button), we might need to pop.
-        // But doing this reliably is hard. 
-        // Best effort: If we are still in the 'transaction' state according to history, back() it.
-        // However, checking history.state is not always reliable across browsers.
-        // We'll let the browser history naturally accumulate if user closes via UI, 
-        // or we can try to back() if we know we pushed.
-      };
+      return () => window.removeEventListener('popstate', handlePopState);
     }
   }, [open, isDirty, splitDrawerOpen, onOpenChange]);
 
@@ -338,17 +311,22 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
     }
   }, [splitDrawerOpen]);
 
-  // Intercept UI Close Attempts (Clicking outside / Close Button)
+  const handleKeepEditing = () => {
+      setShowDiscardDialog(false);
+      // Lock all close attempts for 500ms to allow UI to stabilize
+      setIsLocked(true);
+      setTimeout(() => setIsLocked(false), 500);
+  };
+
   const handleOpenChangeWrapper = (newOpen: boolean) => {
-      if (!newOpen) {
-          // Attempting to close
-          if (isDirty) {
-              setShowDiscardDialog(true);
-              return;
-          }
-           // If closing via UI, we should technically clean up history, but it's often optional.
-           // Ideally: window.history.back();
-           // But only if the top state is ours.
+      // If we are in a locked state, ignore the request to close
+      if (!newOpen && isLocked) {
+          return;
+      }
+
+      if (!newOpen && isDirty) {
+          if (!showDiscardDialog) setShowDiscardDialog(true);
+          return;
       }
       onOpenChange(newOpen);
   };
@@ -376,12 +354,7 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
     <>
         {isMobile ? (
         <Drawer open={open} onOpenChange={handleOpenChangeWrapper}>
-            <DrawerContent className="max-h-[96dvh] flex flex-col bg-background" onInteractOutside={(e) => {
-                if(isDirty) {
-                    e.preventDefault();
-                    setShowDiscardDialog(true);
-                }
-            }}>
+            <DrawerContent className="max-h-[96dvh] flex flex-col bg-background">
             <DrawerHeader className="sr-only">
                 <DrawerTitle>{title}</DrawerTitle>
             </DrawerHeader>
@@ -398,12 +371,6 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
         <Dialog open={open} onOpenChange={handleOpenChangeWrapper}>
             <DialogContent 
                 className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0"
-                onInteractOutside={(e) => {
-                    if(isDirty) {
-                        e.preventDefault();
-                        setShowDiscardDialog(true);
-                    }
-                }}
             >
             <DialogHeader className="p-6 pb-2">
                 <DialogTitle>{title}</DialogTitle>
@@ -421,8 +388,14 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
         </Dialog>
         )}
 
-        <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-            <AlertDialogContent>
+        <AlertDialog 
+            open={showDiscardDialog} 
+            onOpenChange={(isOpen) => {
+                if (!isOpen) handleKeepEditing();
+                else setShowDiscardDialog(true);
+            }}
+        >
+            <AlertDialogContent className="z-100" onCloseAutoFocus={(e) => e.preventDefault()}>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Discard changes?</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -430,7 +403,9 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+                    <Button variant="outline" onClick={handleKeepEditing} className="mt-2 sm:mt-0">
+                        Keep Editing
+                    </Button>
                     <AlertDialogAction onClick={handleDiscard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                         Discard
                     </AlertDialogAction>
