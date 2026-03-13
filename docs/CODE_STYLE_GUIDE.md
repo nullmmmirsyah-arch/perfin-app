@@ -10,7 +10,7 @@
 - **Directories:** `kebab-case` (e.g., `app/transaction-list/`).
 - **Convex Functions:** `camelCase` (e.g., `getBudgetStatus`, `archiveAccount`).
 - **Variables:** `camelCase`.
-- **Database Tables:** `camelCase` (plural) (e.g., `transactions`, `householdMembers`).
+- **Database Tables:** `camelCase` (plural) (e.g., `transactions`, `householdMembers`). *Note: Logs or history tables may use singular (e.g., `goalHistory`).*
 - **Constants:** `UPPER_SNAKE_CASE` (e.g., `TRANSACTION_TYPES.EXPENSE`).
 
 ## Component Structure
@@ -163,9 +163,9 @@ Certain UI patterns are standardized to ensure consistency.
     - Keep "Presentation" separate from "Logic" where possible, or use Custom Hooks.
 
 3.  **Formatting Standard:**
-    - **Currency:** ALWAYS use `formatCurrency(value, { isPrivacyMode })` from `@/lib/utils`.
+    - **Currency:** ALWAYS use `formatCurrency(value, options)` from `@/lib/utils`.
         - **Do NOT** manually implement `Intl.NumberFormat` or `.toLocaleString()` in components.
-        - This ensures consistent styling (e.g., no decimals) and handles **Privacy Mode** masking (`••••`) centrally.
+        - This ensures consistent styling (e.g., no decimals) and centrally handles **Privacy Mode** masking (`••••`) via the optional `{ isPrivacyMode: true }` parameter.
     - **Parsing:** ALWAYS use `parseAmount(value)` from `@/lib/utils` when converting string inputs/database values to numbers for calculation. This safely handles commas and empty strings.
     - **Thousand Separators:** Ensure all numeric inputs in forms are formatted using the helper `formatNumber` (local to Drawer) or similar patterns to keep separators visible during typing.
 
