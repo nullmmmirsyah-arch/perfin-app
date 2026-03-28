@@ -552,13 +552,11 @@ export const upsertBudget = mutation({
     }
 
     if (currentBudget) {
-      // Retroactively set initialAmount if not already set (for budgets created before migration)
-      const updates: Record<string, string> = { amount: args.amount };
-      if (currentBudget.initialAmount === undefined) {
-        updates.initialAmount = args.amount;
-        updates.totalAdjustments = "0";
-      }
-      await ctx.db.patch(currentBudget._id, updates);
+      // Always update both amount and initialAmount when editing existing budget via "Set Limit"
+      await ctx.db.patch(currentBudget._id, { 
+        amount: args.amount,
+        initialAmount: args.amount 
+      });
     } else {
       await ctx.db.insert("budgets", {
         userId: identity.subject,

@@ -44,13 +44,21 @@ To support partial settlements (installments), we use a self-referential relatio
 - **Fiscal Start Day:** All monthly groupings are calculated using `budgetStartDay` from the household settings. 
     - *Example:* If Start Day is 25, a transaction on Jan 26 belongs to the "February" budget period.
 - **Budget Breakdown Fields:**
-    - `initialAmount`: The initial allocation from "Set Limit" action.
+    - `initialAmount`: The initial allocation from "Set Limit" action. Updated whenever user changes budget via "Set Limit".
     - `totalAdjustments`: Accumulated changes from "Move Funds" (can be negative).
     - `amount`: The current/effective amount.
 - **Budget Formula:**
     ```
     Total = initialAmount + totalAdjustments + carryoverAmount
     ```
+- **Set Limit Action:**
+    - When user edits budget via "Set Limit" tab, both `amount` and `initialAmount` are updated.
+    - `totalAdjustments` remains unchanged.
+    - Example: Budget changed from 3jt to 1jt → `amount=1jt`, `initialAmount=1jt`
+- **Move Funds Logic:**
+    - Source category: `totalAdjustments -= moveAmount` (can go negative).
+    - Destination category: `totalAdjustments += moveAmount`.
+    - `initialAmount` never changes during move funds.
 - **Month-End Processing (Review & Process):**
     - **Formula for Remaining Funds:** `(Allocated + Carryover - Swept) - Spent`.
     - **The `categoriesMap` Rule:** To accurately calculate `Spent`, you **MUST** provide `categoriesMap` to include settlements/reimbursements in the netting logic.
@@ -59,10 +67,6 @@ To support partial settlements (installments), we use a self-referential relatio
 - **Swept/Carryover Fields:** 
     - `sweptAmount`: Funds already returned to the wallet (prevents double-counting).
     - `carryoverAmount`: Debt or surplus carried forward (Paced budgets only).
-- **Move Funds Logic:**
-    - Source category: `totalAdjustments -= moveAmount` (can go negative).
-    - Destination category: `totalAdjustments += moveAmount`.
-    - `initialAmount` never changes during move funds.
 
 ## Integrity Triggers (Backend Logic)
 
