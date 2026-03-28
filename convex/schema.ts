@@ -147,6 +147,8 @@ export default defineSchema({
     amount: v.string(),
     year: v.number(),
     month: v.number(),
+    initialAmount: v.optional(v.string()),
+    totalAdjustments: v.optional(v.string()),
     sweptAmount: v.optional(v.string()),
     carryoverAmount: v.optional(v.string()),
   })

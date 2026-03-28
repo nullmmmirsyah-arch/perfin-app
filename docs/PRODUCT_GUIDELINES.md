@@ -98,10 +98,21 @@ This document outlines the design philosophy and user experience patterns used i
     - **Visuals:** Personal spending is a solid color (Primary/Blue). Pending receivables (lent money) use a striped pattern overlay.
     - **Partial Support:** The striped portion shrinks as the borrower pays back installments.
 - **Privacy Mode:**
-- **Purpose:** Protect sensitive financial data when using the app in public spaces.
-- **Default Behavior:** Privacy Mode defaults to **ON (Active)** every time the application is loaded or the user navigates back to the Dashboard. It does not persist the "OFF" state across sessions/navigation to ensure security.
-- **Visuals:** Sensitive amounts (Balances, Totals) are masked using bullet characters (`••••`) instead of asterisks.
-- **Interaction:** Toggled via the **Eye Icon** in the Dashboard Page Header.
+    - **Purpose:** Protect sensitive financial data when using the app in public spaces.
+    - **Default Behavior:** Privacy Mode defaults to **ON (Active)** every time the application is loaded or the user navigates back to the Dashboard. It does not persist the "OFF" state across sessions/navigation to ensure security.
+    - **Visuals:** Sensitive amounts (Balances, Totals) are masked using bullet characters (`••••`) instead of asterisks.
+    - **Interaction:** Toggled via the **Eye Icon** in the Dashboard Page Header.
+- **Budget Report (/report):**
+    - **Purpose:** Historical view of budget performance with detailed breakdown per period.
+    - **Features:**
+        - **Period Selector:** 3, 6, or 12 months view.
+        - **Category Filter:** Filter by specific category or view all.
+        - **View Mode:** Toggle between Table and Chart visualization.
+    - **Breakdown Display:**
+        | Period | Initial | Adjustment | Carryover | Total | Spent | Remaining |
+        |--------|---------|------------|-----------|-------|-------|-----------|
+        | Mar 26 | 500.000 |   +50.000  |  +25.000  |575.000|450.000| 125.000 |
+    - **Chart View:** Stacked bar chart showing Initial + Adjustment + Carryover, with Spent as line overlay.
 
 ### 7. Category Detail Page
 - **Performance Trend:** A 12-month bar chart visualizing **Effective Budget** (Planned + Carryover) vs. Actual Spending. 

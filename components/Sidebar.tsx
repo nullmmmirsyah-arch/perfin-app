@@ -9,7 +9,8 @@ import {
   Tags, 
   PiggyBank, 
   Hash,
-  Target
+  Target,
+  FileBarChart
 } from 'lucide-react'
 
 import {
@@ -35,6 +36,7 @@ const links = [
   { href: '/accounts', label: 'Accounts', icon: Wallet },
   { href: '/categories', label: 'Categories', icon: Tags },
   { href: '/budgets', label: 'Budgets', icon: PiggyBank },
+  { href: '/report', label: 'Reports', icon: FileBarChart },
   { href: '/labels', label: 'Labels', icon: Hash },
 ]
 

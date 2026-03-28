@@ -142,12 +142,14 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorString = JSON.stringify(error);
       
-      if (errorMessage.includes("Insufficient") || errorString.includes("Insufficient")) {
+      if (errorMessage.includes("Budget not found")) {
+          form.setError('root', { type: 'manual', message: errorMessage });
+      } else if (errorMessage.includes("Insufficient") || errorString.includes("Insufficient")) {
           const match = (errorMessage + errorString).match(/Insufficient[^.]+\./);
           const cleanMessage = match ? match[0] : "Insufficient funds.";
           form.setError('amount', { type: 'manual', message: cleanMessage });
       } else {
-          form.setError('root', { type: 'manual', message: "An unexpected error occurred." });
+          form.setError('root', { type: 'manual', message: errorMessage });
       }
       setIsProcessing(false);
       submitLock.current = false;

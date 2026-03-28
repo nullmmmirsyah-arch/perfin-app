@@ -290,21 +290,23 @@ export function getFiscalDateDetails(
 
 /**
  * Calculates the Start and End Date for a specific Fiscal Month.
- * Example: Fiscal Month Jan (Year 2024), StartDay 25.
- * Returns: { start: "2024-01-25...", end: "2024-02-24..." }
+ * Example: Fiscal Month March (Year 2026), StartDay 25.
+ * Returns: { start: "2026-03-25...", end: "2026-04-24..." }
+ * 
+ * Fiscal month concept: If startDay=25, fiscal March starts on Mar 25 and ends on Apr 24.
  */
 export function getFiscalMonthRange(
   year: number,
   month: number,
   startDay: number = 1
 ): { start: string; end: string } {
-  // Start Date
+  // Start Date: startDay of current month
   const startDate = new Date(year, month, startDay);
   
-  // End Date: Start Date + 1 Month - 1ms
-  // Note: JS Date handles overflow correctly (e.g., month 12 becomes Jan next year)
-  const nextMonthDate = new Date(year, month + 1, startDay);
-  const endDate = new Date(nextMonthDate.getTime() - 1);
+  // End Date: (startDay - 1) of next month
+  const nextMonth = month === 11 ? 0 : month + 1;
+  const nextYear = month === 11 ? year + 1 : year;
+  const endDate = new Date(nextYear, nextMonth, startDay - 1, 23, 59, 59, 999);
 
   return { 
     start: startDate.toISOString(), 

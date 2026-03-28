@@ -107,6 +107,10 @@
         - **Visualization:** These fields are explicitly visualized in the **Budget Summary Card** and individual **Budget Cards** to provide transparency into how the current limit was derived (Assigned + Carryover - Swept).
         - **Sweep Logic (`sweepBudgets`):** Detects unspent funds in standard budgets. Instead of overwriting the original budget limit (which destroys history), it sets `sweptAmount`. This safely returns funds to Unassigned Cash while preserving the record of the original allocation.
         - **Rollover Logic (`rolloverBudgets`):** Detects remaining balances (positive or negative) in **Smart Budgets** (categories with Pacing enabled). It automatically creates or updates the *next month's* budget entry with a `carryoverAmount`. This allows users to carry debt or savings forward.
+    - **Budget Report Feature (/report):**
+        - **Purpose:** Provides historical view of budget performance with detailed breakdown.
+        - **Filters:** Category, Period (3/6/12 months), View Mode (Table/Chart).
+        - **Breakdown:** Initial + Adjustment + Carryover = Total per period.
     - **Cron Jobs (Auto-Save):**
         - Uses **Native Convex Crons** defined in `convex/crons.ts`.
         - Runs **Hourly** to check `scheduledTransactions` table for due items (`nextRunAt <= Now`).
@@ -122,6 +126,23 @@
     - **Intentional Global Fetching (`allTransactions`):** In queries like `getBudgetStatus`, fetching the entire transaction history for a user/household is **intentional**.
         - *Reasoning:* It is required for cumulative calculations (e.g., Accumulated Savings progress) and global "Unassigned Cash" logic which relies on historical data. Since this data is already in memory for these core features, filtering it for smaller tasks (like `thisMonthIncome`) is more efficient than making multiple targeted database queries.
     - **Memoization (Frontend):** Use `useMemo` for heavy client-side grouping or filtering operations (e.g., `TransactionListGrouped`), especially when dealing with large datasets on mobile devices.
+    - **Fiscal Month Filtering:**
+        - When filtering transactions within a fiscal period, use **manual JS filter with Date objects** instead of Convex query filter.
+        - **Reason:** Convex query filter with string comparison does not work correctly for date range filtering.
+        - **Pattern:**
+            ```typescript
+            // ✅ CORRECT - Manual filter with Date objects
+            const allTxs = await ctx.db.query("transactions").collect();
+            const filtered = allTxs.filter(t => {
+                const txDate = new Date(t.date);
+                return txDate >= startDateObj && txDate <= endDateObj;
+            });
+            
+            // ❌ INCORRECT - Convex query filter (does not work)
+            const txs = await ctx.db.query("transactions")
+                .filter(q => q.gte(q.field("date"), startOfMonth)...)
+                .collect();
+            ```
 
 6.  **Context-Specific Logic vs. Centralized Helpers:**
     - While we prioritize centralized logic in `convex/lib/finance.ts`, some manual calculations in specific queries are **intentional**.

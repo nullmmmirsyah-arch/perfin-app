@@ -79,3 +79,52 @@ export const backfillHouseholdSettings = mutation({
     return { total: households.length, updated };
   }
 });
+
+/**
+ * Migration: Backfill Budget Fields
+ * 
+ * This script populates the new 'initialAmount' and 'totalAdjustments' fields
+ * for existing budgets. For existing budgets:
+ * - initialAmount = amount (retroactive - this was the initial allocation)
+ * - totalAdjustments = "0" (no historical adjustments tracked)
+ * 
+ * Run this ONCE from the Convex Dashboard after deploying the new schema.
+ */
+export const backfillBudgetFields = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const budgets = await ctx.db.query("budgets").collect();
+    
+    console.log(`Starting backfill for ${budgets.length} budgets...`);
+    
+    let updatedCount = 0;
+    let skippedCount = 0;
+    
+    for (const budget of budgets) {
+      // Skip if already populated (Idempotency)
+      if (budget.initialAmount !== undefined && budget.totalAdjustments !== undefined) {
+        skippedCount++;
+        continue;
+      }
+      
+      // Set initialAmount to current amount (retroactive)
+      // Set totalAdjustments to "0" (no historical data)
+      await ctx.db.patch(budget._id, {
+        initialAmount: budget.amount,
+        totalAdjustments: "0",
+      });
+      
+      updatedCount++;
+    }
+    
+    console.log(`Backfill complete!`);
+    console.log(`Updated: ${updatedCount}`);
+    console.log(`Skipped: ${skippedCount} (Already indexed)`);
+    
+    return {
+      total: budgets.length,
+      updated: updatedCount,
+      skipped: skippedCount,
+    };
+  },
+});

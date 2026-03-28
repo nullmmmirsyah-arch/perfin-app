@@ -552,7 +552,13 @@ export const upsertBudget = mutation({
     }
 
     if (currentBudget) {
-      await ctx.db.patch(currentBudget._id, { amount: args.amount });
+      // Retroactively set initialAmount if not already set (for budgets created before migration)
+      const updates: Record<string, string> = { amount: args.amount };
+      if (currentBudget.initialAmount === undefined) {
+        updates.initialAmount = args.amount;
+        updates.totalAdjustments = "0";
+      }
+      await ctx.db.patch(currentBudget._id, updates);
     } else {
       await ctx.db.insert("budgets", {
         userId: identity.subject,
@@ -561,6 +567,8 @@ export const upsertBudget = mutation({
         amount: args.amount,
         year: args.year,
         month: args.month,
+        initialAmount: args.amount,
+        totalAdjustments: "0",
       });
     }
   },
@@ -624,22 +632,37 @@ export const moveBudgetFunds = mutation({
     if (fromCategoryId) {
         // Move from another Category
         const sourceBudget = allBudgets.find(b => b.categoryId === fromCategoryId);
-        const sourceLimit = sourceBudget ? parseFloat(sourceBudget.amount.replace(/,/g, '') || '0') : 0;
+        
+        // Debug: Log if budget not found
+        if (!sourceBudget) {
+            throw new Error(`Budget not found for category ${fromCategoryId} in period ${year}-${month}. Please ensure the category has a budget set first.`);
+        }
+        
+        const sourceLimit = parseFloat(sourceBudget.amount.replace(/,/g, '') || '0');
         
         // We must check if source has enough *Remaining* (Limit - Spent)
         // Fetch spending for validation
         const { start: startOfMonth, end: endOfMonth } = getFiscalMonthRange(year, month, startDay);
         
-        let txQuery;
+        // Fetch all transactions for this household first
+        let allTransactions;
         if (householdId) {
-            txQuery = ctx.db.query("transactions").withIndex("by_householdId_date", q => q.eq("householdId", householdId));
+            allTransactions = await ctx.db.query("transactions")
+                .withIndex("by_householdId_date", q => q.eq("householdId", householdId))
+                .collect();
         } else {
-            txQuery = ctx.db.query("transactions").withIndex("by_userId_date", q => q.eq("userId", userId));
+            allTransactions = await ctx.db.query("transactions")
+                .withIndex("by_userId_date", q => q.eq("userId", userId))
+                .collect();
         }
         
-        const transactions = await txQuery
-            .filter(q => q.gte(q.field("date"), startOfMonth) && q.lte(q.field("date"), endOfMonth))
-            .collect();
+        // Filter transactions within the fiscal month using Date objects
+        const startDateObj = new Date(startOfMonth);
+        const endDateObj = new Date(endOfMonth);
+        const transactions = allTransactions.filter(t => {
+            const txDate = new Date(t.date);
+            return txDate >= startDateObj && txDate <= endDateObj;
+        });
 
         // Get Account Map for accurate spending calculation
         let allAccounts;
@@ -660,16 +683,21 @@ export const moveBudgetFunds = mutation({
 
         const spendingMap = calculateSpendingByCategory(transactions, accountsMap, categoriesMap);
         const sourceSpent = spendingMap[fromCategoryId] || 0;
-        const sourceAvailable = Math.max(0, sourceLimit - sourceSpent);
+        // Allow negative adjustments - user can move funds even if overspent
+        // This will result in negative totalAdjustments
+        const sourceAvailable = sourceLimit - sourceSpent;
 
-        if (moveAmount > sourceAvailable) {
-            throw new Error(`Insufficient funds in source category. Available: ${sourceAvailable.toLocaleString()}`);
-        }
+        // No validation needed - adjustments can go negative
+        // User responsibility to manage their budget
 
-        // Reduce Source Budget
+        // Reduce Source Budget and track adjustment
         if (sourceBudget) {
             const newSourceAmount = sourceLimit - moveAmount;
-            await ctx.db.patch(sourceBudget._id, { amount: newSourceAmount.toString() });
+            const currentSourceAdjustments = parseFloat(sourceBudget.totalAdjustments?.replace(/,/g, '') || '0');
+            await ctx.db.patch(sourceBudget._id, { 
+                amount: newSourceAmount.toString(),
+                totalAdjustments: (currentSourceAdjustments - moveAmount).toString()
+            });
         }
     } else {
         // Move from Unassigned Cash
@@ -707,19 +735,26 @@ export const moveBudgetFunds = mutation({
         // Unassigned reduces automatically when we increase a budget limit. No manual patch needed for "Unassigned" entity.
     }
 
-    // 3. Increase Destination Budget
+    // 3. Increase Destination Budget and track adjustment
     const destBudget = allBudgets.find(b => b.categoryId === toCategoryId);
     if (destBudget) {
         const currentDest = parseFloat(destBudget.amount.replace(/,/g, '') || '0');
-        await ctx.db.patch(destBudget._id, { amount: (currentDest + moveAmount).toString() });
+        const currentDestAdjustments = parseFloat(destBudget.totalAdjustments?.replace(/,/g, '') || '0');
+        await ctx.db.patch(destBudget._id, { 
+            amount: (currentDest + moveAmount).toString(),
+            totalAdjustments: (currentDestAdjustments + moveAmount).toString()
+        });
     } else {
+        // New budget created via move funds - set as initial with adjustments
         await ctx.db.insert("budgets", {
             userId,
             householdId,
             categoryId: toCategoryId,
             amount: moveAmount.toString(),
             year,
-            month
+            month,
+            initialAmount: "0",
+            totalAdjustments: moveAmount.toString(),
         });
     }
   }
@@ -943,4 +978,173 @@ export const rolloverBudgets = mutation({
 
         return rolloverCount;
     }
+});
+
+export const getBudgetReport = query({
+  args: {
+    householdId: v.optional(v.id("households")),
+    months: v.number(),
+    categoryId: v.optional(v.id("categories")),
+  },
+  handler: async (ctx, { householdId, months, categoryId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const userId = identity.subject;
+
+    if (householdId) {
+        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) {
+            return { periods: [], totals: null };
+        }
+    }
+
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    // 1. Get all categories (filter by type)
+    let categories;
+    if (householdId) {
+        categories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        categories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
+    
+    // Filter expense and saving categories
+    categories = categories.filter(c => (c.type === 'expense' || c.type === 'saving') && c.status !== 'achieved' && c.status !== 'archived' && !c.isArchived);
+    
+    // Filter by categoryId if provided
+    if (categoryId) {
+        categories = categories.filter(c => c._id === categoryId);
+    }
+
+    // 2. Get all transactions
+    let allTransactions;
+    if (householdId) {
+        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
+
+    // 3. Get all accounts
+    let allAccounts;
+    if (householdId) {
+        allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
+
+    // 4. Get all budgets
+    let allBudgets;
+    if (householdId) {
+        allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
+    } else {
+        allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
+    }
+
+    const categoriesMap = new Map(categories.map(c => [c._id, c]));
+
+    // 5. Calculate periods to fetch (from current - months + 1 to current)
+    const periods: { year: number; month: number }[] = [];
+    for (let i = months - 1; i >= 0; i--) {
+        let m = currentMonth - i;
+        let y = currentYear;
+        while (m < 0) { m += 12; y--; }
+        while (m > 11) { m -= 12; y++; }
+        periods.push({ year: y, month: m });
+    }
+
+    // 6. Build periods data
+    const periodsData = periods.map(period => {
+        const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(period.year, period.month, startDay);
+        const startObj = new Date(startOfFiscal);
+        const endObj = new Date(endOfFiscal);
+
+        // Get budgets for this period
+        const periodBudgets = allBudgets.filter(b => b.year === period.year && b.month === period.month);
+        const budgetMap = new Map(periodBudgets.map(b => [String(b.categoryId), b]));
+
+        // Get transactions for this period
+        const periodTransactions = allTransactions.filter(t => {
+            const tDate = new Date(t.date);
+            return tDate >= startObj && tDate <= endObj;
+        });
+
+        // Calculate spending
+        const spendingByCategory = calculateSpendingByCategory(periodTransactions, accountsMap, categoriesMap);
+
+        // Build category breakdown
+        const categoryBreakdown = categories.map(cat => {
+            const budget = budgetMap.get(String(cat._id));
+            const initial = budget ? parseFloat(budget.initialAmount?.replace(/,/g, '') || '0') : 0;
+            const adjustment = budget ? parseFloat(budget.totalAdjustments?.replace(/,/g, '') || '0') : 0;
+            const carryover = budget ? parseFloat(budget.carryoverAmount?.replace(/,/g, '') || '0') : 0;
+            const total = initial + adjustment + carryover;
+            const spent = spendingByCategory[cat._id] || 0;
+            const remaining = total - spent;
+
+            return {
+                categoryId: cat._id,
+                categoryName: cat.name,
+                categoryType: cat.type,
+                initial,
+                adjustment,
+                carryover,
+                total,
+                spent,
+                remaining,
+                isOverBudget: remaining < 0,
+            };
+        });
+
+        // Calculate period totals
+        const periodTotals = categoryBreakdown.reduce((acc, cat) => ({
+            initial: acc.initial + cat.initial,
+            adjustment: acc.adjustment + cat.adjustment,
+            carryover: acc.carryover + cat.carryover,
+            total: acc.total + cat.total,
+            spent: acc.spent + cat.spent,
+            remaining: acc.remaining + cat.remaining,
+        }), { initial: 0, adjustment: 0, carryover: 0, total: 0, spent: 0, remaining: 0 });
+
+        // Format period label
+        const periodDate = new Date(period.year, period.month, startDay);
+        const periodLabel = periodDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+
+        return {
+            year: period.year,
+            month: period.month,
+            periodLabel,
+            ...periodTotals,
+            isOverBudget: periodTotals.remaining < 0,
+            byCategory: categoryBreakdown,
+        };
+    });
+
+    // 7. Calculate grand totals
+    const totals = periodsData.reduce((acc, period) => ({
+        initial: acc.initial + period.initial,
+        adjustment: acc.adjustment + period.adjustment,
+        carryover: acc.carryover + period.carryover,
+        total: acc.total + period.total,
+        spent: acc.spent + period.spent,
+        remaining: acc.remaining + period.remaining,
+    }), { initial: 0, adjustment: 0, carryover: 0, total: 0, spent: 0, remaining: 0 });
+
+    return {
+        periods: periodsData,
+        totals,
+        meta: {
+            months,
+            budgetStartDay: startDay,
+            currentYear,
+            currentMonth,
+        },
+    };
+  }
 });
