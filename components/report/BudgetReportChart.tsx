@@ -2,18 +2,17 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
+import { ChartContainer, ChartConfig } from '@/components/ui/chart';
+import { formatCurrency } from '@/lib/utils';
 import {
-  BarChart,
+  ResponsiveContainer,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
   Line,
   ComposedChart,
+  Tooltip,
 } from 'recharts';
 
 interface PeriodData {
@@ -34,40 +33,88 @@ interface BudgetReportChartProps {
   className?: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-background border rounded-lg shadow-lg p-3 text-sm">
-        <p className="font-medium mb-2">{label}</p>
-        <div className="space-y-1">
-          <p className="text-blue-500">
-            <span className="text-muted-foreground">Initial: </span>
-            {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(payload.find((p: any) => p.dataKey === 'initial')?.value || 0)}
-          </p>
-          <p className="text-green-500">
-            <span className="text-muted-foreground">Adjustment: </span>
-            {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(payload.find((p: any) => p.dataKey === 'adjustment')?.value || 0)}
-          </p>
-          <p className="text-amber-500">
-            <span className="text-muted-foreground">Carryover: </span>
-            {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(payload.find((p: any) => p.dataKey === 'carryover')?.value || 0)}
-          </p>
-          <p className="text-purple-500">
-            <span className="text-muted-foreground">Total: </span>
-            {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(payload.find((p: any) => p.dataKey === 'total')?.value || 0)}
-          </p>
-          <div className="border-t pt-1 mt-1">
-            <p className="text-primary font-medium">
-              <span className="text-muted-foreground font-normal">Spent: </span>
-              {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(payload.find((p: any) => p.dataKey === 'spent')?.value || 0)}
-            </p>
-          </div>
+const chartConfig = {
+  initial: {
+    label: 'Initial',
+    theme: {
+      light: '#3b82f6',
+      dark: '#3b82f6',
+    },
+  },
+  adjustment: {
+    label: 'Adjustment',
+    theme: {
+      light: '#649df9',
+      dark: '#649df9',
+    },
+  },
+  carryover: {
+    label: 'Carryover',
+    theme: {
+      light: '#f59e0b',
+      dark: '#f59e0b',
+    },
+  },
+  spent: {
+    label: 'Spent',
+    theme: {
+      light: '#8b5cf6',
+      dark: '#a78bfa',
+    },
+  },
+} satisfies ChartConfig;
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    dataKey: string;
+    value: number;
+    color: string;
+  }>;
+  label?: string;
+}
+
+function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+  if (!active || !payload) return null;
+
+  const initial = payload.find(p => p.dataKey === 'Initial')?.value || 0;
+  const adjustment = payload.find(p => p.dataKey === 'Adjustment')?.value || 0;
+  const carryover = payload.find(p => p.dataKey === 'Carryover')?.value || 0;
+  const total = payload.find(p => p.dataKey === 'Total')?.value || 0;
+  const spent = payload.find(p => p.dataKey === 'Spent')?.value || 0;
+
+  return (
+    <div className="bg-background border rounded-lg shadow-lg p-3 text-sm">
+      <p className="font-medium mb-2">{label}</p>
+      <div className="space-y-1">
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">Initial:</span>
+          <span className="font-medium text-[#3b82f6]">{formatCurrency(initial, { isPrivacyMode: false })}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">Adjustment:</span>
+          <span className={`font-medium ${adjustment >= 0 ? 'text-[#649df9]' : 'text-destructive'}`}>
+            {adjustment >= 0 ? '+' : ''}{formatCurrency(adjustment, { isPrivacyMode: false })}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">Carryover:</span>
+          <span className={`font-medium ${carryover >= 0 ? 'text-[#f59e0b]' : 'text-destructive'}`}>
+            {carryover >= 0 ? '+' : ''}{formatCurrency(carryover, { isPrivacyMode: false })}
+          </span>
+        </div>
+        <div className="border-t pt-1 mt-1 flex justify-between items-center">
+          <span className="text-muted-foreground">Total:</span>
+          <span className="font-bold">{formatCurrency(total, { isPrivacyMode: false })}</span>
+        </div>
+        <div className="border-t pt-1 mt-1 flex justify-between items-center">
+          <span className="text-muted-foreground">Spent:</span>
+          <span className="font-bold text-[#8b5cf6]">{formatCurrency(spent, { isPrivacyMode: false })}</span>
         </div>
       </div>
-    );
-  }
-  return null;
-};
+    </div>
+  );
+}
 
 export function BudgetReportChart({ periods, isLoading, className }: BudgetReportChartProps) {
   if (isLoading) {
@@ -108,63 +155,57 @@ export function BudgetReportChart({ periods, isLoading, className }: BudgetRepor
         <CardTitle className="text-base">Budget Trend</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px] md:h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="name" 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                tickFormatter={(value) => {
-                  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                  if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-                  return value;
-                }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '20px' }}
-                iconType="rect"
-              />
-              <Bar dataKey="Initial" stackId="a" fill="hsl(var(--chart-1))" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Adjustment" stackId="a" fill="hsl(var(--success))" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Carryover" stackId="a" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Total" fill="transparent" stackId="a" />
-              <Line 
-                type="monotone" 
-                dataKey="Spent" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={3}
-                dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        <ChartContainer config={chartConfig} className="h-[300px] w-full md:h-[400px]">
+          <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis 
+              dataKey="name" 
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+            />
+            <YAxis 
+              tick={{ fontSize: 12 }}
+              tickLine={false}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickFormatter={(value) => {
+                if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                return value;
+              }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="Initial" stackId="a" fill="var(--color-initial)" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="Adjustment" stackId="a" fill="var(--color-adjustment)" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="Carryover" stackId="a" fill="var(--color-carryover)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Total" fill="transparent" stackId="a" />
+            <Line 
+              type="monotone" 
+              dataKey="Spent" 
+              stroke="var(--color-spent)" 
+              strokeWidth={3}
+              dot={{ fill: 'var(--color-spent)', strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, fill: 'var(--color-spent)' }}
+            />
+          </ComposedChart>
+        </ChartContainer>
 
         {/* Legend explanation */}
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-1))]" />
+            <div className="w-3 h-3 rounded-sm bg-[#3b82f6]" />
             <span>Initial (Base Allocation)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm bg-[hsl(var(--success))]" />
+            <div className="w-3 h-3 rounded-sm bg-[#649df9]" />
             <span>Adjustment (Move Funds)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-sm bg-[hsl(var(--chart-3))]" />
+            <div className="w-3 h-3 rounded-sm bg-[#f59e0b]" />
             <span>Carryover (From Previous Month)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-0.5 bg-[hsl(var(--primary))]" />
+            <div className="w-3 h-0.5 bg-[#8b5cf6]" />
             <span>Spent (Actual)</span>
           </div>
         </div>
