@@ -11,12 +11,12 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+} from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -368,13 +368,14 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
             </DrawerContent>
         </Drawer>
         ) : (
-        <Dialog open={open} onOpenChange={handleOpenChangeWrapper}>
-            <DialogContent 
-                className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 gap-0"
+        <Sheet open={open} onOpenChange={handleOpenChangeWrapper}>
+            <SheetContent 
+                side="right"
+                className="sm:max-w-[500px] flex flex-col p-0 gap-0"
             >
-            <DialogHeader className="p-6 pb-2">
-                <DialogTitle>{title}</DialogTitle>
-            </DialogHeader>
+            <SheetHeader className="p-6 pb-2">
+                <SheetTitle>{title}</SheetTitle>
+            </SheetHeader>
             <div className="flex-1 overflow-y-auto p-6 pt-2">
                  <TransactionForm 
                     {...props} 
@@ -384,8 +385,8 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
                     onDirtyChange={setIsDirty}
                  />
             </div>
-            </DialogContent>
-        </Dialog>
+            </SheetContent>
+        </Sheet>
         )}
 
         <AlertDialog 
@@ -808,9 +809,9 @@ const TransactionForm = ({
               </div>
            ) : (
               <div className="flex justify-end gap-2 border-t -mx-6 pt-4 px-6 mt-6">
-                 <DialogClose asChild>
+                 <SheetClose asChild>
                     <Button variant="outline" type="button" disabled={isProcessing}>Cancel</Button>
-                 </DialogClose>
+                 </SheetClose>
                  <Button 
                    type="submit" 
                    disabled={isProcessing}
@@ -1834,13 +1835,118 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
             />
           </div>
       ) : (
-          <div className="grid grid-cols-2 gap-4">
-             <FormField control={form.control} name="accountId" render={({ field }) => (
-                <FormItem><FormLabel>From</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="From" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
-             )} />
-             <FormField control={form.control} name="toAccountId" render={({ field }) => (
-                <FormItem><FormLabel>To</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="To" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
-             )} />
+          <div className="space-y-4">
+             <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="accountId" render={({ field }) => (
+                   <FormItem><FormLabel>From</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="From" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                )} />
+                <FormField control={form.control} name="toAccountId" render={({ field }) => (
+                   <FormItem><FormLabel>To</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="To" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                )} />
+             </div>
+
+             <div className="grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel>Date</FormLabel>
+                        <FormControl>
+                        <DatePicker 
+                            date={field.value}
+                            setDate={field.onChange}
+                            disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                            }
+                        />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="labelId"
+                    render={({ field }) => (
+                    <FormItem>
+                                <FormLabel>Label</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} key={field.value}>                            <FormControl>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Select a label (optional)" />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {labels?.map(label => (
+                        <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                    )}
+                />
+             </div>
+
+             {showCategory && (
+                <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} key={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {categories.map(category => (
+                            <SelectItem key={category._id} value={category._id}>{category.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+             )}
+
+             {isAssetTransaction && (
+                <FormField
+                    control={form.control}
+                    name="assetDetails.quantity"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Quantity / Weight</FormLabel>
+                        <FormControl>
+                        <Input type="number" step="any" placeholder="0.00" {...field} />
+                        </FormControl>
+                        {parsedAmount > 0 && parsedQuantity > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                @ {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(impliedPrice)} / unit
+                            </p>
+                        )}
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+             )}
+
+             <FormField
+                 control={form.control}
+                 name="description"
+                 render={({ field }) => (
+                 <FormItem>
+                     <FormLabel>Description</FormLabel>
+                     <FormControl>
+                     <Input placeholder="Add a description" {...field} />
+                     </FormControl>
+                     <FormMessage />
+                 </FormItem>
+                 )}
+             />
           </div>
       )}
     </>
