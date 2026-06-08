@@ -15,7 +15,7 @@
 ## Overview
 
 ```
-budgetStartDay = 25
+budgetStartDay = 25 (startDay > 1 — period crosses month boundary)
 
 Before (start-month):
   Apr 25 – May 24  →  month=3 (April)
@@ -28,7 +28,28 @@ After (end-month):
   Jun 25 – Jul 24  →  month=6 (July)
 ```
 
-The physical date ranges do not change. Only the label (month value) shifts forward by 1.
+```
+budgetStartDay = 1 (startDay === 1 — period fits within one calendar month)
+
+Before & After — no change:
+  May 1 – May 31      →  month=4 (May)
+  Jun 1 – Jun 30      →  month=5 (June)
+```
+
+When `startDay === 1`, the period never crosses a month boundary, so fiscal month = calendar month. The formula must distinguish this case.
+
+### Verification: all startDay values
+
+| startDay | Today   | Old label | New label | Period range          | Correct? |
+|----------|---------|-----------|-----------|-----------------------|----------|
+| 1        | May 15  | May       | May       | May 1–May 31          | ✓ period within May |
+| 1        | Jun 15  | Jun       | Jun       | Jun 1–Jun 30          | ✓ period within Jun |
+| 10       | May 8   | Apr       | May       | Apr 10–May 9          | ✓ ends in May |
+| 10       | May 12  | May       | Jun       | May 10–Jun 9          | ✓ ends in Jun |
+| 15       | Jun 8   | May       | Jun       | May 15–Jun 14         | ✓ ends in Jun |
+| 15       | Jun 16  | Jun       | Jul       | Jun 15–Jul 14         | ✓ ends in Jul |
+| 25       | Jun 8   | May       | Jun       | May 25–Jun 24         | ✓ ends in Jun |
+| 25       | Jun 28  | Jun       | Jul       | Jun 25–Jul 24         | ✓ ends in Jul |
 
 ---
 
@@ -38,90 +59,145 @@ The physical date ranges do not change. Only the label (month value) shifts forw
 
 **Before:**
 ```ts
-if (day < startDay) return subMonths(date, 1);
-return date;
+function getFiscalDate(date: Date, startDay: number = 1): Date {
+  const day = date.getDate();
+  if (day < startDay) return subMonths(date, 1);
+  return date;
+}
 ```
 
 **After:**
 ```ts
-if (day >= startDay) return addMonths(date, 1);
-return date;
+function getFiscalDate(date: Date, startDay: number = 1): Date {
+  if (startDay === 1) return date; // period fits in one month
+  const day = date.getDate();
+  if (day >= startDay) return addMonths(date, 1); // period ends next month
+  return date;
+}
 ```
+
+Test matrix:
+
+| startDay | Date   | day ? startDay | Result  | Period labeled   | Why |
+|----------|--------|----------------|---------|------------------|-----|
+| 1        | May 15 | (always)       | May     | May 1–31         | single month |
+| 1        | Jun 15 | (always)       | Jun     | Jun 1–30         | single month |
+| 10       | May 8  | 8 < 10         | May     | Apr 10–May 9     | ends in May |
+| 10       | May 12 | 12 >= 10       | Jun     | May 10–Jun 9     | ends in Jun |
+| 25       | Jun 8  | 8 < 25         | Jun     | May 25–Jun 24    | ends in Jun |
+| 25       | Jun 28 | 28 >= 25       | Jul     | Jun 25–Jul 24    | ends in Jul |
 
 ### A2. `getFiscalMonthRange` — `lib/finance-utils.ts:33`
 
 **Before:**
 ```ts
-const startDate = new Date(year, month, startDay);
-const endDate = new Date(year, month + 1, startDay - 1);
+function getFiscalMonthRange(year: number, month: number, startDay: number = 1) {
+  const startDate = new Date(year, month, startDay);
+  const endDate = new Date(year, month + 1, startDay - 1);
+  return { start: startDate, end: endDate };
+}
 ```
 
 **After:**
 ```ts
-const startDate = new Date(year, month - 1, startDay);
-const endDate = new Date(year, month, startDay - 1);
+function getFiscalMonthRange(year: number, month: number, startDay: number = 1) {
+  // For label "May" (month=4):
+  //   startDay=1  →  May 1 – May 31  (no month shift)
+  //   startDay>1  →  Apr 25 – May 24 (start shifts back, end same month as label)
+  const startDate = new Date(year, startDay > 1 ? month - 1 : month, startDay);
+  const endDate   = new Date(year, startDay > 1 ? month : month + 1, startDay - 1);
+  return { start: startDate, end: endDate };
+}
 ```
 
-JS Date handles negative months correctly (e.g., `new Date(2026, -1, 25)` = Dec 25, 2025).
+JS Date handles negative/overflow months correctly: `new Date(2026, -1, 25)` = Dec 25, 2025; `new Date(2026, 12, 0)` = Dec 31, 2026.
 
 ### A3. `getFiscalDateDetails` — `convex/lib/finance.ts:276`
 
 **Before:**
 ```ts
-if (day < startDay) {
-  month -= 1;
-  if (month < 0) { month = 11; year -= 1; }
+export function getFiscalDateDetails(dateStr: string, startDay: number = 1) {
+  const date = new Date(dateStr);
+  const day = date.getDate();
+  let year = date.getFullYear();
+  let month = date.getMonth();
+  if (day < startDay) {
+    month -= 1;
+    if (month < 0) { month = 11; year -= 1; }
+  }
+  return { year, month };
 }
 ```
 
 **After:**
 ```ts
-if (day >= startDay) {
-  month += 1;
-  if (month > 11) { month = 0; year += 1; }
+export function getFiscalDateDetails(dateStr: string, startDay: number = 1) {
+  const date = new Date(dateStr);
+  if (startDay === 1) {
+    return { year: date.getFullYear(), month: date.getMonth() };
+  }
+  const day = date.getDate();
+  let year = date.getFullYear();
+  let month = date.getMonth();
+  if (day >= startDay) {
+    month += 1;
+    if (month > 11) { month = 0; year += 1; }
+  }
+  return { year, month };
 }
 ```
+
+Same logic as `getFiscalDate` — no shift when `startDay === 1`.
 
 ### A4. `getFiscalMonthRange` — `convex/lib/finance.ts:304`
 
 **Before:**
 ```ts
-const startDate = new Date(year, month, startDay);
-const nextMonth = month === 11 ? 0 : month + 1;
-const nextYear  = month === 11 ? year + 1 : year;
-const endDate   = new Date(nextYear, nextMonth, startDay - 1, 23, 59, 59, 999);
+export function getFiscalMonthRange(year: number, month: number, startDay: number = 1) {
+  const startDate = new Date(year, month, startDay);
+  const nextMonth = month === 11 ? 0 : month + 1;
+  const nextYear  = month === 11 ? year + 1 : year;
+  const endDate   = new Date(nextYear, nextMonth, startDay - 1, 23, 59, 59, 999);
+  return { start: startDate.toISOString(), end: endDate.toISOString() };
+}
 ```
 
 **After:**
 ```ts
-const prevMonth = month === 0 ? 11 : month - 1;
-const prevYear  = month === 0 ? year - 1 : year;
-const startDate = new Date(prevYear, prevMonth, startDay);
-const endDate   = new Date(year, month, startDay - 1, 23, 59, 59, 999);
+export function getFiscalMonthRange(year: number, month: number, startDay: number = 1) {
+  const startDate = new Date(year, startDay > 1 ? month - 1 : month, startDay);
+  const endDate   = new Date(year, startDay > 1 ? month : month + 1, startDay - 1, 23, 59, 59, 999);
+  return { start: startDate.toISOString(), end: endDate.toISOString() };
+}
 ```
+
+JS Date handles month overflow natively — no manual wrap logic needed.
 
 ---
 
 ## Section B: Data Migration
 
-Add a new migration in `convex/migrations.ts`. All existing budget documents:
+Only budgets belonging to households with `startDay > 1` need migration. startDay=1 budgets already match the new convention (fiscal month = calendar month).
 
-```
-month    = (month + 1) % 12
-if month was 11 (Dec) → new month is 0 (Jan), year += 1
-```
-
-Example migration:
 ```ts
 export const migrateFiscalMonthConvention = mutation({
   args: {},
   handler: async (ctx) => {
+    // 1. Collect all households with their startDay
+    const households = await ctx.db.query("households").collect();
+    const householdStartDay = new Map(households.map(h => [h._id, h.budgetStartDay ?? 1]));
+    
+    // 2. Check each budget's household
     const budgets = await ctx.db.query("budgets").collect();
     let count = 0;
     for (const b of budgets) {
+      const startDay = b.householdId ? (householdStartDay.get(b.householdId) ?? 1) : 1;
+      if (startDay === 1) continue; // no shift needed
+
       const newMonth = (b.month + 1) % 12;
       let newYear = b.year;
       if (b.month === 11) newYear += 1;
+
       if (newMonth !== b.month || newYear !== b.year) {
         await ctx.db.patch(b._id, { month: newMonth, year: newYear });
         count++;
@@ -270,8 +346,8 @@ Transparent (helper updates propagate): `convex/dashboard.ts`, `convex/transacti
 
 ## Deployment Order
 
-1. **Run migration** (`migrateFiscalMonthConvention`) on production Convex
-2. **Deploy updated helpers** + all fixes atomically
+1. **Run migration** (`migrateFiscalMonthConvention`) on Convex production
+2. **Deploy all code changes** (helpers + bug fixes) atomically
 3. **Verify** — open budget page, confirm default period shows expected month (June 2026 on June 8 with startDay=25)
 
-No schema changes. No index changes. Only the meaning of stored `month` values shifts.
+No schema changes. No index changes. Only the meaning of stored `month` values shifts for `startDay > 1` households.
