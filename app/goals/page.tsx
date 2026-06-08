@@ -13,6 +13,7 @@ import GoalCard from '@/components/GoalCard'
 import { Doc, Id } from '../../convex/_generated/dataModel'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { cn } from '@/lib/utils'
+import { getFiscalDateDetails } from '@/lib/finance-utils'
 import { useRouter } from 'next/navigation'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -20,7 +21,7 @@ export default function GoalsPage() {
   const [openCreate, setOpenCreate] = useState(false)
   const [categoryToEdit, setCategoryToEdit] = useState<Doc<'categories'> | undefined>(undefined)
   const [showCompleted, setShowCompleted] = useState(false)
-  const { householdId } = useHousehold()
+  const { householdId, households } = useHousehold()
   const router = useRouter()
   
   // 1. Fetch Categories
@@ -31,12 +32,13 @@ export default function GoalsPage() {
   })
 
   // 2. Fetch Budget Status (Contains Accumulated Amount Calculation)
-  // We use current month/year just to satisfy the query params, 
-  // but the 'accumulated' field in the response is Global (Lifetime) which is what we need.
+  const activeHousehold = households.find(h => h._id === householdId);
+  const budgetStartDay = activeHousehold?.budgetStartDay ?? 1;
   const now = new Date();
+  const { month, year } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
   const budgetData = useQuery(api.budgets.getBudgetStatus, {
-      month: now.getMonth(),
-      year: now.getFullYear(),
+      month,
+      year,
       householdId: householdId ?? undefined,
   });
 
