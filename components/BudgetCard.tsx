@@ -18,7 +18,7 @@ import {
 import { Doc, Id } from '../convex/_generated/dataModel'
 import { cn, formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
-import { calculateBudgetPace, calculateGoalStrategy } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy, getFiscalDateDetails } from '@/lib/finance-utils'
 
 interface BudgetStatusItem {
   category: any; // Using any for Doc<'categories'> to avoid strict import issues here
@@ -74,8 +74,9 @@ export default function BudgetCard({
   const dailySafeSpend = remaining / daysRemaining;
 
   // Pacing Logic (Expenses) - Use Effective Limit
+  const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(selectedDate.toISOString(), budgetStartDay);
   const pacing = category.enablePacing && category.type === 'expense' && budget
-    ? calculateBudgetPace(spent, effectiveLimit, selectedDate.getFullYear(), selectedDate.getMonth(), budgetStartDay)
+    ? calculateBudgetPace(spent, effectiveLimit, fiscalYear, fiscalMonth, budgetStartDay)
     : null;
 
   // Goal Strategy Logic (Savings)
