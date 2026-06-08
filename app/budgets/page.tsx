@@ -25,7 +25,7 @@ import { addMonths, subMonths, format } from 'date-fns'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { BudgetListSkeleton } from '@/components/skeletons'
-import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails, getFiscalMonthRange } from '@/lib/finance-utils'
 import BudgetCard from '@/components/BudgetCard'
 
 import {
@@ -107,9 +107,8 @@ export default function BudgetsPage() {
   })
 
   // Calculate Fiscal Period for Display
-  const fiscalStart = new Date(fiscalYear, fiscalMonth, budgetStartDay);
-  const fiscalEnd = new Date(fiscalYear, fiscalMonth + 1, budgetStartDay - 1);
-  const formattedPeriod = `${format(fiscalStart, 'MMM d')} - ${format(fiscalEnd, 'MMM d')}`;
+  const period = getFiscalMonthRange(fiscalYear, fiscalMonth, budgetStartDay);
+  const formattedPeriod = `${format(period.start, 'MMM d')} - ${format(period.end, 'MMM d')}`;
 
   // Check if viewed month is the "Current Active Period"
   const currentFiscalDate = getCurrentFiscalDate();
@@ -374,8 +373,8 @@ export default function BudgetsPage() {
         onOpenChange={setOpen}
         defaultCategory={selectedCategory}
         currentAmount={selectedAmount}
-        year={selectedDate.getFullYear()}
-        month={selectedDate.getMonth()}
+        year={fiscalYear}
+        month={fiscalMonth}
       />
       
       <AlertDialog open={!!budgetToDelete} onOpenChange={(open) => !open && setBudgetToDelete(undefined)}>
