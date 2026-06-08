@@ -88,7 +88,7 @@ export const getBudgetStatus = query({
 
     const now = new Date();
     const currentYear = year ?? now.getFullYear();
-    const currentMonth = month ?? now.getMonth();
+    const currentMonth = month ?? getFiscalDateDetails(now.toISOString(), startDay).month;
     
     // 1. Get all categories
     let categories;
@@ -1001,8 +1001,7 @@ export const getBudgetReport = query({
     const startDay = household?.budgetStartDay || 1;
 
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
     // 1. Get all categories (filter by type)
     let categories;
