@@ -389,7 +389,7 @@ export const getDashboardSummary = query({
         }
     });
 
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, currentMonth, currentYear);
 
     // 2.3 Calculate Receivables (Pending & Partial Only)
     const pendingReceivablesList = allTransactions

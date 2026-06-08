@@ -25,7 +25,7 @@ import { addMonths, subMonths, format } from 'date-fns'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { BudgetListSkeleton } from '@/components/skeletons'
-import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails } from '@/lib/finance-utils'
 import BudgetCard from '@/components/BudgetCard'
 
 import {
@@ -99,24 +99,23 @@ export default function BudgetsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeHousehold?.budgetStartDay]); // Run when setting loads/changes
   
+  const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(selectedDate.toISOString(), budgetStartDay);
   const budgetData = useQuery(convexApi.budgets.getBudgetStatus, {
-    month: selectedDate.getMonth(),
-    year: selectedDate.getFullYear(),
+    month: fiscalMonth,
+    year: fiscalYear,
     householdId: householdId ?? undefined,
   })
 
   // Calculate Fiscal Period for Display
-  const fiscalStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), budgetStartDay);
-  const fiscalEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, budgetStartDay - 1);
+  const fiscalStart = new Date(fiscalYear, fiscalMonth, budgetStartDay);
+  const fiscalEnd = new Date(fiscalYear, fiscalMonth + 1, budgetStartDay - 1);
   const formattedPeriod = `${format(fiscalStart, 'MMM d')} - ${format(fiscalEnd, 'MMM d')}`;
 
   // Check if viewed month is the "Current Active Period"
   const currentFiscalDate = getCurrentFiscalDate();
-  const isCurrentPeriod = selectedDate.getMonth() === currentFiscalDate.getMonth() && 
-                          selectedDate.getFullYear() === currentFiscalDate.getFullYear();
-
-  // Fix: isPastMonth should rely on Fiscal Date, not Calendar Date.
-  const isPastMonth = selectedDate < new Date(currentFiscalDate.getFullYear(), currentFiscalDate.getMonth(), 1);
+  const isCurrentPeriod = fiscalMonth === currentFiscalDate.getMonth() && 
+                          fiscalYear === currentFiscalDate.getFullYear();
+  const isPastMonth = new Date(fiscalYear, fiscalMonth) < new Date(currentFiscalDate.getFullYear(), currentFiscalDate.getMonth());
 
   const budgetStatus = budgetData?.data
   const unassignedCash = budgetData?.unassignedCash ?? 0
@@ -163,9 +162,9 @@ export default function BudgetsPage() {
   }
 
   const handleSweep = async () => {
-      const now = new Date();
-      let prevMonth = now.getMonth() - 1;
-      let prevYear = now.getFullYear();
+      const { year: sweepYear, month: sweepMonth } = getFiscalDateDetails(selectedDate.toISOString(), budgetStartDay);
+      let prevMonth = sweepMonth - 1;
+      let prevYear = sweepYear;
       if (prevMonth < 0) { prevMonth = 11; prevYear--; }
 
       setIsProcessingMonthEnd(true);

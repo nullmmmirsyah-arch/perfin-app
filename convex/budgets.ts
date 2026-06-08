@@ -171,7 +171,7 @@ export const getBudgetStatus = query({
         allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
     }
     
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, currentMonth, currentYear);
 
     // 9. Combine data for Response
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
@@ -387,7 +387,7 @@ export const getBudgetAssistance = query({
     const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
     // 2. Calculate Unassigned Cash (Helper)
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, targetMonth, targetYear);
 
     // 3. Previous Month's Budget
     let prevMonth = targetMonth - 1;
@@ -531,7 +531,7 @@ export const upsertBudget = mutation({
     }
     const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, args.month, args.year);
 
     // Logic: 
     // We need to check if (Available Unassigned + Old Budget Amount) >= New Budget Amount
@@ -725,7 +725,7 @@ export const moveBudgetFunds = mutation({
         }
         const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
-        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap, startDay, categoriesMap);
+        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap, startDay, categoriesMap, month, year);
 
         if (moveAmount > unassigned) {
              throw new Error(`Insufficient Unassigned Cash. Available: ${unassigned.toLocaleString()}`);

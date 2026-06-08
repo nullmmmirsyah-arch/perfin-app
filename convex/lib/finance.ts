@@ -204,7 +204,9 @@ export function calculateUnassignedCash(
   allBudgets: Doc<"budgets">[],
   accountsMap: AccountMap,
   budgetStartDay: number = 1,
-  categoriesMap?: Map<string, Doc<"categories">>
+  categoriesMap?: Map<string, Doc<"categories">>,
+  targetMonth?: number,
+  targetYear?: number
 ): number {
   // 1. Calculate Total Liquid Cash (Current Reality)
   let totalLiquidCash = 0;
@@ -239,7 +241,11 @@ export function calculateUnassignedCash(
   // 3. Calculate Total Remaining Budget Obligations
   let totalRemainingObligations = 0;
 
-  allBudgets.forEach(b => {
+  const filteredBudgets = (targetMonth !== undefined && targetYear !== undefined)
+    ? allBudgets.filter(b => b.month === targetMonth && b.year === targetYear)
+    : allBudgets;
+
+  filteredBudgets.forEach(b => {
     const key = `${b.year}-${b.month}`;
     const categoryMap = monthlySpending.get(key);
     const spent = categoryMap?.get(String(b.categoryId)) || 0;
