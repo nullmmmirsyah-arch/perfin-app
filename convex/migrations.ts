@@ -90,6 +90,43 @@ export const backfillHouseholdSettings = mutation({
  * 
  * Run this ONCE from the Convex Dashboard after deploying the new schema.
  */
+/**
+ * Migration: Shift budget months for end-month convention.
+ * 
+ * Only shifts budgets belonging to households with budgetStartDay > 1.
+ * startDay=1 budgets already use calendar month = fiscal month.
+ * 
+ * Run this ONCE from the Convex Dashboard BEFORE deploying the code changes.
+ */
+export const migrateFiscalMonthConvention = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const households = await ctx.db.query("households").collect();
+    const householdStartDay = new Map(
+      households.map(h => [h._id, h.budgetStartDay ?? 1])
+    );
+    
+    const budgets = await ctx.db.query("budgets").collect();
+    let count = 0;
+    for (const b of budgets) {
+      const startDay = b.householdId
+        ? (householdStartDay.get(b.householdId) ?? 1)
+        : 1;
+      if (startDay === 1) continue;
+
+      const newMonth = (b.month + 1) % 12;
+      let newYear = b.year;
+      if (b.month === 11) newYear += 1;
+
+      if (newMonth !== b.month || newYear !== b.year) {
+        await ctx.db.patch(b._id, { month: newMonth, year: newYear });
+        count++;
+      }
+    }
+    return { total: budgets.length, updated: count };
+  },
+});
+
 export const backfillBudgetFields = mutation({
   args: {},
   handler: async (ctx) => {
