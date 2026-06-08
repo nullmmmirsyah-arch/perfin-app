@@ -74,22 +74,28 @@ export const getGoalDetails = query({
         .collect();
     
     const now = new Date();
+    let startDay = 1;
+    if (householdId) {
+        const household = await ctx.db.get(householdId);
+        startDay = household?.budgetStartDay || 1;
+    }
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
     let currentBudget;
     if (householdId) {
         currentBudget = await ctx.db.query("budgets")
             .withIndex("by_householdId_category_year_month", q => 
                 q.eq("householdId", householdId)
                  .eq("categoryId", id)
-                 .eq("year", now.getFullYear())
-                 .eq("month", now.getMonth())
+                 .eq("year", currentYear)
+                 .eq("month", currentMonth)
             ).first();
     } else {
         currentBudget = await ctx.db.query("budgets")
             .withIndex("by_user_category_year_month", q => 
                 q.eq("userId", identity.subject)
                  .eq("categoryId", id)
-                 .eq("year", now.getFullYear())
-                 .eq("month", now.getMonth())
+                 .eq("year", currentYear)
+                 .eq("month", currentMonth)
             ).first();
     }
 
@@ -165,8 +171,12 @@ export const getCategoryDetails = query({
     }
 
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    let startDay = 1;
+    if (householdId) {
+        const household = await ctx.db.get(householdId);
+        startDay = household?.budgetStartDay || 1;
+    }
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
     
     let allTransactions;
     let allBudgets;
@@ -390,8 +400,12 @@ export const get = query({
         const categoriesMap = new Map(categories.map((c: Doc<"categories">) => [String(c._id), c]));
         
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
+        let startDay = 1;
+        if (householdId) {
+            const household = await ctx.db.get(householdId);
+            startDay = household?.budgetStartDay || 1;
+        }
+        const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
         const startOfThisMonth = new Date(year, month, 1).getTime();
 
         let monthlyBudgets;
