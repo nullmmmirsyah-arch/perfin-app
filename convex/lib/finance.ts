@@ -269,51 +269,43 @@ export function calculateUnassignedCash(
 
 /**
  * Calculates the Fiscal Month details for a given date.
+ * Returns the month label using end-month convention.
  * Example: If StartDay = 25.
- * Date: Jan 10 -> Belongs to Dec Fiscal Month.
- * Date: Jan 26 -> Belongs to Jan Fiscal Month.
+ * Date: Jan 10 -> Jan (period Dec 25 - Jan 24 ends in Jan)
+ * Date: Jan 26 -> Feb (period Jan 25 - Feb 24 ends in Feb)
  */
 export function getFiscalDateDetails(
   dateStr: string, 
   startDay: number = 1
 ): { year: number; month: number } {
   const date = new Date(dateStr);
+  if (startDay === 1) {
+    return { year: date.getFullYear(), month: date.getMonth() };
+  }
   const day = date.getDate();
   let year = date.getFullYear();
-  let month = date.getMonth(); // 0-11
+  let month = date.getMonth();
 
-  // If day is before startDay, it belongs to previous month
-  if (day < startDay) {
-    month -= 1;
-    if (month < 0) {
-      month = 11;
-      year -= 1;
-    }
+  if (day >= startDay) {
+    month += 1;
+    if (month > 11) { month = 0; year += 1; }
   }
 
   return { year, month };
 }
 
 /**
- * Calculates the Start and End Date for a specific Fiscal Month.
- * Example: Fiscal Month March (Year 2026), StartDay 25.
- * Returns: { start: "2026-03-25...", end: "2026-04-24..." }
- * 
- * Fiscal month concept: If startDay=25, fiscal March starts on Mar 25 and ends on Apr 24.
+ * Calculates the Start and End Date for a specific Fiscal Month label.
+ * Uses end-month convention: label "June" (month=5) with startDay=25
+ * returns { start: May 25, end: June 24 }.
  */
 export function getFiscalMonthRange(
   year: number,
   month: number,
   startDay: number = 1
 ): { start: string; end: string } {
-  // Start Date: startDay of current month
-  const startDate = new Date(year, month, startDay);
-  
-  // End Date: (startDay - 1) of next month
-  const nextMonth = month === 11 ? 0 : month + 1;
-  const nextYear = month === 11 ? year + 1 : year;
-  const endDate = new Date(nextYear, nextMonth, startDay - 1, 23, 59, 59, 999);
-
+  const startDate = new Date(year, startDay > 1 ? month - 1 : month, startDay);
+  const endDate = new Date(year, startDay > 1 ? month : month + 1, startDay - 1, 23, 59, 59, 999);
   return { 
     start: startDate.toISOString(), 
     end: endDate.toISOString() 
