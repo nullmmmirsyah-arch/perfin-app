@@ -13,11 +13,9 @@ export interface PacingResult {
 // --- CORE HELPERS ---
 
 export function getFiscalDate(date: Date, startDay: number = 1): Date {
+  if (startDay === 1) return date;
   const day = date.getDate();
-  // If today is before startDay, it belongs to previous month fiscal-wise
-  if (day < startDay) {
-    return subMonths(date, 1);
-  }
+  if (day >= startDay) return addMonths(date, 1);
   return date;
 }
 
@@ -31,13 +29,8 @@ export function getFiscalDateDetails(dateStr: string, startDay: number = 1): { y
 }
 
 export function getFiscalMonthRange(year: number, month: number, startDay: number = 1): { start: Date; end: Date } {
-  // Determine Start Date based on Year/Month provided
-  // Note: These inputs (year/month) are assumed to be the "Fiscal Label".
-  // Example: Fiscal December 2025 (Start Day 25) means 25 Dec 2025 - 24 Jan 2026.
-  
-  const startDate = new Date(year, month, startDay);
-  const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, startDay - 1);
-  
+  const startDate = new Date(year, startDay > 1 ? month - 1 : month, startDay);
+  const endDate = new Date(year, startDay > 1 ? month : month + 1, startDay - 1);
   return { start: startDate, end: endDate };
 }
 
