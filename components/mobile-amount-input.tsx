@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+"use client";
+
+import { useState, useRef } from 'react';
 import {
   Drawer,
   DrawerContent,
@@ -37,13 +39,13 @@ export const MobileAmountInput = ({
   onDone,
   isOverspent,
 }: MobileAmountInputProps) => {
+  const prevOpen = useRef(open);
   const [rawValue, setRawValue] = useState('');
 
-  useEffect(() => {
-    if (open) {
-      setRawValue(value ? value.replace(/,/g, '') : '');
-    }
-  }, [open, value]);
+  if (open && !prevOpen.current) {
+    setRawValue(value ? value.replace(/,/g, '') : '');
+  }
+  prevOpen.current = open;
 
   const handleKey = (key: string) => {
     if (key === '⌫') {
