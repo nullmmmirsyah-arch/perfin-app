@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFieldArray, UseFormReturn } from 'react-hook-form';
 import { Doc } from '../convex/_generated/dataModel';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ import { PlusCircle, Trash2, ArrowLeft, LayoutGrid, Tag, FileText } from 'lucide
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
+import { MobileAmountInput } from './mobile-amount-input';
 import { Textarea } from '@/components/ui/textarea';
 
 // Reusing types from TransactionDrawer parent context if possible,
@@ -114,6 +115,8 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
   const allocated = splits?.reduce((acc: number, split) => acc + parseFloat(split.amount?.replace(/,/g, '') || '0'), 0) || 0;
   const remaining = parseFloat(amount?.replace(/,/g, '') || '0') - allocated;
 
+  const [activeSplitAmount, setActiveSplitAmount] = useState<{ index: number; value: string } | null>(null);
+
   return (
     <div className={cn("space-y-6", isMobile ? "p-4" : "")}>
         {/* Summary Card */}
@@ -172,30 +175,24 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                 render={({ field }) => (
                                     <FormItem>
                                         <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/50">
-                                            <div className="flex items-center gap-4">
+                                            <button
+                                              type="button"
+                                              className="w-full flex items-center gap-4 outline-none"
+                                              onClick={() => setActiveSplitAmount({ index, value: field.value || '' })}
+                                            >
                                                 <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
                                                     <span className="font-serif font-bold text-sm">Rp</span>
                                                 </div>
-                                                <div className="flex-1">
+                                                <div className="flex-1 text-left">
                                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
-                                                    <Input
-                                                        className="h-auto p-0 border-none shadow-none text-xl font-bold focus-visible:ring-0 w-full"
-                                                        placeholder="0"
-                                                        inputMode="numeric"
-                                                        {...field}
-                                                        value={field.value || ''}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value;
-                                                            field.onChange(formatNumber(value));
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            const value = e.target.value;
-                                                            field.onBlur();
-                                                            field.onChange(formatNumber(value));
-                                                        }}
-                                                    />
+                                                    <p className={cn(
+                                                      "font-bold text-xl",
+                                                      field.value ? "text-foreground" : "text-muted-foreground/50"
+                                                    )}>
+                                                      {field.value || '0'}
+                                                    </p>
                                                 </div>
-                                            </div>
+                                            </button>
                                         </div>
                                         <FormMessage />
                                     </FormItem>
@@ -397,6 +394,20 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                 </div>
             ))}
         </div>
+
+        <MobileAmountInput
+            open={activeSplitAmount !== null}
+            onOpenChange={(open) => {
+              if (!open) setActiveSplitAmount(null);
+            }}
+            value={activeSplitAmount?.value || ''}
+            onChange={(val) => {
+              if (activeSplitAmount !== null) {
+                form.setValue(`splits.${activeSplitAmount.index}.amount`, val as any);
+              }
+            }}
+            onDone={() => setActiveSplitAmount(null)}
+        />
 
         <Button 
             type="button" 
