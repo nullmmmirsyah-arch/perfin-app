@@ -903,14 +903,6 @@ const TransactionFormFields = ({
     }
   }, [open]);
 
-  // Helper to merge refs
-  const mergeRefs = (...refs: any[]) => (value: any) => {
-    refs.forEach(ref => {
-      if (typeof ref === 'function') ref(value);
-      else if (ref != null) ref.current = value;
-    });
-  };
-
   return (
     <>
       <div className={cn(isMobile && "space-y-6")}>
@@ -957,7 +949,10 @@ const TransactionFormFields = ({
                     <Input
                         placeholder="0"
                         inputMode="numeric"
-                        {...field}
+                        ref={(e) => {
+                            field.ref(e);
+                            amountInputRef.current = e;
+                        }}
                         value={field.value || ''}
                         onChange={(e) => {
                         const value = e.target.value;
