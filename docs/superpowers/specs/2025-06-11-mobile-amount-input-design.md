@@ -41,18 +41,26 @@ Build a **bottom sheet (Vaul Drawer) with a custom numpad** that appears when th
 - Props: `value`, `onChange`, `onDone`
 - Only `TransactionDrawer.tsx` changes (or `MobileAmountInput.tsx` if extracted)
 
+### Split Item Amount Fields
+- Each split item's amount field in `SplitEditorDrawer` also gets the same numpad bottom sheet treatment
+- In mobile mode, each split item amount `<Input inputMode="numeric">` (line 169-203) is replaced with a tappable card that opens the same `MobileAmountInput` bottom sheet
+- Separate `MobileAmountInput` instance per split item (tracked by `splitIndex`)
+- Done button updates `splits.[index].amount` form field and closes the sheet
+- Summary card (Total / Allocated / Remaining) updates in real-time as each split amount changes
+
 ### What Stays the Same
 - Desktop (Sheet) mode unchanged
-- Form validation, submission logic, and all other fields (Account, Category, Date, Label, Note, Split) unchanged
+- Desktop SplitEditor unchanged (still uses compact Input fields)
+- Form validation, submission logic, and all other fields (Account, Category, Date, Label, Note) unchanged
 - `formatNumber` / `parseAmount` utilities reused
 - Existing `MobileInputCard` and `MobileSelectionDrawer` unchanged
-- Split transaction editing unchanged
 
 ## Files Changed
 
 | File | Change |
 |---|---|
 | `components/TransactionDrawer.tsx` | Add `MobileAmountInput` usage; remove native input for mobile amount field |
+| `components/SplitEditorDrawer.tsx` | Add `MobileAmountInput` usage for each split item amount field (mobile only) |
 | `components/mobile-amount-input.tsx` (new) | Bottom sheet with numpad keypad and amount display |
 
 ## Testing
@@ -64,3 +72,6 @@ Build a **bottom sheet (Vaul Drawer) with a custom numpad** that appears when th
 - Verify overflow scaling for large amounts
 - Verify scrolling is locked on the drawer beneath while bottom sheet is open
 - Verify haptic feedback fires on key press
+- Verify split item amount fields also trigger the numpad bottom sheet on mobile
+- Verify updating a split item amount via numpad updates the summary card (Allocated / Remaining)
+- Verify each split item has its own `MobileAmountInput` instance (no cross-contamination)
