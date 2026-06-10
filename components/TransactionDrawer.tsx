@@ -71,6 +71,7 @@ import { SplitEditorDrawer } from './SplitEditorDrawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
+import { MobileAmountInput } from './mobile-amount-input';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
 
 type TransactionWithDetails = Doc<'transactions'> & {
@@ -868,6 +869,8 @@ const TransactionFormFields = ({
   const categoryId = useWatch({ control: form.control, name: 'categoryId' });
   const labelId = useWatch({ control: form.control, name: 'labelId' });
   
+  const [amountSheetOpen, setAmountSheetOpen] = useState(false);
+
   const descriptionRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
 
   const selectedAccount = accounts.find(a => a._id === accountId);
@@ -921,37 +924,34 @@ const TransactionFormFields = ({
                 <FormControl>
                   {isMobile ? (
                       <div className="relative flex flex-col items-center justify-center py-4">
-                        <div className="flex items-start justify-center gap-1 text-foreground">
+                        <button
+                          type="button"
+                          className="flex items-start justify-center gap-1 text-foreground outline-none"
+                          onClick={() => setAmountSheetOpen(true)}
+                        >
                             <span className="text-lg font-medium text-muted-foreground mt-2">Rp</span>
-                            <Input
-                                {...field}
-                                ref={mergeRefs(amountInputRef, field.ref)}
-                                placeholder="0"
-                                inputMode="numeric"
-                                enterKeyHint="next"
-                                className={cn(
-                                    "h-auto p-0 text-5xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent transition-colors w-full min-w-[100px]",
-                                    isOverspent ? "text-destructive" : "text-foreground"
-                                )}
-                                value={field.value || ''}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    field.onChange(formatNumber(value));
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        e.currentTarget.blur();
-                                    }
-                                }}
-                            />
-                        </div>
+                            <div className={cn(
+                                "h-auto p-0 text-5xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent transition-colors",
+                                isOverspent ? "text-destructive" : "text-foreground"
+                            )}>
+                                {field.value || '0'}
+                            </div>
+                        </button>
                         {isOverspent && (
                             <div className="flex items-center justify-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
                                 <AlertCircle className="h-3 w-3" /> Insufficient Balance
                             </div>
                         )}
                         <div className="h-1 w-16 bg-primary/20 rounded-full mt-4" />
+
+                        <MobileAmountInput
+                          open={amountSheetOpen}
+                          onOpenChange={setAmountSheetOpen}
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          onDone={() => setAmountSheetOpen(false)}
+                          isOverspent={isOverspent}
+                        />
                       </div>
                   ) : (
                     <Input
