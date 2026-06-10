@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useRef } from 'react';
 import {
   Drawer,
   DrawerContent,
@@ -39,38 +38,43 @@ export const MobileAmountInput = ({
   onDone,
   isOverspent,
 }: MobileAmountInputProps) => {
-  const prevOpen = useRef(open);
-  const [rawValue, setRawValue] = useState('');
-
-  if (open && !prevOpen.current) {
-    setRawValue(value ? value.replace(/,/g, '') : '');
-  }
-  prevOpen.current = open;
+  const rawValue = value.replace(/,/g, '');
 
   const handleKey = (key: string) => {
     if (key === '⌫') {
-      setRawValue(prev => prev.slice(0, -1));
+      const newRaw = rawValue.slice(0, -1);
+      onChange(newRaw ? formatNumber(newRaw) : '');
+      if (navigator.vibrate) navigator.vibrate(10);
       return;
     }
     if (key === '.') {
       if (rawValue.includes('.')) return;
       if (!rawValue) {
-        setRawValue('0.');
-        return;
+        onChange('0.');
+      } else {
+        onChange(formatNumber(rawValue) + '.');
       }
-      setRawValue(prev => prev + '.');
+      if (navigator.vibrate) navigator.vibrate(10);
       return;
     }
-    setRawValue(prev => prev + key);
+    // Digit key
+    onChange(formatNumber(rawValue + key));
+    if (navigator.vibrate) navigator.vibrate(10);
   };
 
   const handleDone = () => {
-    if (!rawValue || parseFloat(rawValue) === 0) return;
-    onChange(formatNumber(rawValue));
+    const num = parseFloat(rawValue);
+    if (!rawValue || num === 0) return;
+    if (rawValue !== value.replace(/,/g, '')) {
+      onChange(formatNumber(rawValue));
+    }
     onDone();
   };
 
-  const displayAmount = formatNumber(rawValue);
+  const rawEndsWithDot = rawValue.endsWith('.');
+  const displayAmount = rawEndsWithDot
+    ? formatNumber(rawValue.slice(0, -1)) + '.'
+    : (value || '0');
   const isEmpty = !rawValue || parseFloat(rawValue) === 0;
 
   return (
@@ -105,10 +109,7 @@ export const MobileAmountInput = ({
                         ? "bg-muted text-muted-foreground hover:bg-muted/80"
                         : "bg-card text-foreground shadow-sm border border-border/50 hover:bg-accent"
                     )}
-                    onClick={() => {
-                      handleKey(key);
-                      if (navigator.vibrate) navigator.vibrate(10);
-                    }}
+                    onClick={() => handleKey(key)}
                   >
                     {key}
                   </button>
