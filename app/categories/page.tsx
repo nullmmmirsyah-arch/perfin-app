@@ -40,7 +40,12 @@ export default function CategoriesPage() {
   const [showArchived, setShowArchived] = useState(false)
 
   const { householdId } = useHousehold()
-  
+  const memberRole = useQuery(api.households.getMemberRole,
+    householdId ? { householdId } : "skip"
+  )
+  const isAdmin = memberRole === "admin"
+  const canCreate = !householdId || isAdmin
+
   // 1. Fetch Categories
   const categories = useQuery(api.categories.get, { 
     householdId: householdId ?? undefined,
@@ -219,7 +224,7 @@ export default function CategoriesPage() {
             <h1 className="text-2xl font-bold tracking-tight">Categories</h1>
             <p className="text-muted-foreground">Manage your spending buckets and saving goals.</p>
         </div>
-        <Button onClick={handleCreate}>Create Category</Button>
+        {canCreate && <Button onClick={handleCreate}>Create Category</Button>}
       </div>
 
       <CategoryDrawer

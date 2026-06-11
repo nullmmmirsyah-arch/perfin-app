@@ -42,7 +42,12 @@ export default function AccountsPage() {
   const [showClosed, setShowClosed] = useState(false)
 
   const { householdId } = useHousehold()
-  
+  const memberRole = useQuery(api.households.getMemberRole,
+    householdId ? { householdId } : "skip"
+  )
+  const isAdmin = memberRole === "admin"
+  const canCreate = !householdId || isAdmin
+
   // Fetch ALL accounts (both active and archived) to handle client-side filtering comfortably
   const accounts = useQuery(api.accounts.get, { 
     householdId: householdId ?? undefined,
@@ -204,7 +209,7 @@ export default function AccountsPage() {
       <PageHeader 
         title="Accounts" 
         description="Manage your liquid cash, savings, and assets."
-        action={<Button onClick={handleCreate}>Create Account</Button>}
+        action={canCreate ? <Button onClick={handleCreate}>Create Account</Button> : undefined}
       />
 
       <AccountDrawer

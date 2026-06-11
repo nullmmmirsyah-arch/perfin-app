@@ -34,6 +34,12 @@ export default function LabelsPage() {
   const [labelToDelete, setLabelToDelete] = useState<Doc<'labels'> | undefined>(undefined)
 
   const { householdId } = useHousehold()
+  const memberRole = useQuery(api.households.getMemberRole,
+    householdId ? { householdId } : "skip"
+  )
+  const isAdmin = memberRole === "admin"
+  const canCreate = !householdId || isAdmin
+
   const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined })
   const deleteLabel = useMutation(api.labels.deleteLabel)
 
@@ -59,7 +65,7 @@ export default function LabelsPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Labels</h1>
-        <Button onClick={handleCreate}>Create Label</Button>
+        {canCreate && <Button onClick={handleCreate}>Create Label</Button>}
       </div>
 
       <LabelDrawer
