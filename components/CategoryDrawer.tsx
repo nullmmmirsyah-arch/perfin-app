@@ -46,6 +46,7 @@ const CategoryFormSchema = z.object({
   targetDate: z.date().optional(),
   enablePacing: z.boolean(),
   goalType: z.enum(['investment', 'bill', 'purchase']).optional(),
+  hideAmount: z.boolean().optional(),
   // Auto-Save Fields
   enableAutoSave: z.boolean(),
   autoSaveSourceAccountId: z.string().optional(),
@@ -96,6 +97,11 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
     accounts?.filter(a => !a.type || a.type === 'CASH') || [], 
   [accounts]);
 
+  const memberRole = useQuery(api.households.getMemberRole, 
+    householdId ? { householdId } : "skip"
+  );
+  const isAdmin = memberRole === "admin";
+
   // Local State for Calculator
   const [monthlyContribution, setMonthlyContribution] = useState<string>('');
 
@@ -132,6 +138,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
             targetDate: category.targetDate ? new Date(category.targetDate) : undefined,
             enablePacing: category.enablePacing || false,
             goalType: (category.goalType as 'investment' | 'bill' | 'purchase') || 'purchase',
+            hideAmount: category?.hideAmount || false,
             enableAutoSave: !!existingSchedule?.isEnabled,
             autoSaveSourceAccountId: existingSchedule?.fromAccountId || '',
             autoSaveAmount: existingSchedule?.amount || '',
@@ -151,6 +158,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
             targetAmount: '',
             enablePacing: false,
             goalType: 'purchase',
+            hideAmount: false,
             enableAutoSave: false,
             autoSaveFrequency: 'monthly',
             autoSaveDay: '25',
@@ -209,6 +217,7 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
             targetAmount: data.targetAmount,
             targetDate: targetDateStr,
             enablePacing: data.enablePacing,
+            hideAmount: data.hideAmount,
             goalType: data.type === 'saving' ? data.goalType : undefined,
             monthlyBudget: monthlyContribution ? monthlyContribution.replace(/,/g, '') : undefined,
         };
@@ -479,6 +488,29 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
                         )}
                     />
                 </div>
+              )}
+
+              {householdId && isAdmin && (
+                <FormField
+                  control={form.control}
+                  name="hideAmount"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Hide Amount</FormLabel>
+                        <p className="text-[10px] text-muted-foreground">
+                          Transaction amounts for this category will be masked with •••• for other household members.
+                        </p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               )}
 
               <div className="flex flex-col gap-2 pt-4">
