@@ -207,6 +207,12 @@ export const getCategoryDetails = query({
     const accountsMap: AccountMap = new Map(accounts.map((a: Doc<"accounts">) => [String(a._id), a]));
     const categoriesMap = new Map(categories.map((c: Doc<"categories">) => [String(c._id), c]));
 
+    const visibleTransactions = allTransactions.filter(t => {
+      const account = accounts.find(a => a._id === t.accountId);
+      if (account?.visibility === "private" && account?.userId !== identity.subject) return false;
+      return true;
+    });
+
     const historyData = [];
     
     for (let i = 11; i >= 0; i--) {
@@ -217,7 +223,7 @@ export const getCategoryDetails = query({
         const budget = allBudgets.find(b => String(b.categoryId) === String(id) && b.year === y && b.month === m);
         const { start, end } = getFiscalMonthRange(y, m, startDay);
         
-        const monthTx = allTransactions.filter(t => {
+        const monthTx = visibleTransactions.filter(t => {
             const d = new Date(t.date);
             return d >= new Date(start) && d <= new Date(end);
         });
@@ -257,7 +263,7 @@ export const getCategoryDetails = query({
         });
     }
 
-    let filteredTransactions = allTransactions
+    let filteredTransactions = visibleTransactions
         .filter(t => {
             const isMain = t.categoryId === id;
             const isSplit = t.isSplit && t.splits?.some(s => s.categoryId === id);
@@ -303,6 +309,8 @@ export const getCategoryDetails = query({
     const txCategoryMap = new Map(txCategories.filter(Boolean).map(c => [c!._id, c!]));
     const txLabelMap = new Map(txLabels.filter(Boolean).map(l => [l!._id, l!]));
 
+    const categoryHideAmount = category?.hideAmount ?? false;
+
     const recentTransactions = sortedTransactions.map((t) => {
             const fromAccount = txAccountMap.get(t.accountId);
             const toAccount = t.toAccountId ? txAccountMap.get(t.toAccountId) : null;
@@ -340,6 +348,7 @@ export const getCategoryDetails = query({
                 fromAccountName: fromAccount?.name,
                 toAccountName: toAccount?.name,
                 categoryName: category?.name,
+                hideAmount: categoryHideAmount,
                 label,
                 splits: splitsWithDetails,
             };
