@@ -60,6 +60,7 @@ const AccountFormSchema = z.object({
   autoSaveAmount: z.string().optional(),
   autoSaveFrequency: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
   autoSaveDay: z.string().optional(),
+  visibility: z.enum(['shared', 'private']).optional(),
 });
 
 type AccountFormValues = z.infer<typeof AccountFormSchema>;
@@ -90,6 +91,11 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
   const liquidAccounts = useMemo(() => 
     allAccounts?.filter(a => !a.type || a.type === 'CASH') || [], 
   [allAccounts]);
+
+  const memberRole = useQuery(api.households.getMemberRole,
+    householdId ? { householdId } : "skip"
+  );
+  const isAdmin = memberRole === "admin";
 
   const isEditMode = !!account;
   const [isProcessing, setIsProcessing] = useState(false);
@@ -178,6 +184,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         autoSaveAmount: existingSchedule?.amount || '',
         autoSaveFrequency: (existingSchedule?.frequency as 'daily' | 'weekly' | 'monthly' | 'yearly') || 'monthly',
         autoSaveDay: existingSchedule?.nextRunAt ? new Date(existingSchedule.nextRunAt).getDate().toString() : '25',
+        visibility: account.visibility || 'shared',
       });
     } else if (open && !isEditMode) {
       form.reset({
@@ -196,6 +203,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
         autoSaveDay: '25',
         autoSaveAmount: '',
         autoSaveSourceAccountId: '',
+        visibility: 'shared',
       });
     }
   }, [open, isEditMode, account, form, categories, existingSchedule, goalDetails]);
@@ -246,6 +254,7 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
             targetDate: targetDateStr,
             goalType: data.enableGoal ? data.goalType : undefined,
             monthlyBudget: data.monthlyBudget ? data.monthlyBudget.replace(/,/g, '') : undefined,
+            visibility: data.visibility,
         };
 
         let result;
@@ -395,6 +404,33 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
                   </FormItem>
                 )}
               />
+
+              {householdId && isAdmin && (
+                <FormField
+                  control={form.control}
+                  name="visibility"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Visibility</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select visibility" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="shared">Shared (All members can see)</SelectItem>
+                          <SelectItem value="private">Private (Only you can see)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground">
+                        Shared accounts are visible to all household members. Private accounts are only visible to you.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
