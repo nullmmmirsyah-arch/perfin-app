@@ -85,31 +85,31 @@ export const MobileAmountInput = ({
         <DrawerHeader className="sr-only">
           <DrawerTitle>Enter Amount</DrawerTitle>
         </DrawerHeader>
-        <div className="px-6 pt-4 pb-8 flex flex-col gap-6">
-          <div className="flex flex-col items-center justify-center py-6 min-h-[100px]">
-            <span className="text-sm font-medium text-muted-foreground mb-2">Rp</span>
+        <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
+          <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
+            <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
             <div className={cn(
               "font-bold text-foreground text-center transition-all leading-tight",
-              displayAmount.length > 12 ? "text-3xl" : displayAmount.length > 8 ? "text-4xl" : "text-5xl"
+              displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
             )}>
               {displayAmount || '0'}
             </div>
             {isOverspent && (
-              <div className="flex items-center gap-1 mt-3 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
+              <div className="flex items-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
                 <AlertCircle className="h-3 w-3" /> Insufficient Balance
               </div>
             )}
           </div>
 
-          <div className="flex flex-col gap-3 items-center">
+          <div className="flex flex-col gap-2">
             {numpadRows.map((row, ri) => (
-              <div key={ri} className="flex gap-3 justify-center">
+              <div key={ri} className="flex gap-2 justify-center">
                 {row.map((key) => (
                   <button
                     key={key}
                     type="button"
                     className={cn(
-                      "h-16 w-16 rounded-full text-xl font-semibold transition-all active:scale-90 select-none",
+                      "h-14 w-0 flex-1 max-w-[88px] rounded-xl text-lg font-semibold transition-all active:scale-[0.97] select-none",
                       key === '⌫'
                         ? "bg-muted text-muted-foreground hover:bg-muted/80"
                         : "bg-card text-foreground shadow-sm border border-border/50 hover:bg-accent"
@@ -127,7 +127,7 @@ export const MobileAmountInput = ({
             type="button"
             disabled={isEmpty}
             className={cn(
-              "w-full h-14 rounded-full text-base font-semibold transition-all select-none",
+              "w-full h-12 rounded-xl text-base font-semibold transition-all select-none",
               isEmpty
                 ? "bg-muted text-muted-foreground/50 cursor-not-allowed"
                 : "bg-primary text-primary-foreground shadow-lg active:scale-[0.98] hover:opacity-90"
