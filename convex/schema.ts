@@ -98,6 +98,7 @@ export default defineSchema({
     totalRealizedProfit: v.optional(v.number()),
     isArchived: v.optional(v.boolean()),
     linkedCategoryId: v.optional(v.id("categories")),
+    visibility: v.optional(v.union(v.literal("shared"), v.literal("private"))),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
@@ -117,6 +118,7 @@ export default defineSchema({
       v.literal("purchase")
     )),
     lastResetDate: v.optional(v.string()),
+    hideAmount: v.optional(v.boolean()),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),

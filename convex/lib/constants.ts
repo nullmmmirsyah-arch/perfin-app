@@ -28,6 +28,13 @@ export const ACCOUNT_TYPES = {
 
 export type AccountType = typeof ACCOUNT_TYPES[keyof typeof ACCOUNT_TYPES];
 
+export const ACCOUNT_VISIBILITY = {
+  SHARED: "shared",
+  PRIVATE: "private",
+} as const;
+
+export type AccountVisibility = typeof ACCOUNT_VISIBILITY[keyof typeof ACCOUNT_VISIBILITY];
+
 export const GOAL_STATUS = {
   ACTIVE: "active",
   ACHIEVED: "achieved",
