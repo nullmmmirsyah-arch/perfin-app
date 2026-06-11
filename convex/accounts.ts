@@ -21,12 +21,9 @@ export const get = query({
         accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
     }
 
-    if (showArchived) {
-      return accounts;
-    }
     return accounts.filter(a => {
-  if (a.isArchived && !showArchived) return false;
   if (a.visibility === "private" && a.userId !== identity.subject) return false;
+  if (!showArchived && a.isArchived) return false;
   return true;
 });
   },
