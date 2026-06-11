@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
 import { Id, Doc } from "./_generated/dataModel";
-import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
+import { checkHouseholdAccess, ensureHouseholdAccess, ensureAdminAccess } from "./lib/auth";
 import { CATEGORY_TYPES, GOAL_TYPES, GOAL_STATUS, ACCOUNT_TYPES } from "./lib/constants";
 import { 
   getFiscalDateDetails, 
@@ -489,6 +489,7 @@ export const create = mutation({
     
     if (args.householdId) {
         await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
+        await ensureAdminAccess(ctx, args.householdId, identity.subject);
     }
 
     const { monthlyBudget, ...rest } = args;
@@ -563,12 +564,13 @@ export const update = mutation({
     enablePacing: v.optional(v.boolean()),
     goalType: v.optional(v.string()),
     monthlyBudget: v.optional(v.string()),
+    hideAmount: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, goalType, monthlyBudget, ...rest } = args;
+    const { id, goalType, monthlyBudget, hideAmount, ...rest } = args;
     const category = await ctx.db.get(id);
     if (!category) throw new Error("Category not found");
 
@@ -578,7 +580,7 @@ export const update = mutation({
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(id, { ...rest, goalType: goalType as any });
+    await ctx.db.patch(id, { ...rest, goalType: goalType as any, hideAmount: hideAmount ?? undefined });
 
     if (monthlyBudget !== undefined) {
         let startDay = 1;
