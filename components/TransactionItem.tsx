@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -26,6 +27,7 @@ export function TransactionItem({
   highlightCategoryId?: string[],
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const { user } = useUser();
 
   // Calculate effective amount based on filters
   let displayAmountVal = parseFloat(transaction.amount.replace(/,/g, '') || '0');
@@ -45,10 +47,14 @@ export function TransactionItem({
     if (filteredSum > 0) displayAmountVal = filteredSum;
   }
 
-  const displayAmount = new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(displayAmountVal);
+  const shouldMask = transaction.hideAmount && transaction.userId !== user?.id;
+
+  const displayAmount = shouldMask
+    ? '••••'
+    : new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(displayAmountVal);
 
   return (
     <Card className="overflow-hidden shadow-sm border-muted/60">
@@ -180,7 +186,7 @@ export function TransactionItem({
                       <span className="text-muted-foreground text-xs">{split.categoryName || 'Uncategorized'}</span> 
                     </div>
                     <div className="text-right">
-                      <span className="font-semibold">{split.amount}</span>
+                      <span className="font-semibold">{shouldMask ? '••••' : split.amount}</span>
                       {split.labelName && (
                         <div className="flex justify-end mt-1">
                           <Badge
