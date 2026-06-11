@@ -1539,7 +1539,9 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
   const amount = useWatch({ control: form.control, name: 'amount' });
   const quantity = useWatch({ control: form.control, name: 'assetDetails.quantity' });
 
-  // Prefill category if destination account has a linked category
+   const [transferAmountSheetOpen, setTransferAmountSheetOpen] = useState(false);
+
+   // Prefill category if destination account has a linked category
   useEffect(() => {
     if (toAccountId) {
       const destAccount = accounts.find(a => a._id === toAccountId);
@@ -1604,31 +1606,26 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
             </FormLabel>
             <FormControl>
               {isMobile ? (
-                  <div className="relative group">
-                    <div className="flex items-start justify-center gap-1 text-foreground">
+                  <div className="relative flex flex-col items-center justify-center py-4">
+                    <button
+                      type="button"
+                      className="flex items-start justify-center gap-1 text-foreground outline-none"
+                      onClick={() => setTransferAmountSheetOpen(true)}
+                    >
                         <span className="text-lg font-medium text-muted-foreground mt-2">Rp</span>
-                        <Input
-                            placeholder="0"
-                            inputMode="numeric"
-                            enterKeyHint="next"
-                            className={cn(
-                                "h-auto p-0 text-6xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent transition-colors w-full min-w-[100px]",
-                                isOverspent ? "text-destructive" : "text-foreground"
-                            )}
-                            {...field}
-                            value={field.value || ''}
-                            onChange={(e) => {
-                                const value = e.target.value;
-                                field.onChange(formatNumber(value));
-                            }}
-                        />
-                    </div>
+                        <div className={cn(
+                            "h-auto p-0 text-5xl font-bold text-center border-none shadow-none focus-visible:ring-0 bg-transparent transition-colors",
+                            isOverspent ? "text-destructive" : "text-foreground"
+                        )}>
+                            {field.value || '0'}
+                        </div>
+                    </button>
                     {isOverspent && (
                         <div className="flex items-center justify-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
                             <AlertCircle className="h-3 w-3" /> Insufficient Balance
                         </div>
                     )}
-                    <div className="h-1 w-16 bg-primary/20 rounded-full mt-4 mx-auto" />
+                    <div className="h-1 w-16 bg-primary/20 rounded-full mt-4" />
                   </div>
               ) : (
                 <Input
@@ -1943,7 +1940,15 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                  )}
              />
           </div>
-      )}
+        )}
+
+        <MobileAmountInput
+          open={transferAmountSheetOpen}
+          onOpenChange={setTransferAmountSheetOpen}
+          value={form.getValues('amount') || ''}
+          onChange={(val) => form.setValue('amount', val)}
+          onDone={() => setTransferAmountSheetOpen(false)}
+        />
     </>
   );
 };

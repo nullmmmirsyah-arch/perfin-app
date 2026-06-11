@@ -66,10 +66,28 @@ const formatCurrency = (value: number | undefined) => {
 
 export const SplitEditorDrawer = (props: SplitEditorDrawerProps) => {
   const isMobile = useIsMobile();
-  const { open, onOpenChange } = props;
+  const { open, onOpenChange, form } = props;
 
-  if (isMobile) {
-    return (
+  const [activeSplitAmount, setActiveSplitAmount] = useState<{ index: number; value: string } | null>(null);
+
+  const amountSheet = (
+    <MobileAmountInput
+      open={activeSplitAmount !== null}
+      onOpenChange={(open) => {
+        if (!open) setActiveSplitAmount(null);
+      }}
+      value={activeSplitAmount !== null ? (form.getValues(`splits.${activeSplitAmount.index}.amount`) || '') : ''}
+      onChange={(val) => {
+        if (activeSplitAmount !== null) {
+          form.setValue(`splits.${activeSplitAmount.index}.amount`, val as any);
+        }
+      }}
+      onDone={() => setActiveSplitAmount(null)}
+    />
+  );
+
+  const mobileContent = (
+    <>
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent className="max-h-[96dvh] flex flex-col bg-background">
           <DrawerHeader className="border-b px-4 py-3 flex items-center justify-between shrink-0">
@@ -84,38 +102,43 @@ export const SplitEditorDrawer = (props: SplitEditorDrawerProps) => {
               </div>
           </DrawerHeader>
           <div className="flex-1 overflow-y-auto bg-muted/10">
-             <SplitEditorContent {...props} isMobile={true} />
+             <SplitEditorContent {...props} isMobile={true} setActiveSplitAmount={setActiveSplitAmount} />
           </div>
         </DrawerContent>
       </Drawer>
-    );
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-4 border-b">
-           <DialogTitle>Edit Splits</DialogTitle>
-        </DialogHeader>
-        <div className="flex-1 overflow-y-auto p-4">
-           <SplitEditorContent {...props} isMobile={false} />
-        </div>
-        <DialogFooter className="p-4 border-t">
-           <Button onClick={() => onOpenChange(false)}>Done</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {amountSheet}
+    </>
   );
+
+  const desktopContent = (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="p-4 border-b">
+             <DialogTitle>Edit Splits</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-4">
+             <SplitEditorContent {...props} isMobile={false} setActiveSplitAmount={setActiveSplitAmount} />
+          </div>
+          <DialogFooter className="p-4 border-t">
+             <Button onClick={() => onOpenChange(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {amountSheet}
+    </>
+  );
+
+  if (isMobile) return mobileContent;
+  return desktopContent;
 };
 
-const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append, remove }: SplitEditorDrawerProps & { isMobile: boolean }) => {
+const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append, remove, setActiveSplitAmount }: SplitEditorDrawerProps & { isMobile: boolean; setActiveSplitAmount: React.Dispatch<React.SetStateAction<{ index: number; value: string } | null>> }) => {
   const amount = form.watch('amount') as string | undefined;
   const splits = form.watch('splits') as { amount: string }[] | undefined;
 
   const allocated = splits?.reduce((acc: number, split) => acc + parseFloat(split.amount?.replace(/,/g, '') || '0'), 0) || 0;
   const remaining = parseFloat(amount?.replace(/,/g, '') || '0') - allocated;
-
-  const [activeSplitAmount, setActiveSplitAmount] = useState<{ index: number; value: string } | null>(null);
 
   return (
     <div className={cn("space-y-6", isMobile ? "p-4" : "")}>
@@ -394,20 +417,6 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                 </div>
             ))}
         </div>
-
-        <MobileAmountInput
-            open={activeSplitAmount !== null}
-            onOpenChange={(open) => {
-              if (!open) setActiveSplitAmount(null);
-            }}
-            value={activeSplitAmount?.value || ''}
-            onChange={(val) => {
-              if (activeSplitAmount !== null) {
-                form.setValue(`splits.${activeSplitAmount.index}.amount`, val as any);
-              }
-            }}
-            onDone={() => setActiveSplitAmount(null)}
-        />
 
         <Button 
             type="button" 
