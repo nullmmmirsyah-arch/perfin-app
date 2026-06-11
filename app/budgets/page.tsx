@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
@@ -124,6 +124,17 @@ export default function BudgetsPage() {
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
   const sweepBudgets = useMutation(convexApi.budgets.sweepBudgets)
   const rolloverBudgets = useMutation(convexApi.budgets.rolloverBudgets)
+  const fixAllCarryovers = useMutation(convexApi.budgets.fixAllCarryovers)
+
+  const rolloverInitRef = useRef(false)
+
+  useEffect(() => {
+    if (activeHousehold && !rolloverInitRef.current) {
+      rolloverInitRef.current = true
+      fixAllCarryovers({ householdId: householdId ?? undefined })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeHousehold])
 
   useEffect(() => {
     if (!api) return

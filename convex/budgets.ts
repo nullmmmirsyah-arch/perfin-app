@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, QueryCtx } from "./_generated/server";
+import { mutation, query, QueryCtx, MutationCtx } from "./_generated/server";
 import { Id, Doc } from "./_generated/dataModel";
 import { 
   calculateSpendingByCategory, 
@@ -846,6 +846,117 @@ export const sweepBudgets = mutation({
   }
 });
 
+async function performRollover(
+  ctx: MutationCtx,
+  userId: string,
+  householdId: Id<"households"> | undefined,
+  year: number,
+  month: number,
+  startDay: number
+): Promise<number> {
+  let sourceBudgets;
+  if (householdId) {
+    sourceBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", year).eq("month", month)).collect();
+  } else {
+    sourceBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", year).eq("month", month)).collect();
+  }
+
+  let targetMonth = month + 1;
+  let targetYear = year;
+  if (targetMonth > 11) {
+    targetMonth = 0;
+    targetYear++;
+  }
+
+  const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
+  const startObj = new Date(startOfFiscal);
+  const endObj = new Date(endOfFiscal);
+
+  let allTransactions;
+  if (householdId) {
+    allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+  } else {
+    allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+  }
+
+  const sourceTransactions = allTransactions.filter(t => {
+    const tDate = new Date(t.date);
+    return tDate >= startObj && tDate <= endObj;
+  });
+
+  let allAccounts;
+  if (householdId) {
+    allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+  } else {
+    allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+  }
+  const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
+
+  let allCategories;
+  if (householdId) {
+    allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+  } else {
+    allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+  }
+  const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+  const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap, categoriesMap);
+
+  let rolloverCount = 0;
+  for (const b of sourceBudgets) {
+    const category = categoriesMap.get(b.categoryId);
+    if (category?.enablePacing) {
+      const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+      const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+      const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
+      const spent = spendingMap[b.categoryId] || 0;
+      const sisa = (allocated + carryover - swept) - spent;
+
+      if (sisa !== 0) {
+        let targetBudget;
+        if (householdId) {
+          targetBudget = await ctx.db.query("budgets")
+            .withIndex("by_householdId_category_year_month", q => 
+              q.eq("householdId", householdId)
+               .eq("categoryId", b.categoryId)
+               .eq("year", targetYear)
+               .eq("month", targetMonth)
+            ).first();
+        } else {
+          targetBudget = await ctx.db.query("budgets")
+            .withIndex("by_user_category_year_month", q => 
+              q.eq("userId", userId)
+               .eq("categoryId", b.categoryId)
+               .eq("year", targetYear)
+               .eq("month", targetMonth)
+            ).first();
+        }
+
+        if (targetBudget) {
+          const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
+          if (Math.abs(targetCarryover - sisa) > 0.01) {
+            await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
+            rolloverCount++;
+          }
+        } else {
+          await ctx.db.insert("budgets", {
+            userId,
+            householdId,
+            categoryId: b.categoryId,
+            amount: "0",
+            year: targetYear,
+            month: targetMonth,
+            carryoverAmount: sisa.toString()
+          });
+          rolloverCount++;
+        }
+      }
+    }
+  }
+
+  return rolloverCount;
+}
+
 export const rolloverBudgets = mutation({
     args: {
         householdId: v.optional(v.id("households")),
@@ -864,118 +975,164 @@ export const rolloverBudgets = mutation({
         const household = await getHousehold(ctx, householdId, userId);
         const startDay = household?.budgetStartDay || 1;
 
-        // 1. Get Budgets from the Source Month
-        let sourceBudgets;
-        if (householdId) {
-            sourceBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", year).eq("month", month)).collect();
-        } else {
-            sourceBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", year).eq("month", month)).collect();
-        }
-
-        // 2. Determine Target Month
-        let targetMonth = month + 1;
-        let targetYear = year;
-        if (targetMonth > 11) {
-            targetMonth = 0;
-            targetYear++;
-        }
-
-        // 3. Calculate Spending for Source Month
-        const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
-        const startObj = new Date(startOfFiscal);
-        const endObj = new Date(endOfFiscal);
-
-        let allTransactions;
-        if (householdId) {
-            allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
-        } else {
-            allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
-        }
-
-        const sourceTransactions = allTransactions.filter(t => {
-            const tDate = new Date(t.date);
-            return tDate >= startObj && tDate <= endObj;
-        });
-
-        let allAccounts;
-        if (householdId) {
-            allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
-        } else {
-            allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
-        }
-        const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
-
-        let allCategories;
-        if (householdId) {
-            allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
-        } else {
-            allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
-        }
-        const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
-
-        const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap, categoriesMap);
-
-        // 4. Process Rollover
-        let rolloverCount = 0;
-        for (const b of sourceBudgets) {
-            const category = categoriesMap.get(b.categoryId);
-            // ONLY rollover if Smart Pacing is enabled
-            if (category?.enablePacing) {
-                const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
-                const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
-                const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
-                const spent = spendingMap[b.categoryId] || 0;
-                
-                // Final balance to roll over (positive or negative)
-                const sisa = (allocated + carryover - swept) - spent;
-                
-                if (sisa !== 0) {
-                    // Find or create target budget in the NEXT month
-                    let targetBudget;
-                    if (householdId) {
-                        targetBudget = await ctx.db.query("budgets")
-                            .withIndex("by_householdId_category_year_month", q => 
-                                q.eq("householdId", householdId)
-                                 .eq("categoryId", b.categoryId)
-                                 .eq("year", targetYear)
-                                 .eq("month", targetMonth)
-                            ).first();
-                    } else {
-                        targetBudget = await ctx.db.query("budgets")
-                            .withIndex("by_user_category_year_month", q => 
-                                q.eq("userId", userId)
-                                 .eq("categoryId", b.categoryId)
-                                 .eq("year", targetYear)
-                                 .eq("month", targetMonth)
-                            ).first();
-                    }
-
-                    if (targetBudget) {
-                        // Update existing carryover if it differs
-                        const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
-                        if (Math.abs(targetCarryover - sisa) > 0.01) {
-                            await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
-                            rolloverCount++;
-                        }
-                    } else {
-                        // Insert new budget record with the carryover
-                        await ctx.db.insert("budgets", {
-                            userId,
-                            householdId,
-                            categoryId: b.categoryId,
-                            amount: "0", 
-                            year: targetYear,
-                            month: targetMonth,
-                            carryoverAmount: sisa.toString()
-                        });
-                        rolloverCount++;
-                    }
-                }
-            }
-        }
-
-        return rolloverCount;
+        return await performRollover(ctx, userId, householdId, year, month, startDay);
     }
+});
+
+export const fixAllCarryovers = mutation({
+  args: {
+    householdId: v.optional(v.id("households")),
+  },
+  handler: async (ctx, { householdId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
+
+    if (householdId) {
+      if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
+    }
+
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
+    const now = new Date();
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
+
+    let allTransactions;
+    let allAccounts;
+    let allCategories;
+    if (householdId) {
+      allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+      allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+      allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+      allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+      allAccounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+      allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+    }
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
+    const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+    const correctedCarryover = new Map<string, number>();
+    let totalRollovers = 0;
+
+    for (let m = 0; m <= currentMonth; m++) {
+      let sourceBudgets;
+      if (householdId) {
+        sourceBudgets = await ctx.db.query("budgets")
+          .withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", currentYear).eq("month", m))
+          .collect();
+      } else {
+        sourceBudgets = await ctx.db.query("budgets")
+          .withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", currentYear).eq("month", m))
+          .collect();
+      }
+
+      if (sourceBudgets.length === 0) continue;
+
+      let targetMonth = m + 1;
+      let targetYear = currentYear;
+      if (targetMonth > 11) {
+        targetMonth = 0;
+        targetYear++;
+      }
+
+      const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, m, startDay);
+      const sourceTransactions = allTransactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate >= new Date(startOfFiscal) && tDate <= new Date(endOfFiscal);
+      });
+
+      const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap, categoriesMap);
+
+      for (const b of sourceBudgets) {
+        const category = categoriesMap.get(b.categoryId);
+        if (!category?.enablePacing) continue;
+
+        const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+        const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+        const storedCarryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
+        const effectiveCarryover = correctedCarryover.get(b.categoryId) ?? storedCarryover;
+        const spent = spendingMap[b.categoryId] || 0;
+        const sisa = (allocated + effectiveCarryover - swept) - spent;
+
+        correctedCarryover.set(b.categoryId, sisa);
+
+        if (sisa !== 0) {
+          let targetBudget;
+          if (householdId) {
+            targetBudget = await ctx.db.query("budgets")
+              .withIndex("by_householdId_category_year_month", q =>
+                q.eq("householdId", householdId)
+                 .eq("categoryId", b.categoryId)
+                 .eq("year", targetYear)
+                 .eq("month", targetMonth)
+              ).first();
+          } else {
+            targetBudget = await ctx.db.query("budgets")
+              .withIndex("by_user_category_year_month", q =>
+                q.eq("userId", userId)
+                 .eq("categoryId", b.categoryId)
+                 .eq("year", targetYear)
+                 .eq("month", targetMonth)
+              ).first();
+          }
+
+          if (targetBudget) {
+            const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
+            if (Math.abs(targetCarryover - sisa) > 0.01) {
+              await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
+              totalRollovers++;
+            }
+          } else {
+            await ctx.db.insert("budgets", {
+              userId,
+              householdId,
+              categoryId: b.categoryId,
+              amount: "0",
+              year: targetYear,
+              month: targetMonth,
+              carryoverAmount: sisa.toString()
+            });
+            totalRollovers++;
+          }
+        }
+      }
+    }
+
+    return { processedMonths: currentMonth + 1, totalRollovers };
+  }
+});
+
+export const ensureCurrentRollover = mutation({
+  args: {
+    householdId: v.optional(v.id("households")),
+  },
+  handler: async (ctx, { householdId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
+
+    if (householdId) {
+      if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
+    }
+
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
+    const now = new Date();
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
+
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    if (prevMonth < 0) {
+      prevMonth = 11;
+      prevYear--;
+    }
+
+    const rolloverCount = await performRollover(ctx, userId, householdId, prevYear, prevMonth, startDay);
+    return { month: prevMonth, year: prevYear, rolloverCount };
+  }
 });
 
 export const getBudgetReport = query({
