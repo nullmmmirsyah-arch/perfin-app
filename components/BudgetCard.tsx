@@ -67,10 +67,10 @@ export default function BudgetCard({
   const effectiveLimit = limit + carryover;
   
   // Remaining is what's left after spending and any sweeps
-  const remaining = Math.max(0, effectiveLimit - spent - swept);
+  const remaining = effectiveLimit - spent - swept;
   
-  const percentage = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 0;
-  const isOverBudget = spent > effectiveLimit && effectiveLimit > 0;
+  const percentage = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 100;
+  const isOverBudget = effectiveLimit <= 0 || spent > effectiveLimit;
   const dailySafeSpend = remaining / daysRemaining;
 
   // Pacing Logic (Expenses) - Use Effective Limit
@@ -290,8 +290,8 @@ export default function BudgetCard({
                           const receivables = item.pendingReceivables || 0;
                           const personalSpent = Math.max(0, spent - receivables);
                           
-                          const personalPct = (personalSpent / effectiveLimit) * 100;
-                          const receivablesPct = (receivables / effectiveLimit) * 100;
+                          const personalPct = effectiveLimit > 0 ? (personalSpent / effectiveLimit) * 100 : 100;
+                          const receivablesPct = effectiveLimit > 0 ? (receivables / effectiveLimit) * 100 : 0;
                           
                           return (
                               <>

@@ -101,7 +101,8 @@ export function calculateBudgetPace(
   const isCurrentFiscalMonth = currentFiscal.getFullYear() === year && currentFiscal.getMonth() === month;
   
   // Base status check: Over budget is ALWAYS danger
-  const isOver = limit > 0 && spent > limit;
+  // Also danger if effective limit is <= 0 (overspent from carryover debt)
+  const isOver = limit <= 0 || spent > limit;
 
   // If viewing Past/Future, simpler logic
   if (!isCurrentFiscalMonth) {
@@ -113,16 +114,16 @@ export function calculateBudgetPace(
         status: isOver ? 'danger' : 'safe',
         dailyLimit: 0,
         timeProgress: 100,
-        spendProgress: limit > 0 ? (spent / limit) * 100 : 0,
+        spendProgress: limit > 0 ? (spent / limit) * 100 : 100,
         daysRemaining: 0,
       };
     }
     // Future
     return {
       status: isOver ? 'danger' : 'safe',
-      dailyLimit: limit / 30, // Approx
+      dailyLimit: limit > 0 ? limit / 30 : 0,
       timeProgress: 0,
-      spendProgress: limit > 0 ? (spent / limit) * 100 : 0,
+      spendProgress: limit > 0 ? (spent / limit) * 100 : 100,
       daysRemaining: 30,
     };
   }
@@ -137,12 +138,12 @@ export function calculateBudgetPace(
   const daysPassed = differenceInCalendarDays(now, start) + 1;
   
   const timeProgress = (daysPassed / totalDaysInCycle) * 100;
-  const spendProgress = limit > 0 ? (spent / limit) * 100 : 0;
+  const spendProgress = limit > 0 ? (spent / limit) * 100 : 100;
   
   const daysRemainingExact = differenceInCalendarDays(end, now) + 1;
 
   const remainingBudget = Math.max(0, limit - spent);
-  const dailyLimit = remainingBudget / Math.max(1, daysRemainingExact);
+  const dailyLimit = limit > 0 ? remainingBudget / Math.max(1, daysRemainingExact) : 0;
 
   // Status Logic
   let status: PacingStatus = 'safe';
