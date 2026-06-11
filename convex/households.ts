@@ -193,6 +193,23 @@ export const getMembers = query({
   }
 });
 
+export const getMemberRole = query({
+  args: { householdId: v.id("households") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+
+    const member = await ctx.db
+      .query("householdMembers")
+      .withIndex("by_householdId_userId", q => q.eq("householdId", args.householdId).eq("userId", identity.subject))
+      .first();
+
+    if (!member) return null;
+
+    return member.role;
+  }
+});
+
 export const getPendingInvites = query({
   args: { householdId: v.id("households") },
   handler: async (ctx, args) => {
