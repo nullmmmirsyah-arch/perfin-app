@@ -3,6 +3,8 @@
 import {
   Drawer,
   DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import { AlertCircle } from 'lucide-react';
@@ -80,6 +82,9 @@ export const MobileAmountInput = ({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="bg-background z-50">
+        <DrawerHeader className="sr-only">
+          <DrawerTitle>Enter Amount</DrawerTitle>
+        </DrawerHeader>
         <div className="px-6 pt-4 pb-8 flex flex-col gap-6">
           <div className="flex flex-col items-center justify-center py-6 min-h-[100px]">
             <span className="text-sm font-medium text-muted-foreground mb-2">Rp</span>
