@@ -79,6 +79,10 @@ export default function BudgetsPage() {
   const [budgetToDelete, setBudgetToDelete] = useState<{ id: Id<'budgets'>, name: string } | undefined>(undefined)
 
   const { householdId, households } = useHousehold()
+  const memberRole = useQuery(convexApi.households.getMemberRole,
+    householdId ? { householdId } : "skip"
+  )
+  const isAdmin = !householdId || memberRole === "admin"
   const activeHousehold = households.find(h => h._id === householdId)
   const budgetStartDay = activeHousehold?.budgetStartDay || 1;
 
@@ -310,47 +314,47 @@ export default function BudgetsPage() {
               </Button>
            </div>
            
-           {!isPastMonth && (
+           {isAdmin && !isPastMonth && (
              <Popover>
-               <PopoverTrigger asChild>
-                 <div className={cn(
-                     "px-4 py-2 rounded-md border font-medium text-sm flex items-center gap-2 cursor-help",
-                     unassignedCash < 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/5 text-primary border-primary/10"
-                 )}>
-                     Unassigned: {unassignedCash.toLocaleString()}
-                     <Info className="h-3.5 w-3.5 opacity-50" />
-                 </div>
-               </PopoverTrigger>
-               <PopoverContent className="w-80">
-                 <div className="space-y-3">
-                   <h4 className="font-semibold text-sm border-b pb-2">Cash Allocation Breakdown</h4>
-                   <div className="space-y-1.5">
-                     <div className="flex justify-between text-xs">
-                       <span className="text-muted-foreground">Past Surplus (Carry Over)</span>
-                       <span className="font-medium text-success">+{breakdown?.pastSurplus.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between text-xs">
-                       <span className="text-muted-foreground">This Month&apos;s Income</span>
-                       <span className="font-medium text-success">+{breakdown?.thisMonthIncome.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between text-xs">
-                       <span className="text-muted-foreground">This Month&apos;s Budgeted</span>
-                       <span className="font-medium text-destructive">-{breakdown?.thisMonthBudgeted.toLocaleString()}</span>
-                     </div>
-                     <div className="border-t pt-1.5 flex justify-between text-sm font-bold">
-                       <span>Unassigned Total</span>
-                       <span className={unassignedCash < 0 ? "text-destructive" : "text-primary"}>
-                         {unassignedCash.toLocaleString()}
-                       </span>
-                     </div>
-                   </div>
-                   <p className="text-[10px] text-muted-foreground italic">
-                     *Calculated as Total Global Income minus Total Global Budget.
-                   </p>
-                 </div>
-               </PopoverContent>
-             </Popover>
-           )}
+                <PopoverTrigger asChild>
+                  <div className={cn(
+                      "px-4 py-2 rounded-md border font-medium text-sm flex items-center gap-2 cursor-help",
+                      unassignedCash < 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/5 text-primary border-primary/10"
+                  )}>
+                      Unassigned: {unassignedCash.toLocaleString()}
+                      <Info className="h-3.5 w-3.5 opacity-50" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm border-b pb-2">Cash Allocation Breakdown</h4>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Past Surplus (Carry Over)</span>
+                        <span className="font-medium text-success">+{breakdown?.pastSurplus.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">This Month&apos;s Income</span>
+                        <span className="font-medium text-success">+{breakdown?.thisMonthIncome.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">This Month&apos;s Budgeted</span>
+                        <span className="font-medium text-destructive">-{breakdown?.thisMonthBudgeted.toLocaleString()}</span>
+                      </div>
+                      <div className="border-t pt-1.5 flex justify-between text-sm font-bold">
+                        <span>Unassigned Total</span>
+                        <span className={unassignedCash < 0 ? "text-destructive" : "text-primary"}>
+                          {unassignedCash.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground italic">
+                      *Calculated as Total Global Income minus Total Global Budget.
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
         </div>
       </div>
 
@@ -530,6 +534,7 @@ export default function BudgetsPage() {
                                             isPastMonth={isPastMonth}
                                             selectedDate={selectedDate}
                                             budgetStartDay={budgetStartDay}
+                                            isAdmin={isAdmin}
                                             onEdit={handleEdit}
                                             onDelete={(id, name) => setBudgetToDelete({ id, name })}
                                         />
@@ -587,6 +592,7 @@ export default function BudgetsPage() {
                                             isPastMonth={isPastMonth}
                                             selectedDate={selectedDate}
                                             budgetStartDay={budgetStartDay}
+                                            isAdmin={isAdmin}
                                             onEdit={handleEdit}
                                             onDelete={(id, name) => setBudgetToDelete({ id, name })}
                                             onClickGoal={(id) => router.push(`/goals/${id}`)}

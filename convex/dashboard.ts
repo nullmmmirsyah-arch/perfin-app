@@ -69,21 +69,11 @@ export const getTotals = query({
         transactions = await q.collect();
     }
 
-    // Filter out transactions belonging to private accounts not owned by current user
-    const txAccountIds = new Set(transactions.map(t => t.accountId));
-    const txAccounts = await Promise.all(Array.from(txAccountIds).map(id => ctx.db.get(id)));
-    const txAccountMap = new Map(txAccounts.filter(Boolean).map(a => [a!._id, a!]));
-    const visibleTransactions = transactions.filter(t => {
-      const account = txAccountMap.get(t.accountId);
-      if (account?.visibility === "private" && account?.userId !== identity.subject) return false;
-      return true;
-    });
-
-    const income = visibleTransactions
+    const income = transactions
       .filter((t) => t.type === "income")
       .reduce((acc, t) => acc + parseFloat(t.amount.replace(/,/g, '')), 0);
 
-    const expense = visibleTransactions
+    const expense = transactions
       .filter((t) => t.type === "expense")
       .reduce((acc, t) => acc + parseFloat(t.amount.replace(/,/g, '')), 0);
 
@@ -121,17 +111,7 @@ export const getSpendingByCategory = query({
         transactions = await q.collect();
     }
 
-    // Filter out transactions belonging to private accounts not owned by current user
-    const txAccountIds = new Set(transactions.map(t => t.accountId));
-    const txAccounts = await Promise.all(Array.from(txAccountIds).map(id => ctx.db.get(id)));
-    const txAccountMap = new Map(txAccounts.filter(Boolean).map(a => [a!._id, a!]));
-    const visibleTransactions = transactions.filter(t => {
-      const account = txAccountMap.get(t.accountId);
-      if (account?.visibility === "private" && account?.userId !== identity.subject) return false;
-      return true;
-    });
-
-    const expenseTransactions = visibleTransactions.filter((t) => t.type === "expense");
+    const expenseTransactions = transactions.filter((t) => t.type === "expense");
 
     let categories;
     if (householdId) {
@@ -182,11 +162,7 @@ export const getDashboardSummary = query({
     const accounts = allAccounts.filter(a => !a.isArchived && (a.visibility !== "private" || a.userId === userId));
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
-    const visibleTransactions = allTransactions.filter(t => {
-      const account = allAccounts.find(a => a._id === t.accountId);
-      if (account?.visibility === "private" && account?.userId !== userId) return false;
-      return true;
-    });
+
 
     // 1. Split Balances & Funds Allocation
     const liquidCash = accounts
@@ -203,7 +179,7 @@ export const getDashboardSummary = query({
 
     // --- FUNDS ALLOCATION LOGIC (In-Memory) ---
     const allocationMap = new Map<string, { name: string, amount: number }[]>();
-    const transfers = visibleTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER && t.toAccountId);
+    const transfers = allTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER && t.toAccountId);
     
     const specialAccountIds = new Set(
         accounts
@@ -292,7 +268,7 @@ export const getDashboardSummary = query({
         ).collect();
     }
 
-    const currentMonthTransactions = visibleTransactions.filter(t => {
+    const currentMonthTransactions = allTransactions.filter(t => {
       return t.date >= startOfFiscal && t.date <= endOfFiscal;
     });
 
@@ -305,7 +281,7 @@ export const getDashboardSummary = query({
     const categoriesMap = new Map(categories.map(c => [c._id, c]));
 
     const spendingByCategory = calculateSpendingByCategory(currentMonthTransactions, accountsMap, categoriesMap);
-    const accumulatedMap = calculateSpendingByCategory(visibleTransactions, accountsMap, categoriesMap);
+    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap, categoriesMap);
 
     // 2.0.1 Calculate Pending Receivables Per Category (For Visual Arsir)
     const pendingReceivablesByCategory: Record<string, number> = {};
@@ -380,7 +356,7 @@ export const getDashboardSummary = query({
     
     // Group all transactions by month/category for historical obligation check
     const monthlySpendingAll = new Map<string, Map<string, number>>();
-    visibleTransactions.forEach(t => {
+    allTransactions.forEach(t => {
         const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
         const { year, month } = getFiscalDateDetails(t.date, startDay);
         const key = `${year}-${month}`; 
@@ -415,10 +391,10 @@ export const getDashboardSummary = query({
         }
     });
 
-    const unassignedCash = calculateUnassignedCash(visibleTransactions, allBudgets, accountsMap, startDay, categoriesMap, currentMonth, currentYear);
+    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, currentMonth, currentYear);
 
     // 2.3 Calculate Receivables (Pending & Partial Only)
-    const pendingReceivablesList = visibleTransactions
+    const pendingReceivablesList = allTransactions
         .filter(t => t.isReimbursable && t.reimbursementStatus === 'pending' && (t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial'))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -428,7 +404,7 @@ export const getDashboardSummary = query({
     }, 0);
 
     // 3. Recent Transactions
-    const sortedTransactions = visibleTransactions
+    const sortedTransactions = allTransactions
         .sort((a, b) => {
             const dateA = new Date(a.date).getTime();
             const dateB = new Date(b.date).getTime();
@@ -483,11 +459,16 @@ export const getDashboardSummary = query({
                     };
                 });
 
+            const hideAmount = t.isSplit && t.splits && t.splits.length > 0
+                ? t.splits.some(s => txCategoryMap.get(s.categoryId)?.hideAmount === true)
+                : (category?.hideAmount ?? false);
+
             return {
                 ...t,
                 fromAccountName: fromAccount?.name,
                 toAccountName: toAccount?.name,
                 categoryName: category?.name,
+                hideAmount,
                 label,
                 splits: splitsWithDetails,
             };

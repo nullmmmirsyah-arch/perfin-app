@@ -259,9 +259,10 @@ const AccountDrawer = ({ open, onOpenChange, account }: AccountDrawerProps) => {
 
         let result;
         if (isEditMode && account) {
+          const { balance, ...updatePayload } = payload;
           await updateAccount({
             id: account._id,
-            ...payload,
+            ...updatePayload,
           });
           result = { linkedCategoryId: account.linkedCategoryId }; 
         } else {

@@ -371,15 +371,7 @@ export const get = query({
     const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
     const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
 
-    const filteredPageResults = pageResults.filter(transaction => {
-      const fromAccount = accountMap.get(transaction.accountId);
-      if (fromAccount?.visibility === "private" && fromAccount?.userId !== identity.subject) {
-        return false;
-      }
-      return true;
-    });
-
-    const pageWithDetails = filteredPageResults.map((transaction) => {
+    const pageWithDetails = pageResults.map((transaction) => {
       const fromAccount = accountMap.get(transaction.accountId);
       const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
       const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
@@ -397,12 +389,16 @@ export const get = query({
         };
       });
 
+      const hideAmount = transaction.isSplit && transaction.splits && transaction.splits.length > 0
+        ? transaction.splits.some(s => categoryMap.get(s.categoryId)?.hideAmount === true)
+        : (category?.hideAmount ?? false);
+
       return {
         ...transaction,
         fromAccountName: fromAccount?.name,
         toAccountName: toAccount?.name,
         categoryName: category?.name,
-        hideAmount: category?.hideAmount ?? false,
+        hideAmount,
         label: label || null,
         splits: splitsWithDetails,
       };
@@ -534,16 +530,8 @@ export const exportTransactions = query({
     const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
     const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
 
-    const filteredExports = results.filter(t => {
-      const fromAccount = accountMap.get(t.accountId);
-      if (fromAccount?.visibility === "private" && fromAccount?.userId !== identity.subject) {
-        return false;
-      }
-      return true;
-    });
-
     // Format for Export (Exploded Rows for Splits)
-    return filteredExports.flatMap((t) => {
+    return results.flatMap((t) => {
         const fromAccount = accountMap.get(t.accountId);
         const toAccount = t.toAccountId ? accountMap.get(t.toAccountId) : null;
         
@@ -861,10 +849,14 @@ export const create = mutation({
     // Skip notifications for private accounts or hideAmount categories
     const account = args.accountId ? await ctx.db.get(args.accountId) : null;
     const category = args.categoryId ? await ctx.db.get(args.categoryId) : null;
-    if (account?.householdId && category?.householdId) {
+    const anySplitHideAmount = args.isSplit && args.splits && args.splits.length > 0
+      ? (await Promise.all(args.splits.map(s => ctx.db.get(s.categoryId)))).some(c => c?.hideAmount === true)
+      : false;
+    if (account?.householdId && (category?.householdId || anySplitHideAmount)) {
       const skipNotification =
         (account?.visibility === "private") ||
-        (category?.hideAmount === true);
+        (category?.hideAmount === true) ||
+        anySplitHideAmount;
       if (skipNotification) {
         return transaction;
       }

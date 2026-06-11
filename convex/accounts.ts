@@ -8,8 +8,9 @@ export const get = query({
   args: { 
     householdId: v.optional(v.id("households")),
     showArchived: v.optional(v.boolean()),
+    includeAll: v.optional(v.boolean()),
   },
-  handler: async (ctx, { householdId, showArchived }) => {
+  handler: async (ctx, { householdId, showArchived, includeAll }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -22,7 +23,7 @@ export const get = query({
     }
 
     return accounts.filter(a => {
-  if (a.visibility === "private" && a.userId !== identity.subject) return false;
+  if (!includeAll && a.visibility === "private" && a.userId !== identity.subject) return false;
   if (!showArchived && a.isArchived) return false;
   return true;
 });

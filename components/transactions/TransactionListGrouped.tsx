@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { TransactionWithDetails } from './types';
 import { TransactionItem } from '@/components/TransactionItem';
 import { groupTransactionsByDate } from '@/lib/utils';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function TransactionListGrouped({ transactions, onEdit, onDelete, highlightLabelId, highlightCategoryId }: Props) {
+  const { user } = useUser();
   const { groupedTransactions, sortedDates } = useMemo(() => {
     const grouped = groupTransactionsByDate(transactions || []);
     return { groupedTransactions: grouped, sortedDates: Object.keys(grouped) };
@@ -20,6 +22,9 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, highlig
   const getDailyTotal = (transactions: TransactionWithDetails[]) => {
     let total = 0;
     transactions.forEach(t => {
+      const shouldMask = t.hideAmount && t.userId !== user?.id;
+      if (shouldMask) return;
+
       let amount = 0;
       const isFiltered = (highlightLabelId && highlightLabelId.length > 0) || (highlightCategoryId && highlightCategoryId.length > 0);
       

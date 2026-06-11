@@ -207,12 +207,6 @@ export const getCategoryDetails = query({
     const accountsMap: AccountMap = new Map(accounts.map((a: Doc<"accounts">) => [String(a._id), a]));
     const categoriesMap = new Map(categories.map((c: Doc<"categories">) => [String(c._id), c]));
 
-    const visibleTransactions = allTransactions.filter(t => {
-      const account = accounts.find(a => a._id === t.accountId);
-      if (account?.visibility === "private" && account?.userId !== identity.subject) return false;
-      return true;
-    });
-
     const historyData = [];
     
     for (let i = 11; i >= 0; i--) {
@@ -223,7 +217,7 @@ export const getCategoryDetails = query({
         const budget = allBudgets.find(b => String(b.categoryId) === String(id) && b.year === y && b.month === m);
         const { start, end } = getFiscalMonthRange(y, m, startDay);
         
-        const monthTx = visibleTransactions.filter(t => {
+        const monthTx = allTransactions.filter(t => {
             const d = new Date(t.date);
             return d >= new Date(start) && d <= new Date(end);
         });
@@ -263,7 +257,7 @@ export const getCategoryDetails = query({
         });
     }
 
-    let filteredTransactions = visibleTransactions
+    let filteredTransactions = allTransactions
         .filter(t => {
             const isMain = t.categoryId === id;
             const isSplit = t.isSplit && t.splits?.some(s => s.categoryId === id);

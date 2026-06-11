@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { z } from 'zod';
 import { useForm, useFieldArray, useWatch, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -444,7 +445,7 @@ const TransactionForm = ({
   const editingTransactionId = useRef<string | null>(null);
   const isSettlement = !!initialData?.parentTransactionId;
 
-  const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined });
+  const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined, includeAll: true });
   const isEditMode = !!transaction;
 
   const formSchema = useMemo(() => createTransactionFormSchema(accounts || []), [accounts]);
@@ -862,6 +863,11 @@ const TransactionFormFields = ({
     isEditMode?: boolean,
     isSettlement?: boolean
 }) => {
+  const { user } = useUser();
+
+  const hideBalance = (account: Doc<'accounts'>) =>
+    account.visibility === "private" && account.userId !== user?.id;
+
   const isSplit = useWatch({ control: form.control, name: 'isSplit' });
   const type = useWatch({ control: form.control, name: 'type' });
   const amount = useWatch({ control: form.control, name: 'amount' });
@@ -982,7 +988,7 @@ const TransactionFormFields = ({
                                     options={accounts.map(acc => ({
                                         value: acc._id,
                                         label: acc.name,
-                                        subLabel: `Balance: ${formatCurrency(acc.balance)}`
+                                        subLabel: hideBalance(acc) ? undefined : `Balance: ${formatCurrency(acc.balance)}`
                                     }))}
                                     trigger={
                                         <button type="button" className="w-full text-left outline-none">
@@ -990,7 +996,7 @@ const TransactionFormFields = ({
                                                 label="Account" 
                                                 icon={Wallet} 
                                                 valueDisplay={selectedAccount?.name}
-                                                subValueDisplay={selectedAccount ? `Balance: ${formatCurrency(selectedAccount.balance)}` : undefined}
+                                                subValueDisplay={selectedAccount && !hideBalance(selectedAccount) ? `Balance: ${formatCurrency(selectedAccount.balance)}` : undefined}
                                             />
                                         </button>
                                     }
@@ -1300,7 +1306,7 @@ const TransactionFormFields = ({
                                 <div className="flex w-full items-center justify-between gap-4">
                                     <span className="font-medium truncate">{account.name}</span>
                                     <span className="text-muted-foreground text-xs font-normal shrink-0">
-                                        {formatCurrency(account.balance)}
+                                        {hideBalance(account) ? '••••' : formatCurrency(account.balance)}
                                     </span>
                                 </div>
                             </SelectItem>
@@ -1531,9 +1537,13 @@ const TransactionFormFields = ({
 };
 
 const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { form: UseFormReturn<TransactionFormValues>, accounts: Doc<'accounts'>[], labels: Doc<'labels'>[], categories: CategoryOption[], isMobile?: boolean }) => {
+  const { user } = useUser();
   // Transfer form fields logic remains largely the same, but we can apply the card style here too if needed.
   // For brevity, I'll apply the same MobileInputCard pattern here.
   
+  const hideBalance = (account: Doc<'accounts'>) =>
+    account.visibility === "private" && account.userId !== user?.id;
+
   const fromAccountId = useWatch({ control: form.control, name: 'accountId' });
   const toAccountId = useWatch({ control: form.control, name: 'toAccountId' });
   const amount = useWatch({ control: form.control, name: 'amount' });
@@ -1660,7 +1670,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                                 options={accounts.map(acc => ({
                                     value: acc._id,
                                     label: acc.name,
-                                    subLabel: `Balance: ${formatCurrency(acc.balance)}`
+                                    subLabel: hideBalance(acc) ? undefined : `Balance: ${formatCurrency(acc.balance)}`
                                 }))}
                                 trigger={
                                     <button type="button" className="w-full text-left outline-none">
@@ -1668,7 +1678,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                                             label="From Account" 
                                             icon={Wallet} 
                                             valueDisplay={fromAccount?.name}
-                                            subValueDisplay={fromAccount ? `Balance: ${formatCurrency(fromAccount.balance)}` : undefined}
+                                            subValueDisplay={fromAccount && !hideBalance(fromAccount) ? `Balance: ${formatCurrency(fromAccount.balance)}` : undefined}
                                         />
                                     </button>
                                 }
@@ -1690,7 +1700,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                                 options={accounts.map(acc => ({
                                     value: acc._id,
                                     label: acc.name,
-                                    subLabel: `Balance: ${formatCurrency(acc.balance)}`
+                                    subLabel: hideBalance(acc) ? undefined : `Balance: ${formatCurrency(acc.balance)}`
                                 }))}
                                 trigger={
                                     <button type="button" className="w-full text-left outline-none">
@@ -1698,7 +1708,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                                             label="To Account" 
                                             icon={ArrowRight} 
                                             valueDisplay={toAccount?.name}
-                                            subValueDisplay={toAccount ? `Balance: ${formatCurrency(toAccount.balance)}` : undefined}
+                                            subValueDisplay={toAccount && !hideBalance(toAccount) ? `Balance: ${formatCurrency(toAccount.balance)}` : undefined}
                                         />
                                     </button>
                                 }

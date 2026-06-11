@@ -34,6 +34,7 @@ interface BudgetCardProps {
   isPastMonth: boolean;
   selectedDate: Date;
   budgetStartDay?: number;
+  isAdmin: boolean;
   onEdit: (category: any, amount?: string) => void;
   onDelete: (id: any, name: string) => void;
   onClickGoal?: (id: any) => void;
@@ -49,6 +50,7 @@ export default function BudgetCard({
   isPastMonth,
   selectedDate,
   budgetStartDay = 1,
+  isAdmin,
   onEdit,
   onDelete,
   onClickGoal
@@ -180,36 +182,38 @@ export default function BudgetCard({
                 </span>
               )}            </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => {
-                e.stopPropagation();
-                // Pass suggestion as default amount if editing
-                const suggestedAmount = strategy?.monthly ? strategy.monthly.toFixed(0) : undefined;
-                onEdit(category, budget?.amount || suggestedAmount);
-              }}>
-                <Edit2 className="mr-2 h-4 w-4" />
-                {isGoal ? 'Set Monthly Contribution' : (budget ? 'Edit Budget' : 'Set Budget')}
-              </DropdownMenuItem>
-              {budget && (
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(budget._id, category.name);
-                  }}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Remove Budget
+          {isAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  // Pass suggestion as default amount if editing
+                  const suggestedAmount = strategy?.monthly ? strategy.monthly.toFixed(0) : undefined;
+                  onEdit(category, budget?.amount || suggestedAmount);
+                }}>
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  {isGoal ? 'Set Monthly Contribution' : (budget ? 'Edit Budget' : 'Set Budget')}
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {budget && (
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(budget._id, category.name);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove Budget
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -372,7 +376,7 @@ export default function BudgetCard({
                 </>
               )}
               
-              {!budget && (
+              {isAdmin && !budget && (
                 <Button 
                   variant="outline" 
                   className="w-full border-dashed"
