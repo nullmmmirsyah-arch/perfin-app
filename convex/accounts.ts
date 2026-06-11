@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
+import { checkHouseholdAccess, ensureHouseholdAccess, ensureAdminAccess } from "./lib/auth";
 import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES, GOAL_STATUS, GOAL_TYPES } from "./lib/constants";
 
 export const get = query({
@@ -24,7 +24,11 @@ export const get = query({
     if (showArchived) {
       return accounts;
     }
-    return accounts.filter(a => !a.isArchived);
+    return accounts.filter(a => {
+  if (a.isArchived && !showArchived) return false;
+  if (a.visibility === "private" && a.userId !== identity.subject) return false;
+  return true;
+});
   },
 });
 
@@ -47,6 +51,7 @@ export const create = mutation({
     
     if (args.householdId) {
         await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
+        await ensureAdminAccess(ctx, args.householdId, identity.subject);
     }
 
     let linkedCategoryId: Id<"categories"> | undefined;
@@ -165,12 +170,13 @@ export const update = mutation({
     targetDate: v.optional(v.string()),
     goalType: v.optional(v.string()),
     monthlyBudget: v.optional(v.string()),
+    visibility: v.optional(v.union(v.literal("shared"), v.literal("private"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, targetAmount, targetDate, goalType, monthlyBudget, ...rest } = args;
+    const { id, targetAmount, targetDate, goalType, monthlyBudget, visibility, ...rest } = args;
     const account = await ctx.db.get(id);
     if (!account) throw new Error("Account not found");
 
@@ -178,6 +184,10 @@ export const update = mutation({
         await ensureHouseholdAccess(ctx, account.householdId, identity.subject);
     } else {
         if (account.userId !== identity.subject) throw new Error("Unauthorized");
+    }
+
+    if (args.visibility !== undefined && account.householdId) {
+      await ensureAdminAccess(ctx, account.householdId, identity.subject);
     }
 
     // Safety Guard: Prevent Type Swap if Transactions Exist
@@ -293,7 +303,7 @@ export const update = mutation({
         }
     }
 
-    await ctx.db.patch(id, { ...rest, linkedCategoryId: newLinkedCategoryId });
+    await ctx.db.patch(id, { ...rest, linkedCategoryId: newLinkedCategoryId, visibility: visibility ?? undefined });
   },
 });
 
