@@ -57,7 +57,7 @@ export async function checkAdminAccess(
  * Ensures a user is an admin of a household. Throws if not admin.
  */
 export async function ensureAdminAccess(
-  ctx: MutationCtx,
+  ctx: QueryCtx | MutationCtx,
   householdId: Id<"households">,
   userId: string
 ): Promise<void> {

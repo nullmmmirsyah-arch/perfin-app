@@ -839,6 +839,18 @@ export const create = mutation({
          }
     }
 
+    // Skip notifications for private accounts or hideAmount categories
+    const account = args.accountId ? await ctx.db.get(args.accountId) : null;
+    const category = args.categoryId ? await ctx.db.get(args.categoryId) : null;
+    if (account?.householdId && category?.householdId) {
+      const skipNotification =
+        (account?.visibility === "private") ||
+        (category?.hideAmount === true);
+      if (skipNotification) {
+        return transaction;
+      }
+    }
+
     if (args.householdId) {
       const members = await ctx.db
         .query("householdMembers")
