@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
+import { checkHouseholdAccess, ensureHouseholdAccess, ensureAdminAccess } from "./lib/auth";
 
 export const get = query({
   args: { householdId: v.optional(v.id("households")) },
@@ -29,6 +29,7 @@ export const create = mutation({
     
     if (args.householdId) {
         await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
+        await ensureAdminAccess(ctx, args.householdId, identity.subject);
     }
 
     const label = await ctx.db.insert("labels", {
