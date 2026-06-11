@@ -8,6 +8,7 @@ export type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accou
   fromAccountName?: string;
   toAccountName?: string;
   categoryName?: string;
+  hideAmount: boolean;
   label?: Doc<'labels'> | null;
   splits?: Array<{
     categoryId: Id<'categories'>;

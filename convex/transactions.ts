@@ -371,7 +371,15 @@ export const get = query({
     const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
     const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
 
-    const pageWithDetails = pageResults.map((transaction) => {
+    const filteredPageResults = pageResults.filter(transaction => {
+      const fromAccount = accountMap.get(transaction.accountId);
+      if (fromAccount?.visibility === "private" && fromAccount?.userId !== identity.subject) {
+        return false;
+      }
+      return true;
+    });
+
+    const pageWithDetails = filteredPageResults.map((transaction) => {
       const fromAccount = accountMap.get(transaction.accountId);
       const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
       const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
@@ -394,6 +402,7 @@ export const get = query({
         fromAccountName: fromAccount?.name,
         toAccountName: toAccount?.name,
         categoryName: category?.name,
+        hideAmount: category?.hideAmount ?? false,
         label: label || null,
         splits: splitsWithDetails,
       };
@@ -525,8 +534,16 @@ export const exportTransactions = query({
     const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
     const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
 
+    const filteredExports = results.filter(t => {
+      const fromAccount = accountMap.get(t.accountId);
+      if (fromAccount?.visibility === "private" && fromAccount?.userId !== identity.subject) {
+        return false;
+      }
+      return true;
+    });
+
     // Format for Export (Exploded Rows for Splits)
-    return results.flatMap((t) => {
+    return filteredExports.flatMap((t) => {
         const fromAccount = accountMap.get(t.accountId);
         const toAccount = t.toAccountId ? accountMap.get(t.toAccountId) : null;
         
@@ -561,6 +578,7 @@ export const exportTransactions = query({
                      category: splitCategory?.name || "Unknown",
                      label: splitLabel?.name || "",
                      description: rowDesc,
+                     hideAmount: splitCategory?.hideAmount ?? false,
                  };
              });
         } else {
@@ -573,6 +591,7 @@ export const exportTransactions = query({
                  amount: t.amount,
                  category: category?.name || "",
                  label: label?.name || "",
+                 hideAmount: category?.hideAmount ?? false,
              }];
         }
     });
