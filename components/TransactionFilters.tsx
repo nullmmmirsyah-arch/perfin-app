@@ -13,8 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { CalendarIcon, Filter, X } from 'lucide-react'
-import { Calendar } from './ui/calendar'
-import { cn } from '@/lib/utils'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { Label } from './ui/label'
 import { useState } from 'react'
 import { MultiSelect, Option } from './ui/multi-select'
@@ -66,42 +65,10 @@ export default function TransactionFilters({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {/* Date Picker - Always Visible */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              id="date"
-              variant={'outline'}
-              className={cn(
-                'w-[240px] justify-start text-left font-normal',
-                !filters.dateRange && 'text-muted-foreground'
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {filters.dateRange?.from ? (
-                filters.dateRange.to ? (
-                  <>
-                    {format(filters.dateRange.from, 'LLL dd')} -{' '}
-                    {format(filters.dateRange.to, 'LLL dd')}
-                  </>
-                ) : (
-                  format(filters.dateRange.from, 'LLL dd')
-                )
-              ) : (
-                <span>Pick a date</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={filters.dateRange?.from}
-              selected={filters.dateRange}
-              onSelect={handleDateChange}
-              numberOfMonths={2}
-            />
-          </PopoverContent>
-        </Popover>
+        <DateRangePicker
+          date={filters.dateRange}
+          setDate={handleDateChange}
+        />
 
         {/* Filter Button & Popover */}
         <Popover open={open} onOpenChange={setOpen}>

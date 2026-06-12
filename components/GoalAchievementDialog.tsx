@@ -24,11 +24,8 @@ import { PartyPopper, ArrowRight, CalendarClock, TrendingUp } from 'lucide-react
 import { toast } from 'sonner'
 import { useHousehold } from './HouseholdProvider'
 import confetti from 'canvas-confetti'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
-import { format, differenceInDays } from 'date-fns'
-import { CalendarIcon } from 'lucide-react'
+import { differenceInDays } from 'date-fns'
+import { DatePicker } from '@/components/ui/date-picker'
 
 type GoalAchievementDialogProps = {
   open: boolean
@@ -380,29 +377,11 @@ export default function GoalAchievementDialog({
                 <div className="py-4">
                     <div className="flex flex-col gap-2">
                         <Label>Next Due Date</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !newTargetDate && "text-muted-foreground"
-                                    )}
-                                >
-                                    {newTargetDate ? format(newTargetDate, "PPP") : <span>Pick a date</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={newTargetDate}
-                                    onSelect={setNewTargetDate}
-                                    disabled={(date) => date < new Date()}
-                                    initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
+                        <DatePicker
+                            date={newTargetDate}
+                            setDate={setNewTargetDate}
+                            disabled={(date) => date < new Date()}
+                        />
                     </div>
                 </div>
                 <DialogFooter>

@@ -19,7 +19,7 @@ import {
   SheetClose,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+
 import {
   Form,
   FormControl,
@@ -58,7 +58,6 @@ import {
   AlertCircle, 
   Wallet, 
   LayoutGrid, 
-  CalendarDays, 
   FileText, 
   ArrowRight,
   Tag,
@@ -73,6 +72,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
 import { MobileAmountInput } from './mobile-amount-input';
+import { MobileDatePicker } from '@/components/ui/mobile-date-picker';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
 
 type TransactionWithDetails = Doc<'transactions'> & {
@@ -1104,31 +1104,13 @@ const TransactionFormFields = ({
                         render={({ field }) => (
                             <FormItem className={cn("flex flex-col", isSplit && "col-span-2")}>
                                 <FormControl>
-                                    <MobileSelectionDrawer
-                                        title="Select Date"
-                                        trigger={
-                                            <button type="button" className="w-full text-left outline-none">
-                                                <MobileInputCard label="Date" icon={CalendarDays} valueDisplay={field.value ? field.value.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'Pick'} />
-                                            </button>
+                                    <MobileDatePicker
+                                        date={field.value}
+                                        setDate={field.onChange}
+                                        disabled={(date) =>
+                                            date > new Date() || date < new Date("1900-01-01")
                                         }
-                                    >
-                                        {({ close }) => (
-                                            <Calendar
-                                                mode="single"
-                                                selected={field.value}
-                                                onSelect={(date) => {
-                                                    if(date) {
-                                                        field.onChange(date);
-                                                        close();
-                                                    }
-                                                }}
-                                                disabled={(date) =>
-                                                    date > new Date() || date < new Date("1900-01-01")
-                                                }
-                                                initialFocus
-                                            />
-                                        )}
-                                    </MobileSelectionDrawer>
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -1724,31 +1706,13 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                     name="date"
                     render={({ field }) => (
                          <div className="relative">
-                            <MobileSelectionDrawer
-                                title="Select Date"
-                                trigger={
-                                    <button type="button" className="w-full text-left outline-none">
-                                        <MobileInputCard label="Date" icon={CalendarDays} valueDisplay={field.value ? field.value.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'Pick'} />
-                                    </button>
+                            <MobileDatePicker
+                                date={field.value}
+                                setDate={field.onChange}
+                                disabled={(date) =>
+                                    date > new Date() || date < new Date("1900-01-01")
                                 }
-                            >
-                                {({ close }) => (
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={(date) => {
-                                            if(date) {
-                                                field.onChange(date);
-                                                close();
-                                            }
-                                        }}
-                                        disabled={(date) =>
-                                            date > new Date() || date < new Date("1900-01-01")
-                                        }
-                                        initialFocus
-                                    />
-                                )}
-                            </MobileSelectionDrawer>
+                            />
                         </div>
                     )}
                 />
