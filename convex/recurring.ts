@@ -104,6 +104,22 @@ export const getRecurringSummary = query({
   },
 });
 
+export const getPaidThisMonth = query({
+  args: {
+    year: v.number(),
+    month: v.number(),
+  },
+  handler: async (ctx, { year, month }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const payments = await ctx.db
+      .query("recurringPayments")
+      .withIndex("by_year_month", (q) => q.eq("year", year).eq("month", month))
+      .collect();
+    return payments.map((p) => p.recurringExpenseId);
+  },
+});
+
 export const createRecurringExpense = mutation({
   args: {
     householdId: v.optional(v.id("households")),

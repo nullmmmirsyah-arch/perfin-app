@@ -10,7 +10,8 @@ import {
   PiggyBank, 
   Hash,
   Target,
-  FileBarChart
+  FileBarChart,
+  CalendarClock
 } from 'lucide-react'
 
 import {
@@ -37,6 +38,7 @@ const links = [
   { href: '/categories', label: 'Categories', icon: Tags },
   { href: '/budgets', label: 'Budgets', icon: PiggyBank },
   { href: '/report', label: 'Reports', icon: FileBarChart },
+  { href: '/recurring', label: 'Recurring', icon: CalendarClock },
   { href: '/labels', label: 'Labels', icon: Hash },
 ]
 

@@ -10,7 +10,8 @@ import {
   PiggyBank, 
   Menu,
   Target,
-  FileBarChart
+  FileBarChart,
+  CalendarClock
 } from 'lucide-react'
 import {
   Drawer,
@@ -158,6 +159,19 @@ export function BottomNav() {
                                    <div className="flex-1">
                                       <p className="font-medium">Reports</p>
                                       <p className="text-xs text-muted-foreground">Analyze your finances</p>
+                                   </div>
+                                </Link>
+                                <Link 
+                                  href="/recurring" 
+                                  onClick={() => setOpen(false)}
+                                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
+                                >
+                                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                      <CalendarClock className="h-5 w-5" />
+                                   </div>
+                                   <div className="flex-1">
+                                      <p className="font-medium">Recurring</p>
+                                      <p className="text-xs text-muted-foreground">Monthly bills and subscriptions</p>
                                    </div>
                                 </Link>
                               </div>
