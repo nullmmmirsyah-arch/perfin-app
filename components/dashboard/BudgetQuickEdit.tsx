@@ -11,7 +11,7 @@ import { formatCurrency, parseAmount } from '@/lib/utils';
 import { getFiscalDateDetails } from '@/lib/finance-utils';
 import { toast } from 'sonner';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
-import { Pencil, Check, X } from 'lucide-react';
+import { Pencil, Check, X, Loader2 } from 'lucide-react';
 
 type Props = {
   householdId?: Id<"households">;
@@ -30,21 +30,34 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [editOriginal, setEditOriginal] = useState(0);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const handleStartEdit = useCallback((item: BudgetBreakdownItem) => {
     setEditId(item.categoryId);
-    setEditValue(String(item.limit));
+    setEditValue(formatCurrency(item.limit));
+    setEditOriginal(item.limit);
   }, []);
 
   const handleCancelEdit = useCallback(() => {
+    const raw = parseAmount(editValue);
+    if (Number.isFinite(raw) && raw !== editOriginal) {
+      if (!confirm('Discard changes?')) return;
+    }
     setEditId(null);
     setEditValue('');
-  }, []);
+    setEditOriginal(0);
+  }, [editValue, editOriginal]);
 
   const handleSave = useCallback(async (categoryId: string) => {
     const numVal = parseAmount(editValue);
     if (!Number.isFinite(numVal) || numVal < 0) return;
+    if (numVal === editOriginal) {
+      setEditId(null);
+      setEditValue('');
+      setEditOriginal(0);
+      return;
+    }
     setSavingId(categoryId);
     try {
       await upsertBudget({
@@ -56,13 +69,14 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
       });
       setEditId(null);
       setEditValue('');
+      setEditOriginal(0);
       toast.success('Budget updated');
     } catch (e) {
       toast.error('Failed to save budget');
     } finally {
       setSavingId(null);
     }
-  }, [upsertBudget, householdId, year, month, editValue]);
+  }, [upsertBudget, householdId, year, month, editValue, editOriginal]);
 
   if (items.length === 0) {
     return (
@@ -105,7 +119,7 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
                       disabled={isSaving}
                     />
                     <Button variant="ghost" size="sm" onClick={() => handleSave(item.categoryId)} className="h-7 w-7 p-0" disabled={isSaving}>
-                      <Check className="h-3.5 w-3.5" />
+                      {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={handleCancelEdit} className="h-7 w-7 p-0" disabled={isSaving}>
                       <X className="h-3.5 w-3.5" />
