@@ -6,12 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
 import { calculateBudgetPace } from '@/lib/finance-utils';
 
+type TransactionWithDetails = {
+  _id: string;
+  date: string;
+  amount: number | string;
+  categoryId?: string;
+};
+
 type SummaryData = {
   budgetBreakdown: BudgetBreakdownItem[];
+  recentTransactions?: TransactionWithDetails[];
   budgetStartDay?: number;
 };
 
@@ -36,6 +44,24 @@ function getStatusBadge(status: 'safe' | 'warning' | 'danger') {
 
 export function BudgetAttentionList({ summary, isPrivacyMode }: Props) {
   const [showSafe, setShowSafe] = useState(false);
+
+  // Compute today's spending per category
+  const todaySpentByCategory = new Map<string, number>();
+  if (summary?.recentTransactions) {
+    const today = new Date();
+    for (const tx of summary.recentTransactions) {
+      const txDate = new Date(tx.date);
+      if (
+        txDate.getFullYear() === today.getFullYear() &&
+        txDate.getMonth() === today.getMonth() &&
+        txDate.getDate() === today.getDate()
+      ) {
+        const key = tx.categoryId || '__unknown__';
+        const amt = typeof tx.amount === 'string' ? parseAmount(tx.amount) : (tx.amount ?? 0);
+        todaySpentByCategory.set(key, (todaySpentByCategory.get(key) || 0) + amt);
+      }
+    }
+  }
 
   const items = (summary?.budgetBreakdown || []).filter(
     (item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0
@@ -75,12 +101,16 @@ export function BudgetAttentionList({ summary, isPrivacyMode }: Props) {
 
         {attentionItems.map((item) => {
           const badge = getStatusBadge(item.pace.status);
+          const todaySpent = todaySpentByCategory.get(item.categoryId) || 0;
           return (
             <div key={item.categoryId} className="flex items-center justify-between py-1.5">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{item.categoryName}</p>
                 <p className="text-[11px] text-muted-foreground">
                   {formatCurrency(item.remaining, { isPrivacyMode })} left
+                  {todaySpent > 0 && (
+                    <> &middot; {formatCurrency(todaySpent, { isPrivacyMode })} spent today</>
+                  )}
                 </p>
               </div>
               <div className="text-right shrink-0 ml-3">
