@@ -25,6 +25,7 @@ export type BudgetBreakdownItem = {
   goalType?: string;
   accumulated: number;
   limit: number;
+  carryover: number;
   spent: number;
   remaining: number;
   pendingReceivables?: number;

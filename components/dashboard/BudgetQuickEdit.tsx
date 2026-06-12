@@ -31,12 +31,15 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
   const [editId, setEditId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editOriginal, setEditOriginal] = useState(0);
+  const [editCarryover, setEditCarryover] = useState(0);
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const handleStartEdit = useCallback((item: BudgetBreakdownItem) => {
+    const allocated = item.limit - item.carryover;
     setEditId(item.categoryId);
-    setEditValue(String(item.limit));
-    setEditOriginal(item.limit);
+    setEditValue(String(allocated));
+    setEditOriginal(allocated);
+    setEditCarryover(item.carryover);
   }, []);
 
   const handleCancelEdit = useCallback(() => {
@@ -47,6 +50,7 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
     setEditId(null);
     setEditValue('');
     setEditOriginal(0);
+    setEditCarryover(0);
   }, [editValue, editOriginal]);
 
   const handleSave = useCallback(async (categoryId: string) => {
@@ -56,6 +60,7 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
       setEditId(null);
       setEditValue('');
       setEditOriginal(0);
+      setEditCarryover(0);
       return;
     }
     setSavingId(categoryId);
@@ -70,6 +75,7 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
       setEditId(null);
       setEditValue('');
       setEditOriginal(0);
+      setEditCarryover(0);
       toast.success('Budget updated');
     } catch (e) {
       toast.error('Failed to save budget');
@@ -127,9 +133,16 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
                   </>
                 ) : (
                   <>
-                    <span className="text-xs tabular-nums font-medium">
-                      {formatCurrency(item.limit, { isPrivacyMode })}
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs tabular-nums font-medium">
+                        {formatCurrency(item.limit, { isPrivacyMode })}
+                      </span>
+                      {item.carryover !== 0 && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          +{formatCurrency(item.carryover, { isPrivacyMode })} carryover
+                        </span>
+                      )}
+                    </div>
                     <Button variant="ghost" size="sm" onClick={() => handleStartEdit(item)} className="h-7 w-7 p-0">
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
