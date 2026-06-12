@@ -538,14 +538,14 @@ export const getMonthlyTrends = query({
       let targetYear = currentYear;
       let targetMonth = currentMonth - i;
       if (targetMonth < 0) { targetMonth += 12; targetYear -= 1; }
-      const key = `${targetYear}-${targetMonth}`;
+      const key = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
       monthGroups.set(key, { year: targetYear, month: targetMonth, categories: new Map() });
     }
 
     for (const tx of allTransactions) {
       if (tx.type === 'transfer' || tx.type === 'income') continue;
       const { year: txYear, month: txMonth } = getFiscalDateDetails(tx.date, startDay);
-      const key = `${txYear}-${txMonth}`;
+      const key = `${txYear}-${String(txMonth).padStart(2, '0')}`;
 
       if (monthGroups.has(key)) {
         const group = monthGroups.get(key)!;
@@ -556,13 +556,13 @@ export const getMonthlyTrends = query({
           for (const split of tx.splits!) {
             const splitCatId = split.categoryId || '__uncategorized__';
             categoryIds.add(splitCatId);
-            const splitAmt = parseFloat(split.amount.replace(/,/g, '') || '0');
+            const splitAmt = parseAmount(split.amount);
             group.categories.set(splitCatId, (group.categories.get(splitCatId) || 0) + splitAmt);
           }
         } else {
           const catId = tx.categoryId || '__uncategorized__';
           categoryIds.add(catId);
-          const amt = parseFloat(tx.amount.replace(/,/g, '') || '0');
+          const amt = parseAmount(tx.amount);
           group.categories.set(catId, (group.categories.get(catId) || 0) + amt);
         }
       }
