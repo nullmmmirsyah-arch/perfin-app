@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Wallet } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
 import { calculateBudgetPace } from '@/lib/finance-utils';
@@ -87,12 +88,7 @@ export function BudgetAttentionList({ summary, isPrivacyMode }: Props) {
       </CardHeader>
       <CardContent className="space-y-3">
         {attentionItems.length === 0 && safeItems.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            No budgets set.{' '}
-            <Link href="/budgets" className="text-primary underline underline-offset-2 font-medium">
-              Set up your first budget
-            </Link>
-          </p>
+          <EmptyState icon={Wallet} description="No budgets set." action={{ label: "Set up your first budget", href: "/budgets" }} compact />
         )}
 
         {attentionItems.length === 0 && safeItems.length > 0 && (

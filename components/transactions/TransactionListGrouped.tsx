@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { Receipt } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { TransactionWithDetails } from './types';
 import { TransactionItem } from '@/components/TransactionItem';
 import { groupTransactionsByDate } from '@/lib/utils';
@@ -62,11 +64,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, highlig
   };
 
   if (sortedDates.length === 0) {
-    return (
-        <div className="p-8 text-center border rounded-lg border-dashed bg-muted/20">
-            <p className="text-muted-foreground">No transactions found.</p>
-        </div>
-    );
+    return <EmptyState icon={Receipt} description="No transactions found." />;
   }
 
   return (

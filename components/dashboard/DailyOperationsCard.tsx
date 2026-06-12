@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban, ChevronRight } from 'lucide-react';      
+import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban, ChevronRight, Landmark } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import Link from 'next/link';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -314,7 +315,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
             
             <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin pb-12">
               {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No expense budgets set.</p>
+                <EmptyState compact icon={Wallet} description="No expense budgets set." />
               )}
               {summary?.budgetBreakdown
                 ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
@@ -357,7 +358,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
               </p>
             </div>
             <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin">
-              {summary?.cashAccounts?.length === 0 && <p className="text-xs text-muted-foreground italic">No cash accounts.</p>}
+              {summary?.cashAccounts?.length === 0 && <EmptyState compact icon={Landmark} description="No cash accounts." />}
               {summary?.cashAccounts?.map((account, index) => {
                   const hasAllocations = (account.allocations?.length || 0) > 0;
                   
@@ -416,10 +417,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
 
             <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin pb-4">
               {(!summary?.pendingReceivables || summary.pendingReceivables.length === 0) && (
-                <div className="text-center py-8 border rounded-xl border-dashed bg-muted/20">
-                    <HandCoins className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground italic">No active receivables.</p>
-                </div>
+                <EmptyState compact icon={HandCoins} description="No active receivables." />
               )}
               
               {summary?.pendingReceivables?.map((tx, index) => (

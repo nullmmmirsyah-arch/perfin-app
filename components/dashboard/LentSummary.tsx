@@ -1,5 +1,7 @@
 'use client'
 
+import { HandCoins } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency } from '@/lib/utils';
 
 type PendingReceivable = {
@@ -39,9 +41,7 @@ export function LentSummary({ summary, isPrivacyMode }: Props) {
         </p>
       </div>
 
-      {receivables.length === 0 && (
-        <p className="text-xs text-muted-foreground italic">No active receivables</p>
-      )}
+      {receivables.length === 0 && <EmptyState icon={HandCoins} description="No active receivables" compact />}
 
       {receivables.length > 0 && (
         <div className="space-y-2 max-h-[160px] overflow-y-auto">

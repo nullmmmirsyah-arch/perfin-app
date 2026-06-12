@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from 'recharts';
 import { useMemo } from 'react';
+import { FileBarChart } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency } from '@/lib/utils';
 
 type MonthlyTrend = {
@@ -112,9 +114,7 @@ export function TrendChart({ householdId, isPrivacyMode }: Props) {
         </CardHeader>
         <CardContent>
           <div className="h-[240px] flex items-center justify-center">
-            <p className="text-xs text-muted-foreground italic">
-              Spending trend will appear here once you have transactions.
-            </p>
+            <EmptyState icon={FileBarChart} description="Spending trend will appear here once you have transactions." />
           </div>
         </CardContent>
       </Card>

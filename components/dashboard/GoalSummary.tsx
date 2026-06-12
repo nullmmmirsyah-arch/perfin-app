@@ -4,7 +4,8 @@ import { Progress } from '@/components/ui/progress';
 import { cn, formatCurrency } from '@/lib/utils';
 import { calculateGoalStrategy } from '@/lib/finance-utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
-import { Sparkles, ShieldCheck, CalendarClock } from 'lucide-react';
+import { Sparkles, ShieldCheck, CalendarClock, Flag } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 
 type SummaryData = {
   budgetBreakdown: BudgetBreakdownItem[];
@@ -21,11 +22,7 @@ export function GoalSummary({ summary, isPrivacyMode }: Props) {
   );
 
   if (goals.length === 0) {
-    return (
-      <div>
-        <p className="text-xs text-muted-foreground italic">No goals set.</p>
-      </div>
-    );
+    return <EmptyState icon={Flag} description="No goals set." />;
   }
 
   return (

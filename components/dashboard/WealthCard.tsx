@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
+import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp, ChevronRight, Landmark } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatCurrency } from '@/lib/utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
@@ -59,7 +60,7 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
             </div>
             <div className="space-y-3 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
               {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving').length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No goals set.</p>
+                <EmptyState compact icon={Sparkles} description="No goals set." />
               )}
               {summary?.budgetBreakdown
                 ?.filter((item: BudgetBreakdownItem) => item.categoryType === 'saving')
@@ -167,7 +168,7 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
               </p>
             </div>
             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
-              {(summary?.savingAccounts?.length ?? 0) === 0 && <p className="text-xs text-muted-foreground italic">No saving accounts.</p>}
+              {(summary?.savingAccounts?.length ?? 0) === 0 && <EmptyState compact icon={Landmark} description="No saving accounts." />}
               {summary?.savingAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-success/10 text-success">
                   <span className="font-medium">{account.name}</span>
@@ -188,7 +189,7 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
               </p>
             </div>
             <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
-              {(summary?.assetAccounts?.length ?? 0) === 0 && <p className="text-xs text-muted-foreground italic">No assets.</p>}
+              {(summary?.assetAccounts?.length ?? 0) === 0 && <EmptyState compact icon={Landmark} description="No assets." />}
               {summary?.assetAccounts?.map((account: { name: string, balance: number }, index: number) => (
                 <div key={index} className="flex justify-between items-center text-sm p-2 rounded-md bg-primary/10 text-primary">
                   <span className="font-medium">{account.name}</span>
