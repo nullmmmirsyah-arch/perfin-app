@@ -196,6 +196,7 @@ export default function Dashboard() {
             <motion.div variants={fadeInUp}><TodaySpending summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
             <motion.div variants={fadeInUp}><BudgetAttentionList summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
             <motion.div variants={fadeInUp}><MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}><RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} /></motion.div>
           </>
         )}
       </motion.div>
