@@ -20,8 +20,11 @@ type Props = {
 };
 
 export function WhatIfSimulator({ summary, isPrivacyMode }: Props) {
-  const items = (summary?.budgetBreakdown || []).filter(
-    (item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0
+  const items = useMemo(() =>
+    (summary?.budgetBreakdown || []).filter(
+      (item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0
+    ),
+    [summary?.budgetBreakdown]
   );
 
   const [values, setValues] = useState<Record<string, number>>({});
