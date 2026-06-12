@@ -108,8 +108,10 @@ export function BudgetAttentionList({ summary, isPrivacyMode }: Props) {
                 <p className="text-sm font-medium truncate">{item.categoryName}</p>
                 <p className="text-[11px] text-muted-foreground">
                   {formatCurrency(item.remaining, { isPrivacyMode })} left
-                  {todaySpent > 0 && (
-                    <> &middot; {formatCurrency(todaySpent, { isPrivacyMode })} spent today</>
+                  {todaySpent > 0 ? (
+                    <> &middot; {formatCurrency(todaySpent, { isPrivacyMode })} / {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })} today</>
+                  ) : (
+                    <> &middot; 0 / {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })} today</>
                   )}
                 </p>
               </div>
@@ -117,11 +119,6 @@ export function BudgetAttentionList({ summary, isPrivacyMode }: Props) {
                 <Badge variant="outline" className={cn('text-[10px] px-2 py-0.5', badge.class)}>
                   {badge.label}
                 </Badge>
-                {item.pace.status !== 'safe' && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}/day
-                  </p>
-                )}
               </div>
             </div>
           );
@@ -152,11 +149,11 @@ export function BudgetAttentionList({ summary, isPrivacyMode }: Props) {
             <div key={item.categoryId} className="flex items-center justify-between py-1">
               <div className="min-w-0 flex-1">
                 <p className="text-xs truncate">{item.categoryName}</p>
-                {todaySpent > 0 && (
-                  <p className="text-[10px] text-muted-foreground">
-                    {formatCurrency(todaySpent, { isPrivacyMode })} spent today
-                  </p>
-                )}
+                <p className="text-[10px] text-muted-foreground">
+                  {todaySpent > 0
+                    ? `${formatCurrency(todaySpent, { isPrivacyMode })} / ${formatCurrency(item.pace.dailyLimit, { isPrivacyMode })} today`
+                    : `0 / ${formatCurrency(item.pace.dailyLimit, { isPrivacyMode })} today`}
+                </p>
               </div>
               <Badge variant="outline" className={cn('text-[10px] px-2 py-0.5', badge.class)}>
                 {badge.label}
