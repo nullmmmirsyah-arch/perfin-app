@@ -54,9 +54,9 @@ export function TodaySpending({ summary, isPrivacyMode }: Props) {
     ? Math.max(0, (summary?.remainingBudget || 0) / daysRemaining)
     : 0;
 
-  const totalDailyBudget = dailyAllowance + todaySpent;
-  const percentUsed = totalDailyBudget > 0
-    ? Math.min(100, (todaySpent / totalDailyBudget) * 100)
+  const totalDailyBudget = dailyAllowance;
+  const percentUsed = dailyAllowance > 0
+    ? Math.min(100, (todaySpent / dailyAllowance) * 100)
     : 0;
 
   return (
