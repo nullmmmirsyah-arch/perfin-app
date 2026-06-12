@@ -82,48 +82,30 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: {
                             {item.categoryName}
                         </span>
                         {pacing && (
-                            <Popover>
-                                <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                    <div className={cn(
-                                        "h-2 w-2 rounded-full animate-pulse cursor-pointer shrink-0",
-                                        pacing.status === 'safe' ? "bg-success" : 
-                                        pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
-                                    )} />
-                                </PopoverTrigger>
-                                <PopoverContent className="w-56 p-3" align="start">
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2 border-b pb-1">
-                                            <div className={cn(
-                                                "h-2 w-2 rounded-full",
-                                                pacing.status === 'safe' ? "bg-success" : 
-                                                pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
-                                            )} />
-                                            <h4 className="font-semibold text-xs">
-                                                {pacing.status === 'safe' ? "On Track" : 
-                                                pacing.status === 'warning' ? "Spending Alert" : "Critical"}
-                                            </h4>
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground">    
-                                            {pacing.status === 'safe'
-                                                ? "Pace is healthy."
-                                                : pacing.status === 'warning'
-                                                ? `Spending fast! Limit: ~${formatCurrency(pacing.dailyLimit)}/day`
-                                                : `Too fast! Reduce to ~${formatCurrency(pacing.dailyLimit)}/day`
-                                            }
-                                        </p>                                </div>
-                                </PopoverContent>
-                            </Popover>
+                            <Badge
+                                variant="outline"
+                                className={cn(
+                                    "text-[9px] px-1.5 py-0 h-4 font-medium border shrink-0",
+                                    pacing.status === 'safe' ? "border-success/30 text-success bg-success/5" :
+                                    pacing.status === 'warning' ? "border-yellow-500/30 text-yellow-600 dark:text-yellow-400 bg-yellow-500/5" :
+                                    "border-destructive/30 text-destructive bg-destructive/5"
+                                )}
+                            >
+                                {pacing.status === 'safe' ? "On Track" :
+                                 pacing.status === 'warning' ? "Watch" :
+                                 "Too Fast"}
+                            </Badge>
                         )}
                     </div>
                     
                     <div className="flex items-center gap-1">
                         {/* Safe Daily Badge - Always Visible if applicable */}
                         {!isOver && item.remaining > 0 && safeSpend > 0 ? (
-                            <Badge variant="outline" className="text-[10px] px-0 py-0 h-5 font-semibold text-primary border-0 shrink-0 shadow-none">
-                                ~{formatCurrency(safeSpend, { isPrivacyMode })}/day
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-medium border-primary/20 shrink-0">
+                                {formatCurrency(safeSpend, { isPrivacyMode })}/day
                             </Badge>
                         ) : isOver ? (
-                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 font-normal shrink-0">
+                            <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 font-medium shrink-0">
                                 Over Budget
                             </Badge>
                         ) : (
@@ -202,7 +184,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
         <Tabs defaultValue="budget" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="budget">Budget</TabsTrigger>
-            <TabsTrigger value="cash">Cash</TabsTrigger>
+            <TabsTrigger value="balance">Balance</TabsTrigger>
             <TabsTrigger value="lent" className="relative">
                 Lent
                 {summary?.totalReceivables && summary.totalReceivables > 0 ? (
@@ -218,16 +200,19 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                       <div className="text-2xl font-bold text-primary">
                           {formatCurrency(remainingBudget, { isPrivacyMode })}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex justify-between items-center mt-1">
                           <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                               Monthly Budget Left
                           </p>
-                          {remainingBudget > 0 && (
-                              <Badge variant="outline" className="text-[10px] px-0 py-0 h-5 text-primary border-0 font-semibold shadow-none cursor-help" title="Safe to spend daily"> 
-                                  ~{formatCurrency(dailySafeSpend, { isPrivacyMode })}/day
-                              </Badge>
-                          )}
+                          <span className="text-[10px] text-muted-foreground">
+                              {daysRemaining} days remaining
+                          </span>
                       </div>
+                      {remainingBudget > 0 && (
+                          <Badge variant="outline" className="text-[10px] px-0 py-0 h-5 text-primary border-0 font-semibold shadow-none cursor-help" title="Your daily budget at current pace"> 
+                              Spend up to {formatCurrency(dailySafeSpend, { isPrivacyMode })} today
+                          </Badge>
+                      )}
                   </div>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -360,14 +345,14 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
             </div>
           </TabsContent>
 
-          {/* CASH TAB - REFACTORED */}
-          <TabsContent value="cash" className="space-y-4 animate-in fade-in-5">
+          {/* BALANCE TAB - REFACTORED */}
+          <TabsContent value="balance" className="space-y-4 animate-in fade-in-5">
             <div>
               <div className="text-2xl font-bold">
                 {formatCurrency(summary?.liquidCash, { isPrivacyMode })}
               </div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
-                Total Liquid Cash
+                Total Balance
               </p>
             </div>
             <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin">
