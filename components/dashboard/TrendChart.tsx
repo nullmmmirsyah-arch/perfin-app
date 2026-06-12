@@ -30,9 +30,10 @@ const MAX_LEGEND_ITEMS = 5;
 
 type Props = {
   householdId?: Id<"households">;
+  isPrivacyMode?: boolean;
 };
 
-export function TrendChart({ householdId }: Props) {
+export function TrendChart({ householdId, isPrivacyMode }: Props) {
   const trends = useQuery(api.dashboard.getMonthlyTrends, {
     householdId: householdId ?? undefined,
   });
@@ -120,27 +121,16 @@ export function TrendChart({ householdId }: Props) {
     );
   }
 
-  const bars = topCategoryNames.map((name) => (
+  const barNames = showOthers ? [...topCategoryNames, 'Others'] : topCategoryNames;
+  const bars = barNames.map((name, i) => (
     <Bar
       key={name}
       dataKey={name}
       stackId="spending"
       fill={chartConfig[name]?.color}
-      radius={[0, 0, 0, 0]}
+      radius={i === barNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
     />
   ));
-
-  if (showOthers) {
-    bars.push(
-      <Bar
-        key="Others"
-        dataKey="Others"
-        stackId="spending"
-        fill={chartConfig['Others']?.color}
-        radius={[0, 0, 0, 0]}
-      />
-    );
-  }
 
   return (
     <Card className="w-full">
@@ -177,7 +167,7 @@ export function TrendChart({ householdId }: Props) {
                   formatter={(value, name) => (
                     <div className="flex items-center gap-2 text-xs">
                       <span className="font-medium">{name}:</span>
-                      <span>{formatCurrency(value as number)}</span>
+                      <span>{formatCurrency(value as number, { isPrivacyMode })}</span>
                     </div>
                   )}
                 />
