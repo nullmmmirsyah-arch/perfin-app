@@ -116,14 +116,21 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
               <div className="flex items-center gap-1 shrink-0 ml-2">
                 {isEditing ? (
                   <>
-                    <Input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="h-7 w-24 text-xs text-right tabular-nums"
-                      autoFocus
-                      disabled={isSaving}
-                    />
+                    <div className="flex flex-col items-end mr-1">
+                      <Input
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="h-7 w-24 text-xs text-right tabular-nums"
+                        autoFocus
+                        disabled={isSaving}
+                      />
+                      {editCarryover !== 0 && (
+                        <span className="text-[10px] text-muted-foreground tabular-nums">
+                          +{formatCurrency(editCarryover, { isPrivacyMode })} carryover
+                        </span>
+                      )}
+                    </div>
                     <Button variant="ghost" size="sm" onClick={() => handleSave(item.categoryId)} className="h-7 w-7 p-0" disabled={isSaving}>
                       {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                     </Button>
