@@ -35,7 +35,7 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, 
 
   const handleStartEdit = useCallback((item: BudgetBreakdownItem) => {
     setEditId(item.categoryId);
-    setEditValue(formatCurrency(item.limit));
+    setEditValue(String(item.limit));
     setEditOriginal(item.limit);
   }, []);
 
