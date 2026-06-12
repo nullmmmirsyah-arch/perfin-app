@@ -36,8 +36,8 @@ function getPaceInfo(item: BudgetBreakdownItem, budgetStartDay?: number) {
 
 function getStatusBadge(status: 'safe' | 'warning' | 'danger') {
   switch (status) {
-    case 'danger': return { label: 'Too Fast', class: 'bg-destructive/10 text-destructive border-destructive/20' };
-    case 'warning': return { label: 'Watch', class: 'bg-warning/10 text-warning border-warning/20' };
+    case 'danger': return { label: 'Slow Down', class: 'bg-destructive/10 text-destructive border-destructive/20' };
+    case 'warning': return { label: 'Spending Faster', class: 'bg-warning/10 text-warning border-warning/20' };
     case 'safe': return { label: 'On Track', class: 'bg-success/10 text-success border-success/20' };
   }
 }
