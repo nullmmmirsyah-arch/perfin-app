@@ -324,7 +324,8 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     const { year, month } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
                     
                     const getPacingScore = (item: BudgetBreakdownItem) => {
-                        if (!item.enablePacing || item.limit <= 0) return 0;
+                        if (!item.enablePacing) return 0;
+                        if (item.limit <= 0) return 3;
                         
                         const p = calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay);
                         if (p.status === 'danger') return 3;
