@@ -23,6 +23,7 @@ import type * as lib_transactions from "../lib/transactions.js";
 import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as push from "../push.js";
+import type * as recurring from "../recurring.js";
 import type * as transactions from "../transactions.js";
 
 import type {
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   notifications: typeof notifications;
   push: typeof push;
+  recurring: typeof recurring;
   transactions: typeof transactions;
 }>;
 
