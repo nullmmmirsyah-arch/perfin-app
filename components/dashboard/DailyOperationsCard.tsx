@@ -101,11 +101,11 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: {
                     <div className="flex items-center gap-1">
                         {/* Safe Daily Badge - Always Visible if applicable */}
                         {!isOver && item.remaining > 0 && safeSpend > 0 ? (
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-medium border-primary/20 shrink-0">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-medium text-primary border-primary/20 shrink-0 whitespace-nowrap">
                                 {formatCurrency(safeSpend, { isPrivacyMode })}/day
                             </Badge>
                         ) : isOver ? (
-                            <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 font-medium shrink-0">
+                            <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 font-medium shrink-0 whitespace-nowrap">
                                 Over Budget
                             </Badge>
                         ) : (
@@ -204,8 +204,8 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                           <p className="text-[10px] text-muted-foreground uppercase tracking-tighter font-semibold">
                               Monthly Budget Left
                           </p>
-                          <span className="text-[10px] text-muted-foreground">
-                              {daysRemaining} days remaining
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                              {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining
                           </span>
                       </div>
                       {remainingBudget > 0 && (
