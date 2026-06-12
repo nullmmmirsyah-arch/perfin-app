@@ -49,13 +49,13 @@ export function WhatIfSimulator({ summary, isPrivacyMode }: Props) {
     setValues(initial);
   }, [items]);
 
-  const { originalTotal, adjustedTotal, totalDiff, dailyAllowance } = useMemo(() => {
+  const { adjustedTotal, totalDiff, dailyAllowance } = useMemo(() => {
     const origTotal = items.reduce((sum, item) => sum + item.limit, 0);
     const adjTotal = Object.entries(values).reduce((sum, [id, val]) => sum + val, 0);
     const diff = adjTotal - origTotal;
     const daysRemaining = calculateFiscalDaysRemaining(summary?.budgetStartDay);
     const daily = daysRemaining > 0 ? Math.max(0, (summary?.remainingBudget || 0) + diff) / daysRemaining : 0;
-    return { originalTotal: origTotal, adjustedTotal: adjTotal, totalDiff: diff, dailyAllowance: daily };
+    return { adjustedTotal: adjTotal, totalDiff: diff, dailyAllowance: daily };
   }, [values, items, summary]);
 
   if (!summary || items.length === 0) {

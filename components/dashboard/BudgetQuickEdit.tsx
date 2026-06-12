@@ -7,23 +7,22 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, parseAmount } from '@/lib/utils';
+import { getFiscalDateDetails } from '@/lib/finance-utils';
+import { toast } from 'sonner';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
 import { Pencil, Check, X } from 'lucide-react';
 
 type Props = {
   householdId?: Id<"households">;
   budgetBreakdown: BudgetBreakdownItem[] | undefined;
-  budgetYear?: number;
-  budgetMonth?: number;
+  budgetStartDay?: number;
   isPrivacyMode?: boolean;
 };
 
-export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetYear, budgetMonth, isPrivacyMode }: Props) {
+export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetStartDay, isPrivacyMode }: Props) {
   const upsertBudget = useMutation(api.budgets.upsertBudget);
-  const now = new Date();
-  const year = budgetYear ?? now.getFullYear();
-  const month = budgetMonth ?? now.getMonth() + 1;
+  const { year, month } = getFiscalDateDetails(new Date().toISOString(), budgetStartDay ?? 1);
 
   const items = (budgetBreakdown || []).filter(
     (item) => item.enablePacing !== false && item.limit > 0
@@ -44,7 +43,7 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetYear, budg
   }, []);
 
   const handleSave = useCallback(async (categoryId: string) => {
-    const numVal = Number(editValue.replace(/[^0-9]/g, ''));
+    const numVal = parseAmount(editValue);
     if (!Number.isFinite(numVal) || numVal < 0) return;
     setSavingId(categoryId);
     try {
@@ -57,8 +56,9 @@ export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetYear, budg
       });
       setEditId(null);
       setEditValue('');
+      toast.success('Budget updated');
     } catch (e) {
-      console.error('Failed to save budget:', e);
+      toast.error('Failed to save budget');
     } finally {
       setSavingId(null);
     }

@@ -65,18 +65,21 @@ export function MonthlyComparison({ householdId, isPrivacyMode }: Props) {
     : 0;
   const isDecrease = diff < 0;
 
-  // Find top 3 categories by absolute change
-  const categoryChanges: { name: string; thisAmt: number; lastAmt: number; diff: number; pct: number }[] = [];
-  const allCatNames = new Set<string>();
+  // Find top 3 categories by absolute change (keyed by categoryId, not name)
+  const categoryChanges: { id: string; name: string; thisAmt: number; lastAmt: number; diff: number; pct: number }[] = [];
+  const allCatIds = new Set<string>();
   for (const m of trends) {
-    for (const c of m.categories) allCatNames.add(c.categoryName);
+    for (const c of m.categories) allCatIds.add(c.categoryId);
   }
-  for (const name of allCatNames) {
-    const thisAmt = thisMonth.categories.find(c => c.categoryName === name)?.spent ?? 0;
-    const lastAmt = lastMonth.categories.find(c => c.categoryName === name)?.spent ?? 0;
+  for (const catId of allCatIds) {
+    const thisCat = thisMonth.categories.find(c => c.categoryId === catId);
+    const lastCat = lastMonth.categories.find(c => c.categoryId === catId);
+    const thisAmt = thisCat?.spent ?? 0;
+    const lastAmt = lastCat?.spent ?? 0;
+    const name = thisCat?.categoryName ?? lastCat?.categoryName ?? 'Unknown';
     const catDiff = thisAmt - lastAmt;
     const catPct = lastAmt > 0 ? Math.round((catDiff / lastAmt) * 100) : 0;
-    categoryChanges.push({ name, thisAmt, lastAmt, diff: catDiff, pct: catPct });
+    categoryChanges.push({ id: catId, name, thisAmt, lastAmt, diff: catDiff, pct: catPct });
   }
   categoryChanges.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
   const topChanges = categoryChanges.slice(0, 3);
@@ -108,7 +111,7 @@ export function MonthlyComparison({ householdId, isPrivacyMode }: Props) {
             </p>
             <div className="space-y-2">
               {topChanges.map(cat => (
-                <div key={cat.name} className="flex items-center justify-between text-xs">
+                <div key={cat.id} className="flex items-center justify-between text-xs">
                   <span className="truncate">{cat.name}</span>
                   <span className={cn(
                     'tabular-nums shrink-0 ml-2',

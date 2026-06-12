@@ -207,6 +207,7 @@ export default function Dashboard() {
                   <BudgetQuickEdit
                     householdId={householdId ?? undefined}
                     budgetBreakdown={summary?.budgetBreakdown}
+                    budgetStartDay={budgetStartDay}
                     isPrivacyMode={isPrivacyMode}
                   />
                   <WhatIfSimulator summary={summary} isPrivacyMode={isPrivacyMode} />
