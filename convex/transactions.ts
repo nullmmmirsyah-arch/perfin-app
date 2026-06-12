@@ -210,7 +210,13 @@ export const getExpensesTrend = query({
     };
 
     // 1. Calculate Current Period
-    const currentStart = dateRange?.start || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    let startDay = 1;
+    if (householdId) {
+        const household = await ctx.db.get(householdId);
+        startDay = household?.budgetStartDay || 1;
+    }
+    const { year, month } = getFiscalDateDetails(new Date().toISOString(), startDay);
+    const currentStart = dateRange?.start || getFiscalMonthRange(year, month, startDay).start;
     const currentEnd = dateRange?.end || new Date().toISOString();
     const currentTotal = await getPeriodTotal(currentStart, currentEnd);
 

@@ -115,7 +115,8 @@ export const getGoalDetails = query({
             type: t.type
         }));
 
-    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const { start } = getFiscalMonthRange(currentYear, currentMonth, startDay);
+    const startOfThisMonth = new Date(start).getTime();
     const thisMonthContribution = transactions
         .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
         .reduce((acc, t) => {
@@ -404,7 +405,8 @@ export const get = query({
             startDay = household?.budgetStartDay || 1;
         }
         const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
-        const startOfThisMonth = new Date(year, month, 1).getTime();
+        const { start } = getFiscalMonthRange(year, month, startDay);
+        const startOfThisMonth = new Date(start).getTime();
 
         let monthlyBudgets;
         if (householdId) {

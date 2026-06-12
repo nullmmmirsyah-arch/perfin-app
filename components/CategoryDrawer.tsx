@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useGoalCalculator } from '@/hooks/useGoalCalculator';
+import { getFiscalDateDetails } from '@/lib/finance-utils';
 import { AutoSaveFields } from './forms/AutoSaveFields';
 
 const CategoryFormSchema = z.object({
@@ -65,7 +66,7 @@ type CategoryDrawerProps = {
 };
 
 const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryDrawerProps) => {
-  const { householdId } = useHousehold();
+  const { householdId, households } = useHousehold();
   const createCategory = useMutation(api.categories.create);
   const updateCategory = useMutation(api.categories.update);
   const upsertSchedule = useMutation(api.automations.upsertSchedule);
@@ -83,10 +84,13 @@ const CategoryDrawer = ({ open, onOpenChange, category, defaultType }: CategoryD
   );
 
   // Fetch Existing Budget (Correct Fiscal Month)
+  const activeHousehold = households?.find(h => h._id === householdId);
+  const budgetStartDay = activeHousehold?.budgetStartDay || 1;
   const now = new Date();
+  const { month, year } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
   const existingBudget = useQuery(api.budgets.getBudgetStatus, {
-      month: now.getMonth(),
-      year: now.getFullYear(),
+      month,
+      year,
       householdId: householdId ?? undefined,
   });
   

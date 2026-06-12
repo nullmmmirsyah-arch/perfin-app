@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { checkHouseholdAccess, ensureHouseholdAccess, ensureAdminAccess } from "./lib/auth";
 import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES, GOAL_STATUS, GOAL_TYPES } from "./lib/constants";
+import { getFiscalDateDetails } from "./lib/finance";
 
 export const get = query({
   args: { 
@@ -76,13 +77,18 @@ export const create = mutation({
         // AUTO-CREATE BUDGET if monthlyBudget provided
         if (args.monthlyBudget) {
             const now = new Date();
-            // Check existing budget first (Paranoid Check)
+            let startDay = 1;
+            if (args.householdId) {
+                const household = await ctx.db.get(args.householdId);
+                startDay = household?.budgetStartDay || 1;
+            }
+            const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
             const existingBudget = await ctx.db.query("budgets")
                 .withIndex(args.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
                     let builder = q.eq(args.householdId ? "householdId" : "userId", args.householdId || identity.subject)
                                    .eq("categoryId", linkedCategoryId!)
-                                   .eq("year", now.getFullYear())
-                                   .eq("month", now.getMonth());
+                                   .eq("year", fiscalYear)
+                                   .eq("month", fiscalMonth);
                     return builder;
                 }).first();
 
@@ -94,8 +100,8 @@ export const create = mutation({
                     householdId: args.householdId,
                     categoryId: linkedCategoryId,
                     amount: args.monthlyBudget,
-                    year: now.getFullYear(),
-                    month: now.getMonth(),
+                    year: fiscalYear,
+                    month: fiscalMonth,
                 });
             }
         }
@@ -218,8 +224,12 @@ export const update = mutation({
     // Handle Budget Update
     if (monthlyBudget !== undefined && account.linkedCategoryId) {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
+        let startDay = 1;
+        if (account.householdId) {
+            const household = await ctx.db.get(account.householdId);
+            startDay = household?.budgetStartDay || 1;
+        }
+        const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
         let existingBudget;
         if (account.householdId) {
@@ -227,16 +237,16 @@ export const update = mutation({
                 .withIndex("by_householdId_category_year_month", q => 
                     q.eq("householdId", account.householdId!)
                      .eq("categoryId", account.linkedCategoryId!)
-                     .eq("year", year)
-                     .eq("month", month)
+                     .eq("year", fiscalYear)
+                     .eq("month", fiscalMonth)
                 ).first();
         } else {
             existingBudget = await ctx.db.query("budgets")
                 .withIndex("by_user_category_year_month", q => 
                     q.eq("userId", identity.subject)
                      .eq("categoryId", account.linkedCategoryId!)
-                     .eq("year", year)
-                     .eq("month", month)
+                     .eq("year", fiscalYear)
+                     .eq("month", fiscalMonth)
                 ).first();
         }
 
@@ -248,8 +258,8 @@ export const update = mutation({
                 householdId: account.householdId,
                 categoryId: account.linkedCategoryId,
                 amount: monthlyBudget,
-                year,
-                month,
+                year: fiscalYear,
+                month: fiscalMonth,
             });
         }
     }
@@ -276,13 +286,18 @@ export const update = mutation({
         // Also create budget here if provided
         if (monthlyBudget) {
             const now = new Date();
-            // Check existing budget (Just in case, though unlikely for new category)
+            let startDay = 1;
+            if (account.householdId) {
+                const household = await ctx.db.get(account.householdId);
+                startDay = household?.budgetStartDay || 1;
+            }
+            const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
              const existingBudget = await ctx.db.query("budgets")
                 .withIndex(account.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
                     let builder = q.eq(account.householdId ? "householdId" : "userId", account.householdId || identity.subject)
                                    .eq("categoryId", newLinkedCategoryId!)
-                                   .eq("year", now.getFullYear())
-                                   .eq("month", now.getMonth());
+                                   .eq("year", fiscalYear)
+                                   .eq("month", fiscalMonth);
                     return builder;
                 }).first();
             
@@ -294,8 +309,8 @@ export const update = mutation({
                     householdId: account.householdId,
                     categoryId: newLinkedCategoryId,
                     amount: monthlyBudget,
-                    year: now.getFullYear(),
-                    month: now.getMonth(),
+                    year: fiscalYear,
+                    month: fiscalMonth,
                 });
             }
         }
