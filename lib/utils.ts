@@ -30,8 +30,9 @@ export function formatCurrency(
     return "••••"; // 4 standard bullets
   }
 
-  const numericValue = typeof value === 'string' ? parseAmount(value) : (value ?? 0);
-  
+  let numericValue = typeof value === 'string' ? parseAmount(value) : (value ?? 0);
+  if (!Number.isFinite(numericValue)) numericValue = 0;
+
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0,
     ...options,

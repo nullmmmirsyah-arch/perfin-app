@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, parseAmount } from '@/lib/utils';
 import { calculateFiscalDaysRemaining } from '@/lib/finance-utils';
 
 type TransactionWithDetails = {
@@ -42,7 +42,10 @@ export function TodaySpending({ summary, isPrivacyMode }: Props) {
   );
 
   const todaySpent = todayTxns.reduce(
-    (acc: number, tx: TransactionWithDetails) => acc + Number(tx.amount || 0),
+    (acc: number, tx: TransactionWithDetails) => {
+      const amt = typeof tx.amount === 'string' ? parseAmount(tx.amount) : (tx.amount ?? 0);
+      return acc + amt;
+    },
     0
   );
 
