@@ -20,11 +20,11 @@ type ChartDataEntry = Record<string, number | string>;
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const CHART_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
 ];
 const MAX_LEGEND_ITEMS = 5;
 
@@ -67,7 +67,7 @@ export function TrendChart({ householdId, isPrivacyMode }: Props) {
       config[name] = { label: name, color: CHART_COLORS[i % CHART_COLORS.length] };
     });
     if (hasOthers) {
-      config['Others'] = { label: 'Others', color: 'hsl(var(--muted-foreground))' };
+      config['Others'] = { label: 'Others', color: 'var(--muted-foreground)' };
     }
 
     // Transform to flat chart data entries
