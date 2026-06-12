@@ -14,7 +14,6 @@ import {
 } from '@/components/skeletons'
 import { toast } from 'sonner'
 import { DailyOperationsCard } from '@/components/dashboard/DailyOperationsCard'
-import { WealthCard } from '@/components/dashboard/WealthCard'
 import { DailyGuidance } from '@/components/dashboard/DailyGuidance'
 import { BudgetSummary } from '@/components/dashboard/BudgetSummary'
 import { TodaySpending } from '@/components/dashboard/TodaySpending'
@@ -23,6 +22,7 @@ import { MobileDashboardTabs } from '@/components/dashboard/MobileDashboardTabs'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
+import { TrendChart } from '@/components/dashboard/TrendChart'
 import { parseAmount, formatCurrency } from '@/lib/utils'
 
 import { PageHeader } from '@/components/PageHeader'
@@ -200,7 +200,7 @@ export default function Dashboard() {
         ) : (
             <>
                 <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
-                <WealthCard summary={summary} isPrivacyMode={isPrivacyMode} />
+                <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
             </>
         )}
       </div>
