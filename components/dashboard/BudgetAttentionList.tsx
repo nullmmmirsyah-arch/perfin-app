@@ -147,9 +147,17 @@ export function BudgetAttentionList({ summary, isPrivacyMode }: Props) {
 
         {showSafe && safeItems.map((item) => {
           const badge = getStatusBadge('safe');
+          const todaySpent = todaySpentByCategory.get(item.categoryId) || 0;
           return (
             <div key={item.categoryId} className="flex items-center justify-between py-1">
-              <p className="text-xs truncate">{item.categoryName}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs truncate">{item.categoryName}</p>
+                {todaySpent > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatCurrency(todaySpent, { isPrivacyMode })} spent today
+                  </p>
+                )}
+              </div>
               <Badge variant="outline" className={cn('text-[10px] px-2 py-0.5', badge.class)}>
                 {badge.label}
               </Badge>
