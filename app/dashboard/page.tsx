@@ -27,6 +27,8 @@ import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
 import { QuickAdjust } from '@/components/dashboard/QuickAdjust'
 import { parseAmount, formatCurrency } from '@/lib/utils'
 
+import { motion } from 'framer-motion'
+import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations'
 import { PageHeader } from '@/components/PageHeader'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useEffect } from 'react'
@@ -178,46 +180,61 @@ export default function Dashboard() {
       </AlertDialog>
 
       {/* Mobile: Daily Decision View (vertical scroll) */}
-      <div className="block md:hidden space-y-4 mb-8">
+      <motion.div
+        className="block md:hidden space-y-4 mb-8"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
         {summary === undefined ? (
           <DashboardCardSkeleton />
         ) : (
           <>
-            <DailyGuidance summary={summary} isPrivacyMode={isPrivacyMode} />
-            <BudgetSummary summary={summary} isPrivacyMode={isPrivacyMode} />
-            <TodaySpending summary={summary} isPrivacyMode={isPrivacyMode} />
-            <BudgetAttentionList summary={summary} isPrivacyMode={isPrivacyMode} />
-            <MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} />
+            <motion.div variants={fadeInUp}><DailyGuidance summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}><BudgetSummary summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}><TodaySpending summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}><BudgetAttentionList summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}><MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
           </>
         )}
-      </div>
+      </motion.div>
 
       {/* Desktop: Grid Layout */}
-      <div className="hidden md:grid gap-6 md:grid-cols-2 mb-8">
+      <motion.div
+        className="hidden md:grid gap-6 md:grid-cols-2 mb-8"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
         {summary === undefined ? (
             <>
-                <DashboardCardSkeleton />
-                <DashboardCardSkeleton />
+                <motion.div variants={scaleIn}><DashboardCardSkeleton /></motion.div>
+                <motion.div variants={scaleIn}><DashboardCardSkeleton /></motion.div>
             </>
         ) : (
             <>
-                <div className="flex flex-col gap-6">
+                <motion.div variants={fadeInUp} className="flex flex-col gap-6">
                   <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
                   <QuickAdjust
                     householdId={householdId ?? undefined}
                     summary={summary}
                     isPrivacyMode={isPrivacyMode}
                   />
-                </div>
-                <div className="flex flex-col gap-6">
+                </motion.div>
+                <motion.div variants={fadeInUp} className="flex flex-col gap-6">
                   <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
                   <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
-                </div>
+                </motion.div>
             </>
         )}
-      </div>
+      </motion.div>
 
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        variants={fadeInUp}
+        initial="hidden"
+        animate="visible"
+      >
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-semibold tracking-tight">Recent Transactions</h2>
           <Button variant="ghost" asChild>
@@ -236,7 +253,7 @@ export default function Dashboard() {
                 onDelete={setTransactionToDelete}
             />
         )}
-      </div>
+      </motion.div>
     </div>
   )
 }
