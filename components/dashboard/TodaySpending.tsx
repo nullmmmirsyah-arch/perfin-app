@@ -8,8 +8,8 @@ import { calculateFiscalDaysRemaining } from '@/lib/finance-utils';
 type TransactionWithDetails = {
   _id: string;
   date: string;
-  amount: number;
-  type: 'expense' | 'income';
+  amount: number | string;
+  type: string;
   description?: string;
   categoryName?: string;
 };
@@ -42,7 +42,7 @@ export function TodaySpending({ summary, isPrivacyMode }: Props) {
   );
 
   const todaySpent = todayTxns.reduce(
-    (acc: number, tx: TransactionWithDetails) => acc + (tx.amount || 0),
+    (acc: number, tx: TransactionWithDetails) => acc + Number(tx.amount || 0),
     0
   );
 

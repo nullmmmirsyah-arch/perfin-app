@@ -6,11 +6,6 @@ import { api } from '../../convex/_generated/api'
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel"
 import { useHousehold } from '@/components/HouseholdProvider'
 import TransactionDrawer from '@/components/TransactionDrawer'
 import { 
@@ -20,6 +15,11 @@ import {
 import { toast } from 'sonner'
 import { DailyOperationsCard } from '@/components/dashboard/DailyOperationsCard'
 import { WealthCard } from '@/components/dashboard/WealthCard'
+import { DailyGuidance } from '@/components/dashboard/DailyGuidance'
+import { BudgetSummary } from '@/components/dashboard/BudgetSummary'
+import { TodaySpending } from '@/components/dashboard/TodaySpending'
+import { BudgetAttentionList } from '@/components/dashboard/BudgetAttentionList'
+import { MobileDashboardTabs } from '@/components/dashboard/MobileDashboardTabs'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
@@ -175,31 +175,18 @@ export default function Dashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Mobile: Swipeable Cards (Carousel) */}
-      <div className="block md:hidden mb-8 -mx-4 px-4">
+      {/* Mobile: Daily Decision View (vertical scroll) */}
+      <div className="block md:hidden space-y-4 mb-8">
         {summary === undefined ? (
-            <div className="flex gap-4 overflow-hidden">
-                <div className="basis-[85%] shrink-0">
-                    <DashboardCardSkeleton />
-                </div>
-                <div className="basis-[85%] shrink-0">
-                    <DashboardCardSkeleton />
-                </div>
-            </div>
+          <DashboardCardSkeleton />
         ) : (
-            <Carousel 
-                opts={{ align: "start", loop: false }}
-                className="w-full"
-            >
-                <CarouselContent className="-ml-4">
-                    <CarouselItem className="pl-4 basis-[85%]">
-                        <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
-                    </CarouselItem>
-                    <CarouselItem className="pl-4 basis-[85%]">
-                        <WealthCard summary={summary} isPrivacyMode={isPrivacyMode} />
-                    </CarouselItem>
-                </CarouselContent>
-            </Carousel>
+          <>
+            <DailyGuidance summary={summary} isPrivacyMode={isPrivacyMode} />
+            <BudgetSummary summary={summary} isPrivacyMode={isPrivacyMode} />
+            <TodaySpending summary={summary} isPrivacyMode={isPrivacyMode} />
+            <BudgetAttentionList summary={summary} isPrivacyMode={isPrivacyMode} />
+            <MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} />
+          </>
         )}
       </div>
 
