@@ -23,6 +23,9 @@ import { TransactionListGrouped } from '@/components/transactions/TransactionLis
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
 import { TrendChart } from '@/components/dashboard/TrendChart'
+import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
+import { WhatIfSimulator } from '@/components/dashboard/WhatIfSimulator'
+import { BudgetQuickEdit } from '@/components/dashboard/BudgetQuickEdit'
 import { parseAmount, formatCurrency } from '@/lib/utils'
 
 import { PageHeader } from '@/components/PageHeader'
@@ -199,8 +202,19 @@ export default function Dashboard() {
             </>
         ) : (
             <>
-                <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
-                <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                <div className="flex flex-col gap-6">
+                  <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                  <BudgetQuickEdit
+                    householdId={householdId ?? undefined}
+                    budgetBreakdown={summary?.budgetBreakdown}
+                    isPrivacyMode={isPrivacyMode}
+                  />
+                  <WhatIfSimulator summary={summary} isPrivacyMode={isPrivacyMode} />
+                </div>
+                <div className="flex flex-col gap-6">
+                  <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                  <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                </div>
             </>
         )}
       </div>
