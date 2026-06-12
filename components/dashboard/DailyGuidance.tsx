@@ -29,7 +29,7 @@ function computeOverallStatus(breakdown: BudgetBreakdownItem[], budgetStartDay?:
 
   let hasWarning = false;
   for (const item of breakdown) {
-    if (item.enablePacing === false) continue;
+    if (item.enablePacing === false || item.limit <= 0) continue;
     const pace = calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay);
     if (pace.status === 'danger') return 'slow_down';
     if (pace.status === 'warning') hasWarning = true;
