@@ -1,0 +1,131 @@
+'use client'
+
+import { useState, useCallback } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { formatCurrency } from '@/lib/utils';
+import { BudgetBreakdownItem } from './DailyOperationsCard';
+import { Pencil, Check, X } from 'lucide-react';
+
+type Props = {
+  householdId?: Id<"households">;
+  budgetBreakdown: BudgetBreakdownItem[] | undefined;
+  budgetYear?: number;
+  budgetMonth?: number;
+  isPrivacyMode?: boolean;
+};
+
+export function BudgetQuickEdit({ householdId, budgetBreakdown, budgetYear, budgetMonth, isPrivacyMode }: Props) {
+  const upsertBudget = useMutation(api.budgets.upsertBudget);
+  const now = new Date();
+  const year = budgetYear ?? now.getFullYear();
+  const month = budgetMonth ?? now.getMonth() + 1;
+
+  const items = (budgetBreakdown || []).filter(
+    (item) => item.enablePacing !== false && item.limit > 0
+  );
+
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  const handleStartEdit = useCallback((item: BudgetBreakdownItem) => {
+    setEditId(item.categoryId);
+    setEditValue(String(item.limit));
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditId(null);
+    setEditValue('');
+  }, []);
+
+  const handleSave = useCallback(async (categoryId: string) => {
+    const numVal = Number(editValue.replace(/[^0-9]/g, ''));
+    if (!Number.isFinite(numVal) || numVal < 0) return;
+    setSavingId(categoryId);
+    try {
+      await upsertBudget({
+        householdId: householdId,
+        categoryId: categoryId as Id<"categories">,
+        amount: String(numVal),
+        year,
+        month,
+      });
+      setEditId(null);
+      setEditValue('');
+    } catch (e) {
+      console.error('Failed to save budget:', e);
+    } finally {
+      setSavingId(null);
+    }
+  }, [upsertBudget, householdId, year, month, editValue]);
+
+  if (items.length === 0) {
+    return (
+      <Card className="w-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Quick Edit</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[200px] flex items-center justify-center">
+            <p className="text-xs text-muted-foreground italic">
+              Set up budgets to quickly adjust them here.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="w-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium text-muted-foreground">Quick Edit</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1 max-h-[300px] overflow-y-auto">
+        {items.map((item) => {
+          const isEditing = editId === item.categoryId;
+          const isSaving = savingId === item.categoryId;
+          return (
+            <div key={item.categoryId} className="flex items-center justify-between py-2 border-b border-border/30 last:border-b-0">
+              <span className="text-xs truncate">{item.categoryName}</span>
+              <div className="flex items-center gap-1 shrink-0 ml-2">
+                {isEditing ? (
+                  <>
+                    <Input
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="h-7 w-24 text-xs text-right tabular-nums"
+                      autoFocus
+                      disabled={isSaving}
+                    />
+                    <Button variant="ghost" size="sm" onClick={() => handleSave(item.categoryId)} className="h-7 w-7 p-0" disabled={isSaving}>
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleCancelEdit} className="h-7 w-7 p-0" disabled={isSaving}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs tabular-nums font-medium">
+                      {formatCurrency(item.limit, { isPrivacyMode })}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => handleStartEdit(item)} className="h-7 w-7 p-0">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
