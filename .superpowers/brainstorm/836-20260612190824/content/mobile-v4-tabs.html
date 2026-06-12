@@ -1,0 +1,112 @@
+<h2>Mobile v4: Budget Card + Swipeable Tabs</h2>
+<p class="subtitle">Budget/guidance jadi 1 card, Balance/Lent/Goals di tab terpisah</p>
+
+<div class="placeholder" style="margin-bottom:1rem;text-align:left;padding:1.5rem;background:var(--bg-secondary);border:none">
+  <div style="display:flex;flex-direction:column;gap:0.65rem;max-width:360px;margin:0 auto">
+
+    <!-- MAIN BUDGET CARD -->
+    <div style="background:var(--bg-tertiary);border-radius:16px;padding:1rem;border-left:3px solid var(--success)">
+      
+      <!-- Daily Guidance inline -->
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem">
+        <span style="background:var(--success);color:white;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.6rem">✅ ON TRACK</span>
+        <span style="font-size:0.6rem;color:var(--text-secondary)">Updated 2m ago</span>
+      </div>
+      <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.4rem">Spend up to <span style="color:var(--success)">Rp137.576</span> today</div>
+      <div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:0.6rem">📊 Last week: <span style="color:var(--success)">8% less</span> · <strong>Rp75k</strong> spent today · <span style="color:var(--success)">Rp62k</span> left</div>
+
+      <!-- Divider -->
+      <div style="height:1px;background:var(--border);margin:0.5rem 0"></div>
+
+      <!-- Budget Left -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <span style="font-size:0.6rem;color:var(--text-tertiary)">REMAINING BUDGET</span>
+        <span style="font-size:0.6rem;color:var(--text-secondary)">18 days left</span>
+      </div>
+      <div style="font-size:1.3rem;font-weight:700;margin-bottom:0.5rem">Rp1.788.486</div>
+
+      <!-- Today's Allowance Progress -->
+      <div style="margin-bottom:0.65rem">
+        <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-secondary);margin-bottom:0.15rem">
+          <span>Today's allowance</span>
+          <span><span style="color:var(--success)">54%</span> · Rp75k of Rp137k</span>
+        </div>
+        <div style="height:4px;background:var(--bg-primary);border-radius:2px">
+          <div style="width:54%;height:100%;background:var(--success);border-radius:2px"></div>
+        </div>
+      </div>
+
+      <!-- Attention List -->
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem">
+          <span style="font-size:0.6rem;color:var(--text-tertiary)">NEEDS ATTENTION</span>
+          <span style="font-size:0.6rem;color:var(--text-secondary)">2 of 6 budgets</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.4rem">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem">
+              <span><span style="color:var(--warning)">●</span> Food</span>
+              <span><span style="color:var(--warning);font-weight:500">Watch</span> · Rp33k/day</span>
+            </div>
+            <div style="height:3px;background:var(--bg-primary);border-radius:2px;margin-top:0.1rem">
+              <div style="width:75%;height:100%;background:var(--warning);border-radius:2px"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem">
+              <span><span style="color:var(--error)">●</span> Shopping</span>
+              <span><span style="color:var(--error);font-weight:500">Too Fast</span> · Rp15k/day</span>
+            </div>
+            <div style="height:3px;background:var(--bg-primary);border-radius:2px;margin-top:0.1rem">
+              <div style="width:100%;height:100%;background:var(--error);border-radius:2px"></div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:0.4rem;font-size:0.7rem;color:var(--text-tertiary);cursor:pointer">
+          ▶ 4 other budgets on track
+        </div>
+      </div>
+    </div>
+
+    <!-- SWIPEABLE TABS: Balance | Lent | Goals -->
+    <div style="background:var(--bg-tertiary);border-radius:16px;overflow:hidden">
+      <!-- Tab bar -->
+      <div style="display:flex;background:var(--bg-primary);margin:0.5rem 0.5rem 0;border-radius:10px;padding:2px">
+        <div style="flex:1;text-align:center;padding:0.35rem;border-radius:8px;font-size:0.7rem;font-weight:600;background:var(--accent);color:white;cursor:pointer">Balance</div>
+        <div style="flex:1;text-align:center;padding:0.35rem;border-radius:8px;font-size:0.7rem;color:var(--text-secondary);cursor:pointer">Lent</div>
+        <div style="flex:1;text-align:center;padding:0.35rem;border-radius:8px;font-size:0.7rem;color:var(--text-secondary);cursor:pointer">Goals</div>
+      </div>
+
+      <!-- Balance tab content (default) -->
+      <div style="padding:0.75rem 1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+          <span style="font-size:0.6rem;color:var(--text-tertiary)">ACCOUNTS</span>
+          <span style="font-size:0.6rem;color:var(--text-secondary)">3 accounts</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.3rem">
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem">
+            <span style="color:var(--text-secondary)">Bank Mandiri</span>
+            <span style="font-weight:600">Rp2.500.000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem">
+            <span style="color:var(--text-secondary)">GoPay</span>
+            <span style="font-weight:600">Rp1.000.000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem">
+            <span style="color:var(--text-secondary)">Cash</span>
+            <span style="font-weight:600">Rp700.000</span>
+          </div>
+        </div>
+        <div style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px dashed var(--border);display:flex;justify-content:space-between;font-size:0.9rem">
+          <span style="font-weight:600">Total Balance</span>
+          <span style="font-weight:700;color:var(--accent)">Rp4.200.000</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="font-size:0.85rem;color:var(--text-secondary)">
+💡 Layout: Budget + Guidance jadi satu card utuh di atas. Balance/Lent/Goals pake tab swipeable di bawah. Ini bikin user fokus ke daily decision dulu, baru financial operations kalau perlu.
+</p>

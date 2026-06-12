@@ -1,0 +1,56 @@
+<h2>Section 1: Arsitektur Komponen</h2>
+<p class="subtitle">Modular approach — setiap section jadi komponen independen</p>
+
+<div class="mockup" style="margin-bottom:1.5rem">
+  <div class="mockup-header">🧱 Component Tree (baru, setelah restructure)</div>
+  <div class="mockup-body" style="font-size:0.8rem;line-height:1.7">
+    <pre style="white-space:pre-wrap;font-family:monospace;color:var(--text-primary)">
+<strong>app/dashboard/page.tsx</strong>
+├── <span style="color:var(--accent)">DashboardLayout</span> ← responsive wrapper
+│
+├── <strong style="color:var(--success)">DailyGuidance</strong>          ← <span style="color:var(--text-secondary)">[NEW] Status + rekomendasi + historical context</span>
+│   ├── OverallStatus
+│   ├── DailyRecommendation
+│   └── HistoricalContext    ← <span style="color:var(--text-secondary)">"Last week -8% vs planned"</span>
+│
+├── <span style="color:var(--accent)">DashboardSections</span>
+│   ├── <strong style="color:var(--success)">BudgetSummary</strong>        ← <span style="color:var(--text-secondary)">[REFINED] Budget Left + remaining days</span>
+│   ├── <strong style="color:var(--success)">BudgetAttentionList</strong>   ← <span style="color:var(--text-secondary)">[REFINED] Kategori terurut + status badge</span>
+│   │   └── BudgetAttentionItem
+│   ├── <strong style="color:var(--accent)">RecentTransactions</strong>   ← <span style="color:var(--text-secondary)">[EXISTING, compact variant]</span>
+│   ├── <strong style="color:var(--success)">BalanceSummary</strong>       ← <span style="color:var(--text-secondary)">[REFINED dari Cash tab]</span>
+│   └── <strong style="color:var(--accent)">LentSummary</strong>          ← <span style="color:var(--text-secondary)">[REFINED dari Lent tab, compact]</span>
+│
+├── <em style="color:var(--text-tertiary)">[Desktop only]</em>
+│   ├── <strong style="color:var(--warning)">TrendChart</strong>           ← <span style="color:var(--text-secondary)">[NEW] Monthly trend + comparison</span>
+│   ├── <strong style="color:var(--warning)">WhatIfSimulator</strong>       ← <span style="color:var(--text-secondary)">[NEW] Simulasi budget change</span>
+│   ├── <strong style="color:var(--warning)">BudgetQuickEdit</strong>       ← <span style="color:var(--text-secondary)">[NEW] Edit limits langsung</span>
+│   └── <strong style="color:var(--text-tertiary)">CalendarView</strong>       ← <span style="color:var(--text-secondary)">[FUTURE] Tagihan & transaksi</span>
+│
+├── <span style="color:var(--accent)">WealthCard</span>              ← <span style="color:var(--text-secondary)">[EXISTING] Goals/Savings/Assets</span>
+│
+└── TransactionDrawer, Dialogs  ← <span style="color:var(--text-secondary)">[EXISTING]</span></pre>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>✅ Keuntungan</h4>
+    <ul>
+      <li>Mobile & Desktop bisa layout beda total</li>
+      <li>Fitur coaching gampang ditambah incremental</li>
+      <li>Testing per komponen, bukan per card raksasa</li>
+      <li>Budget tab di card lama bisa dihapus setelah migrasi</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>⚠️ Risk</h4>
+    <ul>
+      <li>Total file komponen naik (tapi tiap file kecil)</li>
+      <li>Butuh data baru dari Convex untuk trend/history</li>
+      <li>DailyOperationsCard harus di-slim / di-retain utk backward compat</li>
+    </ul>
+  </div>
+</div>
+
+<p style="margin-top:1rem;font-size:0.9rem;color:var(--text-secondary)">Tap hijau = baru, biru = existing, kuning = fase 3, abu = future</p>
