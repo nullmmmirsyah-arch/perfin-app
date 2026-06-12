@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Badge } from '@/components/ui/badge'
 import { Doc, Id } from '../convex/_generated/dataModel'
 import { cn, formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -117,12 +118,20 @@ export default function BudgetCard({
               )}
               {pacing && (
                 <Popover>
-                  <PopoverTrigger asChild>
-                    <div onClick={(e) => e.stopPropagation()} className={cn(
-                      "h-2 w-2 rounded-full animate-pulse cursor-pointer",
-                      pacing.status === 'safe' ? "bg-success" : 
-                      pacing.status === 'warning' ? "bg-yellow-500" : "bg-destructive"
-                    )} />
+                  <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[9px] px-1.5 py-0 h-4 font-medium border shrink-0 cursor-pointer",
+                        pacing.status === 'safe' ? "border-success/30 text-success bg-success/5" :
+                        pacing.status === 'warning' ? "border-yellow-500/30 text-yellow-600 dark:text-yellow-400 bg-yellow-500/5" :
+                        "border-destructive/30 text-destructive bg-destructive/5"
+                      )}
+                    >
+                      {pacing.status === 'safe' ? "On Track" :
+                       pacing.status === 'warning' ? "Watch" :
+                       "Too Fast"}
+                    </Badge>
                   </PopoverTrigger>
                   <PopoverContent className="w-64 p-4" align="start">
                     <div className="space-y-3">
@@ -177,8 +186,8 @@ export default function BudgetCard({
                 </span>
               )}
               {!isGoal && budget && remaining > 0 && !isPastMonth && !pacing && (        
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
-                  ~{formatCurrency(dailySafeSpend)}/day
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium whitespace-nowrap">
+                  {formatCurrency(dailySafeSpend)}/day
                 </span>
               )}            </div>
           </div>
