@@ -82,6 +82,7 @@
   --animate-slide-out-bottom: slideOutBottom 0.3s ease-in-out;
   --animate-fade-in: fadeIn 0.2s ease-out;
   --animate-fade-out: fadeOut 0.2s ease-in;
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
 }
 
 :root {
@@ -275,4 +276,9 @@
   .min-h-screen-safe {
     min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
