@@ -24,6 +24,7 @@ import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransac
 import { TransactionWithDetails } from '@/components/transactions/types'
 import { TrendChart } from '@/components/dashboard/TrendChart'
 import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
+import { RecurringSummary } from '@/components/dashboard/RecurringSummary'
 import { QuickAdjust } from '@/components/dashboard/QuickAdjust'
 import { parseAmount, formatCurrency } from '@/lib/utils'
 
@@ -224,6 +225,7 @@ export default function Dashboard() {
                 <motion.div variants={fadeInUp} className="flex flex-col gap-6">
                   <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
                   <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                  <RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
                 </motion.div>
             </>
         )}
