@@ -512,6 +512,10 @@ export const getMonthlyTrends = query({
     if (!identity) throw new Error("Not authenticated");
     const userId = identity.subject;
 
+    if (householdId && !(await ensureHouseholdAccess(ctx, householdId, userId))) {
+      return [];
+    }
+
     const household = await getHousehold(ctx, householdId, userId);
     const startDay = household?.budgetStartDay || 1;
 
@@ -545,19 +549,21 @@ export const getMonthlyTrends = query({
 
       if (monthGroups.has(key)) {
         const group = monthGroups.get(key)!;
-        const catId = tx.categoryId || '__uncategorized__';
-        categoryIds.add(catId);
-        const amt = parseFloat(tx.amount.replace(/,/g, '') || '0');
-        group.categories.set(catId, (group.categories.get(catId) || 0) + amt);
+        const isSplit = tx.isSplit && tx.splits && tx.splits.length > 0;
 
-        // Handle splits
-        if (tx.splits) {
-          for (const split of tx.splits) {
+        if (isSplit) {
+          // Only count split amounts, skip main category
+          for (const split of tx.splits!) {
             const splitCatId = split.categoryId || '__uncategorized__';
             categoryIds.add(splitCatId);
             const splitAmt = parseFloat(split.amount.replace(/,/g, '') || '0');
             group.categories.set(splitCatId, (group.categories.get(splitCatId) || 0) + splitAmt);
           }
+        } else {
+          const catId = tx.categoryId || '__uncategorized__';
+          categoryIds.add(catId);
+          const amt = parseFloat(tx.amount.replace(/,/g, '') || '0');
+          group.categories.set(catId, (group.categories.get(catId) || 0) + amt);
         }
       }
     }
