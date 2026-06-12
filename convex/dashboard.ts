@@ -504,3 +504,94 @@ export const getDashboardSummary = query({
     };
   },
 });
+
+export const getMonthlyTrends = query({
+  args: { householdId: v.optional(v.id("households")), months: v.optional(v.number()) },
+  handler: async (ctx, { householdId, months = 3 }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
+
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
+    let allTransactions;
+    if (householdId) {
+      allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+      allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
+
+    // Determine fiscal month range (last N fiscal months)
+    const now = new Date();
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
+
+    // Collect transactions in the last N fiscal months
+    const monthGroups = new Map<string, { year: number; month: number; categories: Map<string, number> }>();
+    const categoryIds = new Set<string>();
+
+    for (let i = 0; i < months; i++) {
+      let targetYear = currentYear;
+      let targetMonth = currentMonth - i;
+      if (targetMonth < 0) { targetMonth += 12; targetYear -= 1; }
+      const key = `${targetYear}-${targetMonth}`;
+      monthGroups.set(key, { year: targetYear, month: targetMonth, categories: new Map() });
+    }
+
+    for (const tx of allTransactions) {
+      if (tx.type === 'transfer' || tx.type === 'income') continue;
+      const { year: txYear, month: txMonth } = getFiscalDateDetails(tx.date, startDay);
+      const key = `${txYear}-${txMonth}`;
+
+      if (monthGroups.has(key)) {
+        const group = monthGroups.get(key)!;
+        const catId = tx.categoryId || '__uncategorized__';
+        categoryIds.add(catId);
+        const amt = parseFloat(tx.amount.replace(/,/g, '') || '0');
+        group.categories.set(catId, (group.categories.get(catId) || 0) + amt);
+
+        // Handle splits
+        if (tx.splits) {
+          for (const split of tx.splits) {
+            const splitCatId = split.categoryId || '__uncategorized__';
+            categoryIds.add(splitCatId);
+            const splitAmt = parseFloat(split.amount.replace(/,/g, '') || '0');
+            group.categories.set(splitCatId, (group.categories.get(splitCatId) || 0) + splitAmt);
+          }
+        }
+      }
+    }
+
+    // Resolve category names
+    const categoryNameMap = new Map<string, string>();
+    for (const catId of categoryIds) {
+      if (catId === '__uncategorized__') {
+        categoryNameMap.set(catId, 'Uncategorized');
+        continue;
+      }
+      const cat = await ctx.db.get(catId as any) as Doc<"categories"> | null;
+      categoryNameMap.set(catId, cat?.name || 'Unknown');
+    }
+
+    // Build output
+    const result: Array<{ year: number; month: number; totalSpent: number; categories: Array<{ categoryId: string; categoryName: string; spent: number }> }> = [];
+
+    // Iterate in chronological order (oldest first)
+    const sortedKeys = [...monthGroups.keys()].sort();
+    for (const key of sortedKeys) {
+      const group = monthGroups.get(key)!;
+      const totalSpent = [...group.categories.values()].reduce((a, b) => a + b, 0);
+      const categories = [...group.categories.entries()]
+        .map(([catId, spent]) => ({
+          categoryId: catId,
+          categoryName: categoryNameMap.get(catId) || 'Unknown',
+          spent,
+        }))
+        .sort((a, b) => b.spent - a.spent);
+
+      result.push({ year: group.year, month: group.month, totalSpent, categories });
+    }
+
+    return result;
+  },
+});
