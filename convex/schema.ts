@@ -207,4 +207,27 @@ export default defineSchema({
     .index("by_householdId", ["householdId"])
     .index("by_nextRun", ["isEnabled", "nextRunAt"])
     .index("by_linkedEntityId", ["linkedEntityId"]),
+
+  recurringExpenses: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    name: v.string(),
+    amount: v.string(),
+    categoryId: v.id("categories"),
+    dayOfMonth: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"]),
+
+  recurringPayments: defineTable({
+    recurringExpenseId: v.id("recurringExpenses"),
+    year: v.number(),
+    month: v.number(),
+    paidAt: v.number(),
+    transactionId: v.optional(v.id("transactions")),
+  })
+    .index("by_recurringExpenseId", ["recurringExpenseId"])
+    .index("by_year_month", ["year", "month"]),
 });
