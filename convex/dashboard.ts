@@ -334,6 +334,7 @@ export const getDashboardSummary = query({
                 goalType: cat?.goalType,
                 accumulated,
                 limit,
+                carryover,
                 spent,
                 remaining: Math.max(0, limit - spent),
                 pendingReceivables: pendingReceivablesByCategory[cat._id] || 0,
