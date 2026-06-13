@@ -34,6 +34,7 @@ function SignalIcon({ type }: { type: SignalType }) {
     case "warning": return <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />;
     case "success": return <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />;
     case "info": return <Info className="w-4 h-4 text-blue-500 shrink-0" />;
+    default: return null;
   }
 }
 
@@ -119,22 +120,16 @@ export function CoachCard({ householdId }: CoachCardProps) {
   }, [getInsight, householdId]);
 
   const refresh = useCallback(async () => {
-    if (!data) return;
     setIsRefreshing(true);
     try {
-      await refreshInsight({
-        householdId,
-        dataHash: "",
-        signals: data.signals,
-        summary: {},
-      });
+      await refreshInsight({ householdId });
       await load();
     } catch (err) {
       console.error("refreshInsight failed:", err);
     } finally {
       setIsRefreshing(false);
     }
-  }, [data, refreshInsight, householdId, load]);
+  }, [refreshInsight, householdId, load]);
 
   useEffect(() => {
     load();

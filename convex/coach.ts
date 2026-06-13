@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalMutation } from "./_generated/server";
-import { Doc, Id } from "./_generated/dataModel";
+import { mutation, action, internalMutation } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+import { api, internal } from "./_generated/api";
 
 // ─── Types ───
 
@@ -59,7 +60,7 @@ function getCurrentFiscalMonth(budgetStartDay: number): { year: number; month: n
 
 // ─── Rule Engine ───
 
-export function runRuleEngine(summary: any, currentDay: number): CoachingSignal[] {
+export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: number = 1): CoachingSignal[] {
   const signals: CoachingSignal[] = [];
   const breakdown = summary?.budgetBreakdown ?? [];
 
@@ -80,7 +81,7 @@ export function runRuleEngine(summary: any, currentDay: number): CoachingSignal[
   for (const item of breakdown) {
     if (item.categoryType === "saving") {
       if (item.targetAmount && item.targetAmount > 0) {
-        const progress = calculateMonthProgress(1);
+        const progress = calculateMonthProgress(budgetStartDay);
         const expected = item.targetAmount * progress;
         if (item.accumulated >= expected) {
           signals.push({
@@ -222,8 +223,8 @@ export const getInsight = mutation({
     const now = new Date();
     const currentDay = now.getDate();
 
-    const dashboardData: any = await ctx.runQuery("dashboard:getDashboardSummary" as any, { householdId });
-    const recurringSummary: any = await ctx.runQuery("recurring:getRecurringSummary" as any, { householdId, year, month });
+    const dashboardData: any = await ctx.runQuery(api.dashboard.getDashboardSummary, { householdId });
+    const recurringSummary: any = await ctx.runQuery(api.recurring.getRecurringSummary, { householdId, year, month });
 
     const totalSpending = (dashboardData?.budgetBreakdown ?? []).reduce((sum: number, b: any) => sum + (b.spent || 0), 0);
     const carryoverTotal = (dashboardData?.budgetBreakdown ?? []).reduce((sum: number, b: any) => sum + Math.abs(b.carryover || 0), 0);
@@ -259,7 +260,7 @@ export const getInsight = mutation({
       };
     }
 
-    const signals = runRuleEngine(dashboardData, currentDay);
+    const signals = runRuleEngine(dashboardData, currentDay, budgetStartDay);
 
     const needsRefresh = summary.totalSpending > 0 && signals.some(s => s.type === "danger" || s.type === "warning");
 
@@ -295,26 +296,33 @@ export const getInsight = mutation({
 // ─── Action: refreshInsight ───
 
 export const refreshInsight = action({
-  args: {
-    householdId: v.id("households"),
-    dataHash: v.string(),
-    signals: v.array(v.object({
-      type: v.union(v.literal("danger"), v.literal("warning"), v.literal("info"), v.literal("success")),
-      category: v.union(v.literal("budget"), v.literal("spending"), v.literal("saving"), v.literal("recurring"), v.literal("general")),
-      title: v.string(),
-      message: v.string(),
-      actionLabel: v.optional(v.string()),
-      actionHref: v.optional(v.string()),
-    })),
-    summary: v.any(),
-  },
-  handler: async (ctx, { householdId, dataHash, signals, summary }) => {
+  args: { householdId: v.id("households") },
+  handler: async (ctx, { householdId }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const insight = await fetchGeminiInsight(dataHash, signals, summary);
+    const { year, month } = getCurrentFiscalMonth(1);
+    const currentDay = new Date().getDate();
 
-    await ctx.runMutation("coach:saveGeminiInsight" as any, {
+    const dashboardData: any = await ctx.runQuery(api.dashboard.getDashboardSummary, { householdId });
+    const recurringSummary: any = await ctx.runQuery(api.recurring.getRecurringSummary, { householdId, year, month });
+
+    const totalSpending = (dashboardData?.budgetBreakdown ?? []).reduce((sum: number, b: any) => sum + (b.spent || 0), 0);
+
+    const signals = runRuleEngine(dashboardData, currentDay);
+
+    const summary = {
+      remainingBudget: dashboardData?.remainingBudget ?? 0,
+      totalSpending,
+      unassignedCash: dashboardData?.unassignedCash ?? 0,
+      budgetBreakdown: dashboardData?.budgetBreakdown ?? [],
+      recurringOverdue: recurringSummary?.overdueCount ?? 0,
+      recurringUpcoming: recurringSummary?.upcoming?.length ?? 0,
+    };
+
+    const insight = await fetchGeminiInsight(signals, summary);
+
+    await ctx.runMutation(internal.coach.saveGeminiInsight, {
       householdId,
       insight: insight?.insight,
       insightSource: insight?.insight ? "gemini" : "rule",
@@ -346,13 +354,24 @@ export const saveGeminiInsight = internalMutation({
         insightSource,
         generatedAt: Date.now(),
       });
+    } else {
+      await ctx.db.insert("coachInsights", {
+        householdId,
+        month,
+        year,
+        dataHash: "",
+        signals: [],
+        geminiInsight: insight,
+        insightSource,
+        generatedAt: Date.now(),
+      });
     }
   },
 });
 
 // ─── Gemini Helper ───
 
-async function fetchGeminiInsight(dataHash: string, signals: any[], summary: any): Promise<{ insight: string } | null> {
+async function fetchGeminiInsight(signals: any[], summary: any): Promise<{ insight: string } | null> {
   const apiKey = process.env.CONVEX_GEMINI_API_KEY;
   if (!apiKey) {
     console.warn("CONVEX_GEMINI_API_KEY not configured");
@@ -418,23 +437,3 @@ Berikan 1-2 kalimat insight personal dalam Bahasa Indonesia:
     return null;
   }
 }
-
-// ─── Action: callGemini (HTTP request to Gemini API) ───
-
-export const callGemini = action({
-  args: {
-    dataHash: v.string(),
-    signals: v.array(v.object({
-      type: v.union(v.literal("danger"), v.literal("warning"), v.literal("info"), v.literal("success")),
-      category: v.union(v.literal("budget"), v.literal("spending"), v.literal("saving"), v.literal("recurring"), v.literal("general")),
-      title: v.string(),
-      message: v.string(),
-      actionLabel: v.optional(v.string()),
-      actionHref: v.optional(v.string()),
-    })),
-    summary: v.any(),
-  },
-  handler: async (ctx, { dataHash, signals, summary }) => {
-    return fetchGeminiInsight(dataHash, signals, summary);
-  },
-});

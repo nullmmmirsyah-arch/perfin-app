@@ -12,6 +12,7 @@ import type * as accounts from "../accounts.js";
 import type * as automations from "../automations.js";
 import type * as budgets from "../budgets.js";
 import type * as categories from "../categories.js";
+import type * as coach from "../coach.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as households from "../households.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   automations: typeof automations;
   budgets: typeof budgets;
   categories: typeof categories;
+  coach: typeof coach;
   crons: typeof crons;
   dashboard: typeof dashboard;
   households: typeof households;
