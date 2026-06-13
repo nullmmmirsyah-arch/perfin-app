@@ -5,7 +5,7 @@ import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Sparkles, RefreshCw, AlertTriangle, CheckCircle, Info, Lightbulb, Send, MessageCircle } from "lucide-react";
+import { Sparkles, RefreshCw, AlertTriangle, CheckCircle, Info, Lightbulb, Send, MessageCircle, ChevronDown } from "lucide-react";
 import { fadeInUp, staggerContainer } from "@/lib/animations";
 
 type SignalType = "danger" | "warning" | "info" | "success";
@@ -29,15 +29,14 @@ type InsightResponse = {
   generatedAt: number;
 };
 
-function SignalIcon({ type }: { type: SignalType }) {
-  switch (type) {
-    case "danger": return <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />;
-    case "warning": return <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />;
-    case "success": return <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />;
-    case "info": return <Info className="w-4 h-4 text-blue-500 shrink-0" />;
-    default: return null;
-  }
-}
+const groupOrder: SignalType[] = ["danger", "warning", "info", "success"];
+
+const groupConfig: Record<SignalType, { label: string; icon: typeof AlertTriangle; color: string; bg: string; border: string }> = {
+  danger:  { label: "Urgent",  icon: AlertTriangle, color: "text-red-500",  bg: "bg-red-500/10",    border: "border-red-500/20" },
+  warning: { label: "Warning", icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10",  border: "border-amber-500/20" },
+  info:    { label: "Info",    icon: Info,          color: "text-blue-500",  bg: "bg-blue-500/10",    border: "border-blue-500/20" },
+  success: { label: "Good",   icon: CheckCircle,   color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+};
 
 const signalColors: Record<SignalType, string> = {
   danger: "bg-red-500/10 border-red-500/20",
@@ -193,13 +192,22 @@ function SignalCard({ signal, askState, onToggleAsk, onQuestionChange, onAsk }: 
   );
 }
 
+function SignalIcon({ type }: { type: SignalType }) {
+  switch (type) {
+    case "danger": return <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />;
+    case "warning": return <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />;
+    case "success": return <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />;
+    case "info": return <Info className="w-4 h-4 text-blue-500 shrink-0" />;
+    default: return null;
+  }
+}
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-3 animate-pulse">
       <div className="h-4 bg-muted rounded w-3/4" />
-      <div className="h-20 bg-muted rounded-lg" />
-      <div className="h-16 bg-muted rounded-lg" />
-      <div className="h-16 bg-muted rounded-lg" />
+      <div className="h-14 bg-muted rounded-lg" />
+      <div className="h-14 bg-muted rounded-lg" />
     </div>
   );
 }
@@ -216,6 +224,7 @@ export function CoachCard({ householdId }: CoachCardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [askCards, setAskCards] = useState<Record<number, { question: string; answer?: string; isError?: boolean; loading: boolean }>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Set<SignalType>>(new Set());
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -245,7 +254,14 @@ export function CoachCard({ householdId }: CoachCardProps) {
     load();
   }, [load]);
 
-  // Refresh is manual only — auto-refresh would burn through Gemini quota
+  const toggleGroup = useCallback((type: SignalType) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }, []);
 
   const toggleAsk = useCallback((i: number) => {
     setAskCards(prev => {
@@ -278,6 +294,10 @@ export function CoachCard({ householdId }: CoachCardProps) {
     }
   }, [askCards, askCoach, householdId]);
 
+  const groupedSignals = groupOrder
+    .map(type => ({ type, signals: data?.signals.filter(s => s.type === type) ?? [] }))
+    .filter(g => g.signals.length > 0);
+
   return (
     <motion.div
       variants={fadeInUp}
@@ -308,12 +328,12 @@ export function CoachCard({ householdId }: CoachCardProps) {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="space-y-3"
+            className="space-y-2"
           >
             {data.geminiInsight && data.insightSource === "gemini" && (
               <motion.div
                 variants={fadeInUp}
-                className="flex items-start gap-3 p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20"
+                className="flex items-start gap-3 p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20 mb-3"
               >
                 <Sparkles className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
                 <div>
@@ -328,28 +348,67 @@ export function CoachCard({ householdId }: CoachCardProps) {
               </motion.div>
             )}
 
-            <AnimatePresence mode="popLayout">
-              {data.signals.map((signal, i) => (
-                <motion.div
-                  key={`${signal.type}-${signal.category}-${i}`}
-                  variants={fadeInUp}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{ opacity: 0, y: -10 }}
-                  layout
-                >
-                  <SignalCard
-                    signal={signal}
-                    askState={askCards[i]}
-                    onToggleAsk={() => toggleAsk(i)}
-                    onQuestionChange={(q) =>
-                      setAskCards(prev => ({ ...prev, [i]: { ...prev[i], question: q } }))
-                    }
-                    onAsk={() => ask(i, signal)}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            {groupedSignals.map(group => {
+              const cfg = groupConfig[group.type];
+              const Icon = cfg.icon;
+              const isExpanded = expandedGroups.has(group.type);
+
+              return (
+                <div key={group.type} className="rounded-lg border border-border overflow-hidden">
+                  <button
+                    onClick={() => toggleGroup(group.type)}
+                    className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className={`w-4 h-4 ${cfg.color} shrink-0`} />
+                      <span className="text-sm font-medium text-foreground">{cfg.label}</span>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+                        {group.signals.length}
+                      </span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`} />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        key="content"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 pb-4 space-y-2">
+                          {(() => {
+                            let flatIdx = 0;
+                            // Count signals before this group
+                            for (const g of groupedSignals) {
+                              if (g.type === group.type) break;
+                              flatIdx += g.signals.length;
+                            }
+                            return group.signals.map((signal, j) => {
+                              const i = flatIdx + j;
+                              return (
+                                <SignalCard
+                                  key={`${signal.type}-${signal.category}-${signal.title}-${j}`}
+                                  signal={signal}
+                                  askState={askCards[i]}
+                                  onToggleAsk={() => toggleAsk(i)}
+                                  onQuestionChange={(q) =>
+                                    setAskCards(prev => ({ ...prev, [i]: { ...prev[i], question: q } }))
+                                  }
+                                  onAsk={() => ask(i, signal)}
+                                />
+                              );
+                            });
+                          })()}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
           </motion.div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-8">
