@@ -241,6 +241,7 @@ export default defineSchema({
       category: v.union(v.literal("budget"), v.literal("spending"), v.literal("saving"), v.literal("recurring"), v.literal("general")),
       title: v.string(),
       message: v.string(),
+      tip: v.optional(v.string()),
       actionLabel: v.optional(v.string()),
       actionHref: v.optional(v.string()),
     })),

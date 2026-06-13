@@ -5,7 +5,7 @@ import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useEffect, useState, useCallback } from "react";
-import { Sparkles, RefreshCw, AlertTriangle, CheckCircle, Info, Lightbulb } from "lucide-react";
+import { Sparkles, RefreshCw, AlertTriangle, CheckCircle, Info, Lightbulb, Bot } from "lucide-react";
 import { fadeInUp, staggerContainer } from "@/lib/animations";
 
 type SignalType = "danger" | "warning" | "info" | "success";
@@ -16,6 +16,7 @@ type Signal = {
   category: SignalCategory;
   title: string;
   message: string;
+  tip?: string;
   actionLabel?: string;
   actionHref?: string;
 };
@@ -72,6 +73,12 @@ function SignalCard({ signal }: { signal: Signal }) {
         </div>
         <p className="text-sm font-medium text-foreground">{signal.title}</p>
         <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{signal.message}</p>
+        {signal.tip && (
+          <p className="text-xs font-medium text-foreground mt-1.5 flex items-start gap-1.5">
+            <Lightbulb className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
+            <span>{signal.tip}</span>
+          </p>
+        )}
         {signal.actionLabel && signal.actionHref && (
           <a
             href={signal.actionHref}
@@ -107,6 +114,16 @@ export function CoachCard({ householdId }: CoachCardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const [aiTipsEnabled, setAiTipsEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("coach-ai-tips") === "true";
+  });
+
+  const toggleAiTips = useCallback((enabled: boolean) => {
+    setAiTipsEnabled(enabled);
+    localStorage.setItem("coach-ai-tips", enabled ? "true" : "false");
+  }, []);
+
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -136,11 +153,11 @@ export function CoachCard({ householdId }: CoachCardProps) {
   }, [load]);
 
   useEffect(() => {
-    if (data?.needsRefresh && !isRefreshing) {
+    if (data?.needsRefresh && aiTipsEnabled && !isRefreshing) {
       refresh();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.needsRefresh]);
+  }, [data?.needsRefresh, aiTipsEnabled]);
 
   return (
     <motion.div
@@ -155,14 +172,27 @@ export function CoachCard({ householdId }: CoachCardProps) {
             <Lightbulb className="w-5 h-5 text-amber-500" />
             <h2 className="text-lg font-semibold">Coach AI</h2>
           </div>
-          <button
-            onClick={refresh}
-            disabled={isRefreshing || isLoading}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => toggleAiTips(!aiTipsEnabled)}
+              className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                aiTipsEnabled
+                  ? "bg-purple-500/15 text-purple-500 border border-purple-500/30"
+                  : "bg-muted text-muted-foreground border border-transparent"
+              }`}
+            >
+              <Bot className={`w-3 h-3 ${aiTipsEnabled ? "text-purple-500" : ""}`} />
+              <span>AI {aiTipsEnabled ? "ON" : "OFF"}</span>
+            </button>
+            <button
+              onClick={refresh}
+              disabled={isRefreshing || isLoading}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -174,7 +204,7 @@ export function CoachCard({ householdId }: CoachCardProps) {
             animate="visible"
             className="space-y-3"
           >
-            {data.geminiInsight && data.insightSource === "gemini" && (
+            {aiTipsEnabled && data.geminiInsight && data.insightSource === "gemini" && (
               <motion.div
                 variants={fadeInUp}
                 className="flex items-start gap-3 p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20"

@@ -10,6 +10,7 @@ type CoachingSignal = {
   category: "budget" | "spending" | "saving" | "recurring" | "general";
   title: string;
   message: string;
+  tip?: string;
   actionLabel?: string;
   actionHref?: string;
 };
@@ -19,6 +20,7 @@ type SignalInput = {
   category: "budget" | "spending" | "saving" | "recurring" | "general";
   title: string;
   message: string;
+  tip?: string;
   actionLabel?: string;
   actionHref?: string;
 };
@@ -58,8 +60,60 @@ function getCurrentFiscalMonth(budgetStartDay: number): { year: number; month: n
   return { year: start.getFullYear(), month: start.getMonth() + 1 };
 }
 
+function getFiscalDaysRemaining(budgetStartDay: number): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), budgetStartDay);
+  if (now < start) {
+    start.setMonth(start.getMonth() - 1);
+  }
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
+  return Math.max(1, Math.round((end.getTime() - now.getTime()) / 86400000));
+}
+
 function fmt(value: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value);
+}
+
+function generateBudgetTip(
+  item: any,
+  pct: number,
+  currentDay: number,
+  budgetStartDay: number,
+): string | null {
+  if (item.limit <= 0) return null;
+  const daysRemaining = getFiscalDaysRemaining(budgetStartDay);
+  if (daysRemaining <= 0) return null;
+
+  const remaining = item.limit - item.spent;
+  if (remaining <= 0) return null;
+
+  const dailyMax = Math.round(remaining / daysRemaining);
+  const daysElapsed = Math.max(1, currentDay);
+  const currentDailyRate = Math.round(item.spent / daysElapsed);
+
+  if (pct > 85) {
+    if (currentDailyRate > dailyMax) {
+      return `Max ${fmt(dailyMax)}/hari. Saat ini ${fmt(currentDailyRate)}/hari — hemat ${fmt(currentDailyRate - dailyMax)}/hari.`;
+    }
+    return `Max ${fmt(dailyMax)}/hari untuk ${daysRemaining} hari ke depan.`;
+  }
+
+  if (item.enablePacing && pct > 70 && currentDay < 20) {
+    if (currentDailyRate > dailyMax) {
+      return `Kurangin ${fmt(currentDailyRate - dailyMax)}/hari. Maksimal ${fmt(dailyMax)}/hari biar aman.`;
+    }
+    return `Max ${fmt(dailyMax)}/hari. Sisa ${daysRemaining} hari lagi.`;
+  }
+
+  if (item.carryover < 0 && Math.abs(item.carryover) > item.limit * 0.3) {
+    const effective = remaining + item.carryover;
+    if (effective > 0) {
+      return `Setelah utang carryover, efektif ${fmt(Math.round(effective / daysRemaining))}/hari.`;
+    }
+  }
+
+  return null;
 }
 
 // ─── Rule Engine ───
@@ -81,7 +135,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
   }
 
   let allSafe = true;
-  const pendingExpense = new Map<string, { worstType: CoachingSignal["type"]; issues: string[]; actionLabel?: string; actionHref?: string }>();
+  const pendingExpense = new Map<string, { worstType: CoachingSignal["type"]; issues: string[]; tip?: string; actionLabel?: string; actionHref?: string }>();
   const savingBullets: string[] = [];
   let savingHasWarning = false;
 
@@ -104,6 +158,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
     // Expense budgets — accumulate issues per category for consolidation
     const issues: string[] = [];
     let priority = 0; // 0=success 1=warning 2=danger
+    let pct = 0;
 
     if (item.limit <= 0) {
       allSafe = false;
@@ -112,7 +167,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
         ? `already exceeded by carryover of ${fmt(Math.abs(item.carryover))}`
         : `budget is fully used`);
     } else {
-      const pct = (item.spent / item.limit) * 100;
+      pct = (item.spent / item.limit) * 100;
 
       if (item.spent > item.limit) {
         allSafe = false;
@@ -143,6 +198,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
       pendingExpense.set(item.categoryName, {
         worstType,
         issues,
+        tip: generateBudgetTip(item, pct, currentDay, budgetStartDay) ?? undefined,
         actionLabel: "Adjust",
         actionHref: `/categories/${item.categoryId}`,
       });
@@ -156,6 +212,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
       category: "budget",
       title: catName,
       message: p.issues.join('. '),
+      tip: p.tip,
       actionLabel: p.actionLabel,
       actionHref: p.actionHref,
     });
