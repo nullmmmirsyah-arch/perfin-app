@@ -71,7 +71,7 @@ function SignalCard({ signal }: { signal: Signal }) {
           </span>
         </div>
         <p className="text-sm font-medium text-foreground">{signal.title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{signal.message}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{signal.message}</p>
         {signal.actionLabel && signal.actionHref && (
           <a
             href={signal.actionHref}
