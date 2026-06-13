@@ -139,6 +139,7 @@ export function CoachCard({ householdId }: CoachCardProps) {
     if (data?.needsRefresh && !isRefreshing) {
       refresh();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.needsRefresh]);
 
   return (

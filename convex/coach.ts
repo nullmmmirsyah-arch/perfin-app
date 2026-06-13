@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation, action, internalMutation } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 
 // ─── Types ───
