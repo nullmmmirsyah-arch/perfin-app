@@ -58,6 +58,10 @@ function getCurrentFiscalMonth(budgetStartDay: number): { year: number; month: n
   return { year: start.getFullYear(), month: start.getMonth() + 1 };
 }
 
+function fmt(value: number): string {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value);
+}
+
 // ─── Rule Engine ───
 
 export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: number = 1): CoachingSignal[] {
@@ -88,7 +92,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
             type: "success",
             category: "saving",
             title: "On track!",
-            message: `${item.categoryName} saving is on track with ${item.accumulated} accumulated so far.`,
+            message: `${item.categoryName} saving is on track with ${fmt(item.accumulated)} accumulated so far.`,
           });
         } else if (item.accumulated < expected * 0.5) {
           allSafe = false;
@@ -96,7 +100,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
             type: "warning",
             category: "saving",
             title: `${item.categoryName} behind schedule`,
-            message: `You've saved ${item.accumulated} against a target of ${item.targetAmount}. Consider catching up.`,
+            message: `You've saved ${fmt(item.accumulated)} against a target of ${fmt(item.targetAmount)}. Consider catching up.`,
             actionLabel: "View Goal",
             actionHref: `/goals/${item.categoryId}`,
           });
@@ -113,7 +117,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
         category: "budget",
         title: `${item.categoryName} exhausted`,
         message: item.carryover < 0
-          ? `${item.categoryName} already exceeded by carryover of ${Math.abs(item.carryover)}. Review this budget.`
+          ? `${item.categoryName} already exceeded by carryover of ${fmt(Math.abs(item.carryover))}. Review this budget.`
           : `${item.categoryName} budget is fully used.`,
         actionLabel: "Adjust",
         actionHref: "/budgets",
@@ -129,7 +133,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
         type: "danger",
         category: "budget",
         title: `${item.categoryName} over budget`,
-        message: `Spent ${item.spent} of ${item.limit} (${Math.round(pct)}%). ${item.carryover < 0 ? "Carryover debt made this worse." : "Try to reduce spending."}`,
+        message: `Spent ${fmt(item.spent)} of ${fmt(item.limit)} (${Math.round(pct)}%). ${item.carryover < 0 ? "Carryover debt made this worse." : "Try to reduce spending."}`,
         actionLabel: "Adjust",
         actionHref: `/categories/${item.categoryId}`,
       });
@@ -139,7 +143,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
         type: "warning",
         category: "budget",
         title: `${item.categoryName} nearly full`,
-        message: `${Math.round(pct)}% of budget used. Only ${item.limit - item.spent} remaining.`,
+        message: `${Math.round(pct)}% of budget used. Only ${fmt(item.limit - item.spent)} remaining.`,
       });
     } else if (item.enablePacing) {
       if (pct > 70 && currentDay < 20) {
@@ -148,7 +152,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
           type: "warning",
           category: "spending",
           title: `${item.categoryName} spending high`,
-          message: `${Math.round(pct)}% used early in the period. Current pace: ${item.spent} of ${item.limit}.`,
+          message: `${Math.round(pct)}% used early in the period. Current pace: ${fmt(item.spent)} of ${fmt(item.limit)}.`,
         });
       }
     }
@@ -159,7 +163,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
         type: "warning",
         category: "budget",
         title: `${item.categoryName} carryover burden`,
-        message: `Carryover debt of ${Math.abs(item.carryover)} reduces effective budget.`,
+        message: `Carryover debt of ${fmt(Math.abs(item.carryover))} reduces effective budget.`,
       });
     }
   }
@@ -193,7 +197,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
       type: "info",
       category: "general",
       title: "Free cash available",
-      message: `You have ${summary.unassignedCash} unassigned. Consider allocating to savings or investments.`,
+      message: `You have ${fmt(summary.unassignedCash)} unassigned. Consider allocating to savings or investments.`,
     });
   }
 
