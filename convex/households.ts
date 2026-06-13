@@ -70,6 +70,13 @@ export const list = query({
   },
 });
 
+export const get = query({
+  args: { householdId: v.id("households") },
+  handler: async (ctx, { householdId }) => {
+    return await ctx.db.get(householdId);
+  },
+});
+
 export const create = mutation({
   args: { 
     name: v.string(),

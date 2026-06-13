@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { mutation, action, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
+const OPENROUTER_MODEL = "poolside/laguna-m.1:free";
+
 // ─── Types ───
 
 type CoachingSignal = {
@@ -384,7 +386,7 @@ export const refreshInsight = action({
       recurringUpcoming: recurringSummary?.upcoming?.length ?? 0,
     };
 
-    const insight = await fetchGeminiInsight(signals, summary);
+    const insight = await fetchAIInsight(signals, summary);
 
     await ctx.runMutation(internal.coach.saveGeminiInsight, {
       householdId,
@@ -433,12 +435,95 @@ export const saveGeminiInsight = internalMutation({
   },
 });
 
-// ─── Gemini Helper ───
+// ─── Action: askCoach ───
 
-async function fetchGeminiInsight(signals: any[], summary: any): Promise<{ insight: string } | null> {
-  const apiKey = process.env.CONVEX_GEMINI_API_KEY;
+export const askCoach = action({
+  args: {
+    householdId: v.id("households"),
+    question: v.string(),
+  },
+  handler: async (ctx, { householdId, question }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    const household = await ctx.runQuery(api.households.get, { householdId }) as any;
+    const budgetStartDay = household?.budgetStartDay ?? 1;
+    const { year, month } = getCurrentFiscalMonth(budgetStartDay);
+    const currentDay = new Date().getDate();
+
+    const dashboardData: any = await ctx.runQuery(api.dashboard.getDashboardSummary, { householdId });
+    const recurringSummary: any = await ctx.runQuery(api.recurring.getRecurringSummary, { householdId, year, month });
+
+    const totalSpending = (dashboardData?.budgetBreakdown ?? []).reduce((sum: number, b: any) => sum + (b.spent || 0), 0);
+    const signals = runRuleEngine(dashboardData, currentDay);
+
+    const signalBullets = signals.map(s =>
+      `[${s.type.toUpperCase()}] ${s.title}: ${s.message}${s.tip ? ` (Tip: ${s.tip})` : ""}`
+    ).join("\n");
+
+    const budgetLines = (dashboardData?.budgetBreakdown ?? []).map((b: any) =>
+      `- ${b.categoryName}: spent ${b.spent} of ${b.limit} (carryover: ${b.carryover ?? 0})`
+    ).join("\n");
+
+    const prompt = `Kamu adalah asisten keuangan pribadi yang helpful dan ringkas. 
+
+Kondisi finansial user bulan ini:
+${signalBullets}
+
+Ringkasan data:
+- Sisa budget: ${dashboardData?.remainingBudget ?? 0}
+- Total pengeluaran: ${totalSpending}
+- Kas bebas: ${dashboardData?.unassignedCash ?? 0}
+
+Detail budget:
+${budgetLines}
+
+Pertanyaan user: "${question}"
+
+Jawab dengan maksimal 3 kalimat dalam Bahasa Indonesia. Gunakan format angka Indonesia (contoh: 30.000 bukan 30.0 atau 30,000). Berikan saran yang spesifik dan actionable.`;
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) return { error: "AI tidak dikonfigurasi. Hubungi admin." };
+
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_MODEL,
+          messages: [
+            { role: "system", content: "Kamu adalah asisten keuangan pribadi yang helpful dan ringkas." },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+      });
+
+      if (response.status === 429) {
+        return { error: "Layanan AI sedang sibuk. Coba lagi nanti." };
+      }
+
+      if (!response.ok) return { error: "Layanan AI sedang sibuk. Coba lagi nanti." };
+      const data = await response.json();
+      const answer = data?.choices?.[0]?.message?.content;
+      if (!answer) return { error: "Layanan AI tidak memberikan jawaban. Coba lagi." };
+      return { answer };
+    } catch {
+      return { error: "Gagal terhubung ke layanan AI. Periksa koneksi." };
+    }
+  },
+});
+
+// ─── AI Helper (OpenRouter) ───
+
+async function fetchAIInsight(signals: any[], summary: any): Promise<{ insight: string } | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    console.warn("CONVEX_GEMINI_API_KEY not configured");
+    console.warn("OPENROUTER_API_KEY not configured");
     return null;
   }
 
@@ -450,7 +535,9 @@ async function fetchGeminiInsight(signals: any[], summary: any): Promise<{ insig
     `- ${b.categoryName}: spent ${b.spent} of ${b.limit} (carryover: ${b.carryover ?? 0})`
   ).join("\n");
 
-  const prompt = `Kamu adalah asisten keuangan pribadi yang helpful dan ringkas. Berikut kondisi finansial user bulan ini:
+    const systemPrompt = "Kamu adalah asisten keuangan pribadi yang helpful dan ringkas. Berikan 1-2 kalimat insight personal dalam Bahasa Indonesia. Fokus ke satu hal paling penting. Jika ada masalah, sebut solusi spesifik. Jika semuanya baik, apresiasi dan saran untuk lebih baik. Gunakan format angka Indonesia (contoh: 30.000 bukan 30.0 atau 30,000).";
+
+  const userPrompt = `Kondisi finansial user bulan ini:
 
 Sinyal terdeteksi:
 ${signalBullets}
@@ -463,41 +550,38 @@ Ringkasan data:
 - Tagihan recurring upcoming: ${summary.recurringUpcoming}
 
 Detail budget:
-${budgetLines}
-
-Berikan 1-2 kalimat insight personal dalam Bahasa Indonesia:
-- Fokus ke satu hal paling penting
-- Jika ada masalah, sebut solusi spesifik
-- Jika semuanya baik, apresiasi dan saran untuk lebih baik`;
+${budgetLines}`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 200,
-          },
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+          max_tokens: 300,
+          temperature: 0.7,
         }),
-      }
-    );
+      });
 
     if (!response.ok) {
-      console.warn(`Gemini API error: ${response.status}`);
+      console.warn(`OpenRouter API error: ${response.status}`);
       return null;
     }
 
     const data = await response.json();
-    const insight = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const insight = data?.choices?.[0]?.message?.content;
     if (!insight) return null;
 
     return { insight };
   } catch (err) {
-    console.error("Gemini call failed:", err);
+    console.error("OpenRouter call failed:", err);
     return null;
   }
 }
