@@ -82,6 +82,8 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
 
   let allSafe = true;
   const pendingExpense = new Map<string, { worstType: CoachingSignal["type"]; issues: string[]; actionLabel?: string; actionHref?: string }>();
+  const savingBullets: string[] = [];
+  let savingHasWarning = false;
 
   for (const item of breakdown) {
     if (item.categoryType === "saving") {
@@ -89,22 +91,11 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
         const progress = calculateMonthProgress(budgetStartDay);
         const expected = item.targetAmount * progress;
         if (item.accumulated >= expected) {
-          signals.push({
-            type: "success",
-            category: "saving",
-            title: "On track!",
-            message: `${item.categoryName} saving is on track with ${fmt(item.accumulated)} accumulated so far.`,
-          });
+          savingBullets.push(`${item.categoryName}: on track with ${fmt(item.accumulated)} accumulated`);
         } else if (item.accumulated < expected * 0.5) {
           allSafe = false;
-          signals.push({
-            type: "warning",
-            category: "saving",
-            title: `${item.categoryName} behind schedule`,
-            message: `You've saved ${fmt(item.accumulated)} against a target of ${fmt(item.targetAmount)}. Consider catching up.`,
-            actionLabel: "View Goal",
-            actionHref: `/goals/${item.categoryId}`,
-          });
+          savingHasWarning = true;
+          savingBullets.push(`${item.categoryName}: behind schedule — saved ${fmt(item.accumulated)} of ${fmt(item.targetAmount)} target`);
         }
       }
       continue;
@@ -167,6 +158,16 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
       message: p.issues.join('. '),
       actionLabel: p.actionLabel,
       actionHref: p.actionHref,
+    });
+  }
+
+  // Saving consolidation: one card with bullet points
+  if (savingBullets.length > 0) {
+    signals.push({
+      type: savingHasWarning ? "warning" : "success",
+      category: "saving",
+      title: "Savings",
+      message: savingBullets.map(b => `• ${b}`).join('\n'),
     });
   }
 
