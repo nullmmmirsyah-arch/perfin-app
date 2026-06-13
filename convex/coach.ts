@@ -81,6 +81,7 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
   }
 
   let allSafe = true;
+  const pendingExpense = new Map<string, { worstType: CoachingSignal["type"]; issues: string[]; actionLabel?: string; actionHref?: string }>();
 
   for (const item of breakdown) {
     if (item.categoryType === "saving") {
@@ -109,63 +110,64 @@ export function runRuleEngine(summary: any, currentDay: number, budgetStartDay: 
       continue;
     }
 
-    // Expense budgets
+    // Expense budgets — accumulate issues per category for consolidation
+    const issues: string[] = [];
+    let priority = 0; // 0=success 1=warning 2=danger
+
     if (item.limit <= 0) {
       allSafe = false;
-      signals.push({
-        type: "danger",
-        category: "budget",
-        title: `${item.categoryName} exhausted`,
-        message: item.carryover < 0
-          ? `${item.categoryName} already exceeded by carryover of ${fmt(Math.abs(item.carryover))}. Review this budget.`
-          : `${item.categoryName} budget is fully used.`,
-        actionLabel: "Adjust",
-        actionHref: "/budgets",
-      });
-      continue;
-    }
+      priority = 2;
+      issues.push(item.carryover < 0
+        ? `already exceeded by carryover of ${fmt(Math.abs(item.carryover))}`
+        : `budget is fully used`);
+    } else {
+      const pct = (item.spent / item.limit) * 100;
 
-    const pct = (item.spent / item.limit) * 100;
-
-    if (item.spent > item.limit) {
-      allSafe = false;
-      signals.push({
-        type: "danger",
-        category: "budget",
-        title: `${item.categoryName} over budget`,
-        message: `Spent ${fmt(item.spent)} of ${fmt(item.limit)} (${Math.round(pct)}%). ${item.carryover < 0 ? "Carryover debt made this worse." : "Try to reduce spending."}`,
-        actionLabel: "Adjust",
-        actionHref: `/categories/${item.categoryId}`,
-      });
-    } else if (pct > 85) {
-      allSafe = false;
-      signals.push({
-        type: "warning",
-        category: "budget",
-        title: `${item.categoryName} nearly full`,
-        message: `${Math.round(pct)}% of budget used. Only ${fmt(item.limit - item.spent)} remaining.`,
-      });
-    } else if (item.enablePacing) {
-      if (pct > 70 && currentDay < 20) {
+      if (item.spent > item.limit) {
         allSafe = false;
-        signals.push({
-          type: "warning",
-          category: "spending",
-          title: `${item.categoryName} spending high`,
-          message: `${Math.round(pct)}% used early in the period. Current pace: ${fmt(item.spent)} of ${fmt(item.limit)}.`,
-        });
+        priority = 2;
+        issues.push(`spent ${fmt(item.spent)} of ${fmt(item.limit)} (${Math.round(pct)}%)`);
+        if (item.carryover < 0) {
+          issues.push(`carryover debt made this worse`);
+        }
+      } else if (pct > 85) {
+        allSafe = false;
+        if (priority < 2) priority = 1;
+        issues.push(`${Math.round(pct)}% used with only ${fmt(item.limit - item.spent)} remaining`);
+      } else if (item.enablePacing && pct > 70 && currentDay < 20) {
+        allSafe = false;
+        if (priority < 2) priority = 1;
+        issues.push(`spending pace is high (${Math.round(pct)}% used early)`);
+      }
+
+      if (item.carryover < 0 && Math.abs(item.carryover) > item.limit * 0.3) {
+        allSafe = false;
+        if (priority < 2) priority = 1;
+        issues.push(`carryover debt of ${fmt(Math.abs(item.carryover))} is weighing on this budget`);
       }
     }
 
-    if (item.carryover < 0 && Math.abs(item.carryover) > item.limit * 0.3) {
-      allSafe = false;
-      signals.push({
-        type: "warning",
-        category: "budget",
-        title: `${item.categoryName} carryover burden`,
-        message: `Carryover debt of ${fmt(Math.abs(item.carryover))} reduces effective budget.`,
+    if (issues.length > 0) {
+      const worstType: CoachingSignal["type"] = priority === 2 ? "danger" : "warning";
+      pendingExpense.set(item.categoryName, {
+        worstType,
+        issues,
+        actionLabel: "Adjust",
+        actionHref: `/categories/${item.categoryId}`,
       });
     }
+  }
+
+  // Consolidate expense signals: one card per category
+  for (const [catName, p] of pendingExpense) {
+    signals.push({
+      type: p.worstType,
+      category: "budget",
+      title: catName,
+      message: p.issues.join('. '),
+      actionLabel: p.actionLabel,
+      actionHref: p.actionHref,
+    });
   }
 
   // Recurring signals
