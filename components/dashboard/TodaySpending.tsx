@@ -5,6 +5,16 @@ import { Progress } from '@/components/ui/progress';
 import { formatCurrency, cn, parseAmount } from '@/lib/utils';
 import { calculateFiscalDaysRemaining } from '@/lib/finance-utils';
 
+type SplitDetail = {
+  categoryId: string;
+  amount: string;
+  description?: string;
+  labelId?: string;
+  categoryName?: string;
+  labelName?: string;
+  labelColor?: string;
+};
+
 type TransactionWithDetails = {
   _id: string;
   date: string;
@@ -12,6 +22,8 @@ type TransactionWithDetails = {
   type: string;
   description?: string;
   categoryName?: string;
+  isSplit?: boolean;
+  splits?: SplitDetail[];
 };
 
 type SummaryData = {
@@ -35,18 +47,33 @@ function isToday(dateStr: string): boolean {
   );
 }
 
+function getTxEntries(tx: TransactionWithDetails): { id: string; description: string; amount: number; type: string; categoryName?: string }[] {
+  if (tx.isSplit && tx.splits && tx.splits.length > 0) {
+    return tx.splits.map(split => ({
+      id: tx._id + '-' + split.categoryId,
+      description: split.description || tx.description || split.categoryName || 'Split',
+      amount: parseAmount(split.amount),
+      type: tx.type,
+      categoryName: split.categoryName,
+    }));
+  }
+  return [{
+    id: tx._id,
+    description: tx.description || tx.categoryName || 'Transaction',
+    amount: typeof tx.amount === 'string' ? parseAmount(tx.amount) : (tx.amount ?? 0),
+    type: tx.type,
+    categoryName: tx.categoryName,
+  }];
+}
+
 export function TodaySpending({ summary, isPrivacyMode }: Props) {
   const todayTxns = (summary?.recentTransactions || []).filter(
-    (tx: TransactionWithDetails) => isToday(tx.date)
+    (tx: TransactionWithDetails) => isToday(tx.date) && tx.type === 'expense'
   );
 
-  const todaySpent = todayTxns.reduce(
-    (acc: number, tx: TransactionWithDetails) => {
-      const amt = typeof tx.amount === 'string' ? parseAmount(tx.amount) : (tx.amount ?? 0);
-      return acc + amt;
-    },
-    0
-  );
+  const todayEntries = todayTxns.flatMap(getTxEntries);
+
+  const todaySpent = todayEntries.reduce((acc, entry) => acc + entry.amount, 0);
 
   const daysRemaining = calculateFiscalDaysRemaining(summary?.budgetStartDay);
   const dailyAllowance = daysRemaining > 0
@@ -75,23 +102,16 @@ export function TodaySpending({ summary, isPrivacyMode }: Props) {
 
         <Progress value={percentUsed} className="h-2 mb-3" />
 
-        {todayTxns.length > 0 ? (
+        {todayEntries.length > 0 ? (
           <div className="space-y-1 max-h-[160px] overflow-y-auto">
-            {todayTxns.slice(0, 10).map((tx: TransactionWithDetails) => (
-              <div key={tx._id} className="flex items-center justify-between py-1">
+            {todayEntries.slice(0, 15).map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className={cn(
-                    'w-1.5 h-1.5 rounded-full shrink-0',
-                    tx.type === 'expense' ? 'bg-destructive' : 'bg-success'
-                  )} />
-                  <span className="text-xs truncate">{tx.description || tx.categoryName}</span>
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-destructive" />
+                  <span className="text-xs truncate">{entry.description}</span>
                 </div>
-                <span className={cn(
-                  'text-xs font-medium tabular-nums shrink-0 ml-2',
-                  tx.type === 'expense' ? 'text-destructive' : 'text-success'
-                )}>
-                  {tx.type === 'expense' ? '-' : '+'}
-                  {formatCurrency(tx.amount, { isPrivacyMode })}
+                <span className="text-xs font-medium tabular-nums shrink-0 ml-2 text-destructive">
+                  -{formatCurrency(entry.amount, { isPrivacyMode })}
                 </span>
               </div>
             ))}
