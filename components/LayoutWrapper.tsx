@@ -3,7 +3,7 @@
 import { Authenticated, Unauthenticated, AuthLoading } from 'convex/react'
 import Sidebar from './Sidebar'
 import { ReactNode, useState, useEffect, useCallback } from 'react'
-import GlobalTransactionFAB from './GlobalTransactionFAB'
+
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -133,7 +133,6 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
           
             
           
-            <GlobalTransactionFAB />
             <TransactionDrawer open={isTransactionOpen} onOpenChange={setIsTransactionOpen} />
             <BottomNav />
           
