@@ -487,6 +487,7 @@ export const create = mutation({
     enablePacing: v.optional(v.boolean()),
     goalType: v.optional(v.string()),
     monthlyBudget: v.optional(v.string()),
+    hideAmount: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -497,13 +498,14 @@ export const create = mutation({
         await ensureAdminAccess(ctx, args.householdId, identity.subject);
     }
 
-    const { monthlyBudget, ...rest } = args;
+    const { monthlyBudget, hideAmount, ...rest } = args;
 
     const categoryId = await ctx.db.insert("categories", {
       ...rest,
       userId: identity.subject,
       status: GOAL_STATUS.ACTIVE,
       goalType: args.goalType as any,
+      hideAmount: hideAmount ?? false,
     });
 
     if (args.type === CATEGORY_TYPES.SAVING) {
