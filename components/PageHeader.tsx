@@ -1,7 +1,8 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Settings } from "lucide-react";
+import { SettingsSheet } from "./SettingsSheet";
 
 interface PageHeaderProps {
   title: string;
@@ -20,6 +21,8 @@ export function PageHeader({
   onTogglePrivacy,
   isPrivacyMode
 }: PageHeaderProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
   return (
     <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8", className)}>
       <div className="space-y-1">
@@ -38,6 +41,15 @@ export function PageHeader({
                     {isPrivacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
             )}
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground md:hidden"
+                onClick={() => setSettingsOpen(true)}
+                title="Settings"
+            >
+                <Settings className="h-4 w-4" />
+            </Button>
         </div>
         {description && (
           <p className="text-sm text-muted-foreground">
@@ -50,6 +62,7 @@ export function PageHeader({
           {action}
         </div>
       )}
+      <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }
