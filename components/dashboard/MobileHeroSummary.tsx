@@ -7,20 +7,20 @@ import { differenceInCalendarDays } from 'date-fns'
 type SummaryData = {
   liquidCash: number
   remainingBudget: number
-  budgetStartDay?: number
 }
 
 type Props = {
   summary: SummaryData | undefined | null
   isPrivacyMode?: boolean
+  budgetStartDay?: number
 }
 
-export function MobileHeroSummary({ summary, isPrivacyMode }: Props) {
-  const budgetStartDay = summary?.budgetStartDay
-  const daysRemaining = calculateFiscalDaysRemaining(budgetStartDay)
+export function MobileHeroSummary({ summary, isPrivacyMode, budgetStartDay }: Props) {
+  const startDay = budgetStartDay ?? 1
+  const daysRemaining = calculateFiscalDaysRemaining(startDay)
   const now = new Date()
-  const fiscalDate = getFiscalDate(now, budgetStartDay)
-  const { start, end } = getFiscalMonthRange(fiscalDate.getFullYear(), fiscalDate.getMonth(), budgetStartDay)
+  const fiscalDate = getFiscalDate(now, startDay)
+  const { start, end } = getFiscalMonthRange(fiscalDate.getFullYear(), fiscalDate.getMonth(), startDay)
   const totalFiscalDays = differenceInCalendarDays(end, start) + 1
   const fiscalDayNumber = differenceInCalendarDays(now, start) + 1
   const dailyAllowance = daysRemaining > 0
@@ -29,19 +29,11 @@ export function MobileHeroSummary({ summary, isPrivacyMode }: Props) {
 
   return (
     <div className="w-full rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground p-5 shadow-lg">
-      <div className="flex items-start justify-between mb-4">
-        <div className="space-y-1">
-          <p className="text-xs font-medium opacity-80 tracking-wide">TOTAL BALANCE</p>
-          <p className="text-3xl font-bold tracking-tight">
-            {formatCurrency(summary?.liquidCash || 0, { isPrivacyMode })}
-          </p>
-        </div>
-        <div className="text-right space-y-1">
-          <p className="text-xs font-medium opacity-80 tracking-wide">BUDGET LEFT</p>
-          <p className="text-xl font-semibold">
-            {formatCurrency(summary?.remainingBudget || 0, { isPrivacyMode })}
-          </p>
-        </div>
+      <div className="space-y-1 mb-4">
+        <p className="text-xs font-medium opacity-80 tracking-wide">BUDGET LEFT</p>
+        <p className="text-3xl font-bold tracking-tight">
+          {formatCurrency(summary?.remainingBudget || 0, { isPrivacyMode })}
+        </p>
       </div>
       <div className="flex items-center justify-between bg-black/10 rounded-xl px-4 py-3">
         <div className="flex items-baseline gap-1.5">

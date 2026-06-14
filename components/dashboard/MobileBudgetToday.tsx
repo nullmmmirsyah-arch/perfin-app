@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatCurrency, parseAmount } from '@/lib/utils'
-import { calculateBudgetPace, calculateFiscalDaysRemaining } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateFiscalDaysRemaining, type PacingStatus } from '@/lib/finance-utils'
 import Link from 'next/link'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -49,24 +49,24 @@ type SummaryData = {
   remainingBudget: number
   budgetBreakdown: BudgetBreakdownItem[]
   recentTransactions: TransactionWithDetails[]
-  budgetStartDay?: number
 }
 
 type Props = {
   summary: SummaryData | undefined | null
   isPrivacyMode?: boolean
+  budgetStartDay?: number
 }
 
 type OverallStatus = 'on_track' | 'spending_faster' | 'slow_down'
 
-function computeOverallStatus(breakdown: BudgetBreakdownItem[], budgetStartDay?: number): OverallStatus {
+function computeOverallStatus(breakdown: BudgetBreakdownItem[], startDay: number = 1): OverallStatus {
   if (!breakdown || breakdown.length === 0) return 'on_track'
   const year = new Date().getFullYear()
   const month = new Date().getMonth()
   let hasWarning = false
   for (const item of breakdown) {
     if (item.enablePacing === false || item.limit <= 0) continue
-    const pace = calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay)
+    const pace = calculateBudgetPace(item.spent, item.limit, year, month, startDay)
     if (pace.status === 'danger') return 'slow_down'
     if (pace.status === 'warning') hasWarning = true
   }
@@ -98,17 +98,18 @@ function getTxEntries(tx: TransactionWithDetails): { id: string; description: st
   }]
 }
 
-export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
+export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Props) {
+  const startDay = budgetStartDay ?? 1
   const [showSafe, setShowSafe] = useState(false)
 
-  const daysRemaining = calculateFiscalDaysRemaining(summary?.budgetStartDay)
+  const daysRemaining = calculateFiscalDaysRemaining(startDay)
   const totalBudget = summary?.budgetBreakdown?.reduce((acc, item) => acc + item.limit, 0) || 0
   const totalSpent = summary?.budgetBreakdown?.reduce((acc, item) => acc + item.spent, 0) || 0
   const remaining = summary?.remainingBudget || 0
   const percentUsed = totalBudget > 0 ? Math.min(100, (totalSpent / totalBudget) * 100) : 0
   const dailyAllowance = daysRemaining > 0 ? Math.max(0, remaining / daysRemaining) : 0
   const hasBudgets = (summary?.budgetBreakdown || []).length > 0
-  const status = computeOverallStatus(summary?.budgetBreakdown || [], summary?.budgetStartDay)
+  const status = computeOverallStatus(summary?.budgetBreakdown || [], startDay)
 
   const todayTxns = (summary?.recentTransactions || []).filter(
     (tx: TransactionWithDetails) => isToday(tx.date) && tx.type === 'expense'
@@ -128,13 +129,13 @@ export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
 
   const pacedItems = (summary?.budgetBreakdown || [])
     .filter(item => item.enablePacing !== false && item.limit > 0)
-    .map(item => ({ ...item, pace: calculateBudgetPace(item.spent, item.limit, year, month, summary?.budgetStartDay) }))
+    .map(item => ({ ...item, pace: calculateBudgetPace(item.spent, item.limit, year, month, startDay) }))
 
   const dangerItems = pacedItems.filter(item => item.pace.status === 'danger')
   const warningItems = pacedItems.filter(item => item.pace.status === 'warning')
   const safeItems = pacedItems.filter(item => item.pace.status === 'safe')
 
-  const getPaceBarColor = (status: string) => {
+  const getPaceBarColor = (status: PacingStatus) => {
     switch (status) {
       case 'danger': return 'bg-destructive'
       case 'warning': return 'bg-warning'
@@ -158,7 +159,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
         </div>
         <div className="space-y-1">
           <Progress value={percentUsed} className="h-2" />
-          <div className="flex justify-between text-[11px] text-muted-foreground">
+          <div className="flex justify-between text-xs text-muted-foreground">
             <span>{formatCurrency(totalSpent, { isPrivacyMode })} spent of {formatCurrency(totalBudget, { isPrivacyMode })}</span>
             <span>{daysRemaining > 0 ? `${daysRemaining}d left` : 'Final day'}</span>
           </div>
@@ -167,18 +168,16 @@ export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
         {/* Per-category daily allowance */}
         {hasBudgets && pacedItems.length > 0 && (
           <div className="bg-muted/30 rounded-xl p-3 space-y-2">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-tighter">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
               Daily Allowance per Category
             </p>
             {[...dangerItems, ...warningItems].map(item => {
-              const dailyLimit = item.pace.dailyLimit || 0
-              const percent = dailyLimit > 0 ? Math.min(100, (item.spent / (item.limit / daysRemaining)) * 100) : 0
               return (
                 <div key={item.categoryId} className="flex items-center justify-between gap-2">
                   <span className="text-xs truncate min-w-0 flex-1">{item.categoryName}</span>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-16 h-1.5 bg-muted-foreground/20 rounded-full overflow-hidden">
-                      <div className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, percent)}%` }} />
+                    <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+                      <div className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }} />
                     </div>
                     <span className="text-xs font-medium tabular-nums w-16 text-right">
                       {formatCurrency(item.remaining, { isPrivacyMode })}
@@ -190,8 +189,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
             {safeItems.length > 0 && (
               <Button
                 variant="ghost"
-                size="sm"
-                className="w-full text-xs text-muted-foreground h-7 justify-start px-0 hover:bg-transparent"
+                className="w-full text-xs text-muted-foreground h-9 justify-start px-2 hover:bg-muted/50"
                 onClick={() => setShowSafe(!showSafe)}
               >
                 {showSafe ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
@@ -199,14 +197,12 @@ export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
               </Button>
             )}
             {showSafe && safeItems.map(item => {
-              const dailyLimit = item.pace.dailyLimit || 0
-              const percent = dailyLimit > 0 ? Math.min(100, (item.spent / (item.limit / daysRemaining)) * 100) : 0
               return (
                 <div key={item.categoryId} className="flex items-center justify-between gap-2">
                   <span className="text-xs truncate min-w-0 flex-1">{item.categoryName}</span>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-16 h-1.5 bg-muted-foreground/20 rounded-full overflow-hidden">
-                      <div className={cn('h-full rounded-full', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, percent)}%` }} />
+                    <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+                      <div className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }} />
                     </div>
                     <span className="text-xs font-medium tabular-nums w-16 text-right">
                       {formatCurrency(item.remaining, { isPrivacyMode })}
@@ -215,7 +211,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
                 </div>
               )
             })}
-            <Link href="/budgets" className="block text-center text-[10px] text-primary underline underline-offset-2 mt-1">
+            <Link href="/budgets" className="block text-center text-xs text-primary underline underline-offset-2 mt-1">
               Lihat semua budget →
             </Link>
           </div>
@@ -241,7 +237,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode }: Props) {
                 </div>
               ))}
               {todayEntries.length > 5 && (
-                <p className="text-[10px] text-muted-foreground text-center pt-1">+{todayEntries.length - 5} more</p>
+                <p className="text-xs text-muted-foreground text-center pt-1">+{todayEntries.length - 5} more</p>
               )}
             </div>
           ) : (

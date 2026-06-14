@@ -14,11 +14,10 @@ import {
 } from '@/components/skeletons'
 import { toast } from 'sonner'
 import { DailyOperationsCard } from '@/components/dashboard/DailyOperationsCard'
-import { DailyGuidance } from '@/components/dashboard/DailyGuidance'
-import { BudgetSummary } from '@/components/dashboard/BudgetSummary'
-import { TodaySpending } from '@/components/dashboard/TodaySpending'
-import { BudgetAttentionList } from '@/components/dashboard/BudgetAttentionList'
+import { MobileHeroSummary } from '@/components/dashboard/MobileHeroSummary'
+import { MobileBudgetToday } from '@/components/dashboard/MobileBudgetToday'
 import { MobileDashboardTabs } from '@/components/dashboard/MobileDashboardTabs'
+import { MobileRecurringRow } from '@/components/dashboard/MobileRecurringRow'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
@@ -191,12 +190,10 @@ export default function Dashboard() {
           <DashboardCardSkeleton />
         ) : (
           <>
-            <motion.div variants={fadeInUp}><DailyGuidance summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
-            <motion.div variants={fadeInUp}><BudgetSummary summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
-            <motion.div variants={fadeInUp}><TodaySpending summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
-            <motion.div variants={fadeInUp}><BudgetAttentionList summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}><MobileHeroSummary summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
+            <motion.div variants={fadeInUp}><MobileBudgetToday summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
             <motion.div variants={fadeInUp}><MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
-            <motion.div variants={fadeInUp}><RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}><MobileRecurringRow householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} /></motion.div>
           </>
         )}
       </motion.div>
