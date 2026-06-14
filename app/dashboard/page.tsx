@@ -18,6 +18,7 @@ import { MobileHeroSummary } from '@/components/dashboard/MobileHeroSummary'
 import { MobileBudgetToday } from '@/components/dashboard/MobileBudgetToday'
 import { MobileDashboardTabs } from '@/components/dashboard/MobileDashboardTabs'
 import { MobileRecurringRow } from '@/components/dashboard/MobileRecurringRow'
+import { MobileRecentTransactions } from '@/components/dashboard/MobileRecentTransactions'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
@@ -194,6 +195,14 @@ export default function Dashboard() {
             <motion.div variants={fadeInUp}><MobileBudgetToday summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
             <motion.div variants={fadeInUp}><MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
             <motion.div variants={fadeInUp}><MobileRecurringRow householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} /></motion.div>
+            <motion.div variants={fadeInUp}>
+              <MobileRecentTransactions
+                transactions={(summary?.recentTransactions as TransactionWithDetails[]) || []}
+                onEdit={handleEdit}
+                onDelete={setTransactionToDelete}
+                isPrivacyMode={isPrivacyMode}
+              />
+            </motion.div>
           </>
         )}
       </motion.div>
@@ -230,7 +239,7 @@ export default function Dashboard() {
       </motion.div>
 
       <motion.div
-        className="space-y-4"
+        className="space-y-4 hidden md:block"
         variants={fadeInUp}
         initial="hidden"
         animate="visible"
