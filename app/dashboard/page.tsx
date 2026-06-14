@@ -13,7 +13,6 @@ import {
   RecentTransactionsSkeleton 
 } from '@/components/skeletons'
 import { toast } from 'sonner'
-import { CoachCard } from '@/components/dashboard/CoachCard'
 import { DailyOperationsCard } from '@/components/dashboard/DailyOperationsCard'
 import { DailyGuidance } from '@/components/dashboard/DailyGuidance'
 import { BudgetSummary } from '@/components/dashboard/BudgetSummary'
@@ -192,9 +191,6 @@ export default function Dashboard() {
           <DashboardCardSkeleton />
         ) : (
           <>
-            {householdId && (
-              <motion.div variants={fadeInUp}><CoachCard householdId={householdId} /></motion.div>
-            )}
             <motion.div variants={fadeInUp}><DailyGuidance summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
             <motion.div variants={fadeInUp}><BudgetSummary summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
             <motion.div variants={fadeInUp}><TodaySpending summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
@@ -204,18 +200,6 @@ export default function Dashboard() {
           </>
         )}
       </motion.div>
-
-      {/* Desktop: Coach Card */}
-      {householdId && (
-        <motion.div
-          className="hidden md:block mb-6"
-          variants={fadeInUp}
-          initial="hidden"
-          animate="visible"
-        >
-          <CoachCard householdId={householdId} />
-        </motion.div>
-      )}
 
       {/* Desktop: Grid Layout */}
       <motion.div
