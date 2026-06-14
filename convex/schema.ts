@@ -230,24 +230,4 @@ export default defineSchema({
   })
     .index("by_recurringExpenseId", ["recurringExpenseId"])
     .index("by_year_month", ["year", "month"]),
-
-  coachInsights: defineTable({
-    householdId: v.id("households"),
-    month: v.number(),
-    year: v.number(),
-    dataHash: v.string(),
-    signals: v.array(v.object({
-      type: v.union(v.literal("danger"), v.literal("warning"), v.literal("info"), v.literal("success")),
-      category: v.union(v.literal("budget"), v.literal("spending"), v.literal("saving"), v.literal("recurring"), v.literal("general")),
-      title: v.string(),
-      message: v.string(),
-      tip: v.optional(v.string()),
-      actionLabel: v.optional(v.string()),
-      actionHref: v.optional(v.string()),
-    })),
-    geminiInsight: v.optional(v.string()),
-    insightSource: v.union(v.literal("rule"), v.literal("gemini")),
-    generatedAt: v.number(),
-  })
-    .index("by_householdId_month", ["householdId", "month", "year"]),
 });
