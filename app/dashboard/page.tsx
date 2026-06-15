@@ -281,16 +281,18 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {summary === undefined ? (
-            <RecentTransactionsSkeleton />
-        ) : (
-            <TransactionListGrouped 
-                transactions={summary?.recentTransactions as TransactionWithDetails[] || []}
-                onEdit={handleEdit}
-                onDelete={setTransactionToDelete}
-                isPrivacyMode={isPrivacyMode}
-            />
-        )}
+        <ErrorBoundary key={`txns-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+          {summary === undefined ? (
+              <RecentTransactionsSkeleton />
+          ) : (
+              <TransactionListGrouped 
+                  transactions={summary?.recentTransactions as TransactionWithDetails[] || []}
+                  onEdit={handleEdit}
+                  onDelete={setTransactionToDelete}
+                  isPrivacyMode={isPrivacyMode}
+              />
+          )}
+        </ErrorBoundary>
       </motion.div>
     </div>
   )
