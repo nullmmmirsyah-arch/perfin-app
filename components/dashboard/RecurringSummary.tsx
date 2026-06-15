@@ -1,14 +1,16 @@
 'use client'
 
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, parseAmount } from '@/lib/utils';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Receipt, CheckCircle2, AlertCircle, CalendarClock } from 'lucide-react';
+import { Receipt, CheckCircle2, AlertCircle, CalendarClock, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
 type Props = {
   householdId?: Id<"households">;
@@ -21,6 +23,20 @@ export function RecurringSummary({ householdId, isPrivacyMode }: Props) {
   const month = now.getMonth() + 1;
   const currentDay = now.getDate();
   const summary = useQuery(api.recurring.getRecurringSummary, { householdId: householdId ?? undefined, year, month });
+  const markPaid = useMutation(api.recurring.markRecurringPaid)
+  const [payingIds, setPayingIds] = useState<Set<string>>(new Set())
+
+  const handleMarkPaid = async (recurringExpenseId: Id<"recurringExpenses">) => {
+    setPayingIds(prev => new Set(prev).add(recurringExpenseId))
+    try {
+      await markPaid({ recurringExpenseId, year, month })
+      toast.success('Marked as paid')
+    } catch {
+      toast.error('Failed to mark as paid')
+    } finally {
+      setPayingIds(prev => { const next = new Set(prev); next.delete(recurringExpenseId); return next })
+    }
+  }
 
   if (summary === undefined) {
     return (
@@ -79,12 +95,29 @@ export function RecurringSummary({ householdId, isPrivacyMode }: Props) {
         {(summary.upcoming.length > 0 || summary.overdue.length > 0) && (
           <div className="border-t border-border/30 pt-2 space-y-1">
             {summary.overdue.map((item: any) => (
-              <div key={item._id} className="flex items-center justify-between text-xs text-destructive">
-                <span className="flex items-center gap-1 truncate">
+              <div key={item._id} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1 truncate text-destructive">
                   <AlertCircle className="h-3 w-3 shrink-0" />
                   {item.name} — overdue {currentDay - item.dayOfMonth}d
                 </span>
-                <span className="tabular-nums shrink-0 ml-2">{formatCurrency(parseAmount(item.amount), { isPrivacyMode })}</span>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <span className="tabular-nums text-destructive">
+                    {formatCurrency(parseAmount(item.amount), { isPrivacyMode })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px]"
+                    disabled={payingIds.has(item._id)}
+                    onClick={() => handleMarkPaid(item._id)}
+                  >
+                    {payingIds.has(item._id) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      'Mark Paid'
+                    )}
+                  </Button>
+                </div>
               </div>
             ))}
             {summary.upcoming.map((item: any) => (
@@ -93,7 +126,24 @@ export function RecurringSummary({ householdId, isPrivacyMode }: Props) {
                   <CalendarClock className="h-3 w-3 shrink-0" />
                   {item.name} — due in {item.dayOfMonth - currentDay}d
                 </span>
-                <span className="tabular-nums shrink-0 ml-2">{formatCurrency(parseAmount(item.amount), { isPrivacyMode })}</span>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <span className="tabular-nums">
+                    {formatCurrency(parseAmount(item.amount), { isPrivacyMode })}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[10px]"
+                    disabled={payingIds.has(item._id)}
+                    onClick={() => handleMarkPaid(item._id)}
+                  >
+                    {payingIds.has(item._id) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      'Mark Paid'
+                    )}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
