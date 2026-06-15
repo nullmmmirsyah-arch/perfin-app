@@ -262,6 +262,7 @@ export default function Dashboard() {
                 transactions={summary?.recentTransactions as TransactionWithDetails[] || []}
                 onEdit={handleEdit}
                 onDelete={setTransactionToDelete}
+                isPrivacyMode={isPrivacyMode}
             />
         )}
       </motion.div>

@@ -4,17 +4,18 @@ import { Receipt } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TransactionWithDetails } from './types';
 import { TransactionItem } from '@/components/TransactionItem';
-import { groupTransactionsByDate } from '@/lib/utils';
+import { formatCurrency, groupTransactionsByDate } from '@/lib/utils';
 
 interface Props {
   transactions: TransactionWithDetails[];
   onEdit: (transaction: TransactionWithDetails) => void;
   onDelete: (transaction: TransactionWithDetails) => void;
+  isPrivacyMode?: boolean;
   highlightLabelId?: string[];
   highlightCategoryId?: string[];
 }
 
-export function TransactionListGrouped({ transactions, onEdit, onDelete, highlightLabelId, highlightCategoryId }: Props) {
+export function TransactionListGrouped({ transactions, onEdit, onDelete, isPrivacyMode, highlightLabelId, highlightCategoryId }: Props) {
   const { user } = useUser();
   const { groupedTransactions, sortedDates } = useMemo(() => {
     const grouped = groupTransactionsByDate(transactions || []);
@@ -56,13 +57,6 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, highlig
     return total;
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Math.abs(amount));
-  };
-
   if (sortedDates.length === 0) {
     return <EmptyState icon={Receipt} description="No transactions found." />;
   }
@@ -80,7 +74,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, highlig
               </h3>
               {dailyTotal !== 0 && (
                 <span className={`text-xs font-bold ${dailyTotal > 0 ? 'text-success' : 'text-destructive'}`}>
-                  {dailyTotal > 0 ? '+' : '-'}{formatCurrency(dailyTotal)}
+                  {dailyTotal > 0 ? '+' : '-'}{formatCurrency(Math.abs(dailyTotal), { isPrivacyMode })}
                 </span>
               )}
             </div>
