@@ -26,7 +26,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       setSelectedCategoryId(prev => prev === detail.categoryId ? null : detail.categoryId);
-      setSelectedCategoryName(prev => prev === detail.categoryId ? null : detail.categoryName);
+      setSelectedCategoryName(prev => prev === detail.categoryName ? null : detail.categoryName);
     };
     window.addEventListener('PERFIN_FILTER_CATEGORY', handler);
     return () => window.removeEventListener('PERFIN_FILTER_CATEGORY', handler);
