@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { ArrowRight } from 'lucide-react'
@@ -32,6 +32,8 @@ import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
 import { RecurringSummary } from '@/components/dashboard/RecurringSummary'
 import { QuickAdjust } from '@/components/dashboard/QuickAdjust'
 import { parseAmount, formatCurrency } from '@/lib/utils'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { ErrorState } from '@/components/ui/error-state'
 
 import { motion } from 'framer-motion'
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations'
@@ -66,6 +68,10 @@ export default function Dashboard() {
   const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithDetails | undefined>(undefined)
   const [receivableToForgive, setReceivableToForgive] = useState<any>(undefined)
   
+  // Retry mechanism for error boundaries
+  const [retryKey, setRetryKey] = useState(0)
+  const handleRetry = useCallback(() => setRetryKey(k => k + 1), [])
+
   // Privacy Mode
   const { isPrivacyMode, togglePrivacyMode, isLoaded } = usePrivacyMode()
 
@@ -195,20 +201,22 @@ export default function Dashboard() {
         {summary === undefined ? (
           <DashboardCardSkeleton />
         ) : (
-          <>
-            <motion.div variants={fadeInUp}><MobileHeroSummary summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
-            <motion.div variants={fadeInUp}><MobileBudgetToday summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
-            <motion.div variants={fadeInUp}><MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
-            <motion.div variants={fadeInUp}><MobileRecurringRow householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} /></motion.div>
-            <motion.div variants={fadeInUp}>
-              <MobileRecentTransactions
-                transactions={(summary?.recentTransactions as TransactionWithDetails[]) || []}
-                onEdit={handleEdit}
-                onDelete={setTransactionToDelete}
-                isPrivacyMode={isPrivacyMode}
-              />
-            </motion.div>
-          </>
+          <ErrorBoundary key={retryKey} fallback={<ErrorState onRetry={handleRetry} />}>
+            <>
+              <motion.div variants={fadeInUp}><MobileHeroSummary summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
+              <motion.div variants={fadeInUp}><MobileBudgetToday summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
+              <motion.div variants={fadeInUp}><MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
+              <motion.div variants={fadeInUp}><MobileRecurringRow householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} /></motion.div>
+              <motion.div variants={fadeInUp}>
+                <MobileRecentTransactions
+                  transactions={(summary?.recentTransactions as TransactionWithDetails[]) || []}
+                  onEdit={handleEdit}
+                  onDelete={setTransactionToDelete}
+                  isPrivacyMode={isPrivacyMode}
+                />
+              </motion.div>
+            </>
+          </ErrorBoundary>
         )}
       </motion.div>
 
@@ -230,19 +238,29 @@ export default function Dashboard() {
         ) : (
             <>
                 <motion.div variants={fadeInUp} className="flex flex-col gap-6">
-                  <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                  <ErrorBoundary key={`dailyops-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                  </ErrorBoundary>
                   {summary?.budgetBreakdown?.some((item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0) && (
-                    <QuickAdjust
-                      householdId={householdId ?? undefined}
-                      summary={summary}
-                      isPrivacyMode={isPrivacyMode}
-                    />
+                    <ErrorBoundary key={`quickadj-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                      <QuickAdjust
+                        householdId={householdId ?? undefined}
+                        summary={summary}
+                        isPrivacyMode={isPrivacyMode}
+                      />
+                    </ErrorBoundary>
                   )}
                 </motion.div>
                 <motion.div variants={fadeInUp} className="flex flex-col gap-6">
-                  <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
-                  <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
-                  <RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                  <ErrorBoundary key={`trend-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                  </ErrorBoundary>
+                  <ErrorBoundary key={`monthly-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                  </ErrorBoundary>
+                  <ErrorBoundary key={`recurring-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                  </ErrorBoundary>
                 </motion.div>
             </>
         )}
