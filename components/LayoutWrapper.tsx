@@ -7,8 +7,9 @@ import { ReactNode, useState, useEffect, useCallback } from 'react'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { Plus, Bell, LogOut } from 'lucide-react'
+import { Plus, Bell, LogOut, Settings } from 'lucide-react'
 import TransactionDrawer from './TransactionDrawer'
+import { SettingsSheet } from './SettingsSheet'
 import { UserButton, useClerk } from '@clerk/nextjs'
 import { ThemeToggle } from './ThemeToggle'
 import { PushNotificationSettings } from './PushNotificationSettings'
@@ -33,6 +34,7 @@ import {
 
 export default function LayoutWrapper({ children }: { children: ReactNode }) {
   const [isTransactionOpen, setIsTransactionOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const { signOut } = useClerk()
 
@@ -94,7 +96,7 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
             </div>
             
             <SidebarInset className="pb-20 md:pb-0">
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[[collapsible=icon]]/sidebar-wrapper:h-12 px-4">
+            <header className="sticky top-0 z-10 bg-background flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[[collapsible=icon]]/sidebar-wrapper:h-12 px-4">
                <div className="hidden md:flex items-center gap-2">
                    <SidebarTrigger className="-ml-1" />
                    <Separator orientation="vertical" className="mr-2 h-4" />
@@ -112,6 +114,15 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
                    className="hidden lg:flex items-center gap-2"
                  >
                    <Plus className="h-4 w-4" /> Add Transaction
+                 </Button>
+                 <Button
+                   variant="ghost"
+                   size="icon"
+                   className="h-8 w-8 text-muted-foreground hover:text-foreground md:hidden"
+                   onClick={() => setSettingsOpen(true)}
+                   title="Settings"
+                 >
+                   <Settings className="h-4 w-4" />
                  </Button>
                  <NotificationBell />
                  <ThemeToggle />
@@ -134,6 +145,7 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
             
           
             <TransactionDrawer open={isTransactionOpen} onOpenChange={setIsTransactionOpen} />
+            <SettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
             <BottomNav />
           
           </SidebarProvider>
