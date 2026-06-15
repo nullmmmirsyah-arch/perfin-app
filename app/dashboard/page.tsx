@@ -10,7 +10,12 @@ import { useHousehold } from '@/components/HouseholdProvider'
 import TransactionDrawer from '@/components/TransactionDrawer'
 import { 
   DashboardCardSkeleton, 
-  RecentTransactionsSkeleton 
+  RecentTransactionsSkeleton,
+  DailyOperationsCardSkeleton,
+  TrendChartSkeleton,
+  MonthlyComparisonSkeleton,
+  RecurringSummarySkeleton,
+  QuickAdjustSkeleton
 } from '@/components/skeletons'
 import { toast } from 'sonner'
 import { DailyOperationsCard, BudgetBreakdownItem } from '@/components/dashboard/DailyOperationsCard'
@@ -216,8 +221,11 @@ export default function Dashboard() {
       >
         {summary === undefined ? (
             <>
-                <motion.div variants={scaleIn}><DashboardCardSkeleton /></motion.div>
-                <motion.div variants={scaleIn}><DashboardCardSkeleton /></motion.div>
+                <motion.div variants={scaleIn}><DailyOperationsCardSkeleton /></motion.div>
+                <motion.div variants={scaleIn}><QuickAdjustSkeleton /></motion.div>
+                <motion.div variants={scaleIn}><TrendChartSkeleton /></motion.div>
+                <motion.div variants={scaleIn}><MonthlyComparisonSkeleton /></motion.div>
+                <motion.div variants={scaleIn}><RecurringSummarySkeleton /></motion.div>
             </>
         ) : (
             <>

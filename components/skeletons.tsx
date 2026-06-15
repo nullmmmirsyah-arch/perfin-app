@@ -151,6 +151,108 @@ export function LabelsListSkeleton() {
   )
 }
 
+export function DailyOperationsCardSkeleton() {
+  return (
+    <div className="w-full rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+        <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+      </div>
+      <div className="flex gap-2">
+        <div className="h-8 w-20 bg-muted rounded-md animate-pulse" />
+        <div className="h-8 w-20 bg-muted rounded-md animate-pulse" />
+        <div className="h-8 w-16 bg-muted rounded-md animate-pulse" />
+      </div>
+      <div className="h-8 w-32 bg-muted rounded animate-pulse" />
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="space-y-2">
+            <div className="flex justify-between">
+              <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+              <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+            </div>
+            <div className="h-2 w-full bg-muted rounded-full animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function TrendChartSkeleton() {
+  return (
+    <div className="w-full rounded-xl border bg-card p-6 space-y-4">
+      <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+      <div className="flex items-end gap-2 h-[200px] pt-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex-1 space-y-1">
+            <div
+              className="w-full bg-muted rounded-t animate-pulse"
+              style={{ height: `${40 + i * 20}px` }}
+            />
+            <div className="h-3 w-full bg-muted rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function MonthlyComparisonSkeleton() {
+  return (
+    <div className="w-full rounded-xl border bg-card p-6 space-y-4">
+      <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+      <div className="h-10 w-20 bg-muted rounded animate-pulse" />
+      <div className="h-3 w-48 bg-muted rounded animate-pulse" />
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex justify-between">
+            <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function RecurringSummarySkeleton() {
+  return (
+    <div className="w-full rounded-xl border bg-card p-6 space-y-3">
+      <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+      <div className="flex justify-between">
+        <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+        <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+      </div>
+      <div className="flex gap-3">
+        <div className="h-3 w-12 bg-muted rounded animate-pulse" />
+        <div className="h-3 w-12 bg-muted rounded animate-pulse" />
+      </div>
+    </div>
+  )
+}
+
+export function QuickAdjustSkeleton() {
+  return (
+    <div className="w-full rounded-xl border bg-card p-6 space-y-4">
+      <div className="flex justify-between">
+        <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+        <div className="h-6 w-14 bg-muted rounded animate-pulse" />
+      </div>
+      {[1, 2].map((i) => (
+        <div key={i} className="space-y-2">
+          <div className="flex justify-between">
+            <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+            <div className="h-6 w-20 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="h-2 w-full bg-muted rounded-full animate-pulse" />
+        </div>
+      ))}
+      <div className="h-8 w-full bg-muted rounded-lg animate-pulse" />
+    </div>
+  )
+}
+
 export function BudgetListSkeleton() {
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
