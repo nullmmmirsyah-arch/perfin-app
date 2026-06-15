@@ -159,6 +159,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
                   onDelete={() => onDelete(transaction)}
                   highlightLabelId={highlightLabelId}
                   highlightCategoryId={highlightCategoryId}
+                  isPrivacyMode={isPrivacyMode}
                 />
               ))}
             </div>

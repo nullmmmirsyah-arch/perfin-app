@@ -19,12 +19,14 @@ export function TransactionItem({
   onDelete,
   highlightLabelId,
   highlightCategoryId,
+  isPrivacyMode,
 }: { 
   transaction: TransactionWithDetails, 
   onEdit?: () => void, 
   onDelete?: () => void,
   highlightLabelId?: string[],
   highlightCategoryId?: string[],
+  isPrivacyMode?: boolean,
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const { user } = useUser();
@@ -47,7 +49,7 @@ export function TransactionItem({
     if (filteredSum > 0) displayAmountVal = filteredSum;
   }
 
-  const shouldMask = transaction.hideAmount && transaction.userId !== user?.id;
+  const shouldMask = (transaction.hideAmount && transaction.userId !== user?.id) || isPrivacyMode;
 
   const displayAmount = shouldMask
     ? '••••'
