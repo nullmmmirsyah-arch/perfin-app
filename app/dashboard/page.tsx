@@ -13,7 +13,7 @@ import {
   RecentTransactionsSkeleton 
 } from '@/components/skeletons'
 import { toast } from 'sonner'
-import { DailyOperationsCard } from '@/components/dashboard/DailyOperationsCard'
+import { DailyOperationsCard, BudgetBreakdownItem } from '@/components/dashboard/DailyOperationsCard'
 import { MobileHeroSummary } from '@/components/dashboard/MobileHeroSummary'
 import { MobileBudgetToday } from '@/components/dashboard/MobileBudgetToday'
 import { MobileDashboardTabs } from '@/components/dashboard/MobileDashboardTabs'
@@ -223,11 +223,13 @@ export default function Dashboard() {
             <>
                 <motion.div variants={fadeInUp} className="flex flex-col gap-6">
                   <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
-                  <QuickAdjust
-                    householdId={householdId ?? undefined}
-                    summary={summary}
-                    isPrivacyMode={isPrivacyMode}
-                  />
+                  {summary?.budgetBreakdown?.some((item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0) && (
+                    <QuickAdjust
+                      householdId={householdId ?? undefined}
+                      summary={summary}
+                      isPrivacyMode={isPrivacyMode}
+                    />
+                  )}
                 </motion.div>
                 <motion.div variants={fadeInUp} className="flex flex-col gap-6">
                   <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />

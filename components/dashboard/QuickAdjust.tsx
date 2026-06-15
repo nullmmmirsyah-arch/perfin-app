@@ -126,20 +126,7 @@ export function QuickAdjust({ householdId, summary, isPrivacyMode }: Props) {
   }, [values, items, upsertBudget, householdId, year, month]);
 
   if (!summary || items.length === 0) {
-    return (
-      <Card className="w-full">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Quick Adjust</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[200px] flex items-center justify-center">
-            <p className="text-xs text-muted-foreground italic">
-              Set up budgets to adjust them here.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return null
   }
 
   return (
