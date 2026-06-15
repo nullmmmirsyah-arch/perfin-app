@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban, ChevronRight, Landmark } from 'lucide-react';
@@ -59,7 +59,7 @@ type Props = {
   budgetStartDay?: number;
 };
 
-const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: { item: BudgetBreakdownItem, daysRemaining: number, isPrivacyMode?: boolean, budgetStartDay?: number }) => {
+const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1, onCategoryClick, isActive }: { item: BudgetBreakdownItem, daysRemaining: number, isPrivacyMode?: boolean, budgetStartDay?: number, onCategoryClick?: (categoryId: string, categoryName: string) => void, isActive?: boolean }) => {
     const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
     const isOver = item.spent > item.limit;
     const safeSpend = Math.max(0, item.remaining) / daysRemaining;
@@ -81,9 +81,20 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1 }: {
             >
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-1.5 truncate pr-2">
-                        <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onCategoryClick?.(item.categoryId, item.categoryName);
+                            }}
+                            className={cn(
+                                "text-sm font-medium truncate group-hover:text-primary transition-colors text-left hover:underline underline-offset-2 cursor-pointer min-w-0",
+                                isActive && "text-primary font-semibold"
+                            )}
+                        >
                             {item.categoryName}
-                        </span>
+                        </button>
                         {pacing && (
                             <Badge
                                 variant="outline"
@@ -186,6 +197,23 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
     if (p.status === 'warning') return 'warning'
     return 'safe'
   }
+
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+
+  const handleCategoryClick = (categoryId: string, categoryName: string) => {
+    window.dispatchEvent(
+      new CustomEvent('PERFIN_FILTER_CATEGORY', { detail: { categoryId, categoryName } })
+    )
+  }
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      setActiveCategoryId(prev => prev === detail.categoryId ? null : detail.categoryId)
+    }
+    window.addEventListener('PERFIN_FILTER_CATEGORY', handler)
+    return () => window.removeEventListener('PERFIN_FILTER_CATEGORY', handler)
+  }, [])
 
   const expenseItems = (summary?.budgetBreakdown || [])
     .filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
@@ -368,7 +396,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     Over Budget ({overBudget.length})
                   </p>
                   {overBudget.map((item, i) => (
-                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
                   ))}
                 </div>
               )}
@@ -381,7 +409,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     Watch ({warningItems.length})
                   </p>
                   {warningItems.map((item, i) => (
-                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
                   ))}
                 </div>
               )}
@@ -402,11 +430,11 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     )}
                   </div>
                   {safeItems.slice(0, 3).map((item, i) => (
-                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
                   ))}
                   <CollapsibleContent className="space-y-1">
                     {safeItems.slice(3).map((item, i) => (
-                      <BudgetRow key={i + 3} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                      <BudgetRow key={i + 3} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
                     ))}
                   </CollapsibleContent>
                 </Collapsible>

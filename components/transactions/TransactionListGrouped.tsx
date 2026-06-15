@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+'use client'
+
+import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Receipt } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,10 +19,39 @@ interface Props {
 
 export function TransactionListGrouped({ transactions, onEdit, onDelete, isPrivacyMode, highlightLabelId, highlightCategoryId }: Props) {
   const { user } = useUser();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setSelectedCategoryId(prev => prev === detail.categoryId ? null : detail.categoryId);
+      setSelectedCategoryName(prev => prev === detail.categoryId ? null : detail.categoryName);
+    };
+    window.addEventListener('PERFIN_FILTER_CATEGORY', handler);
+    return () => window.removeEventListener('PERFIN_FILTER_CATEGORY', handler);
+  }, []);
+
   const { groupedTransactions, sortedDates } = useMemo(() => {
     const grouped = groupTransactionsByDate(transactions || []);
     return { groupedTransactions: grouped, sortedDates: Object.keys(grouped) };
   }, [transactions]);
+
+  const filteredGroups = useMemo(() => {
+    if (!selectedCategoryId) return groupedTransactions;
+    const result: Record<string, TransactionWithDetails[]> = {};
+    for (const [date, txs] of Object.entries(groupedTransactions)) {
+      const filtered = txs.filter(tx => {
+        if (tx.categoryId === selectedCategoryId) return true;
+        if (tx.splits?.some(s => s.categoryId === selectedCategoryId)) return true;
+        return false;
+      });
+      if (filtered.length > 0) {
+        result[date] = filtered;
+      }
+    }
+    return result;
+  }, [groupedTransactions, selectedCategoryId]);
 
   const getDailyTotal = (transactions: TransactionWithDetails[]) => {
     let total = 0;
@@ -57,14 +88,54 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
     return total;
   };
 
-  if (sortedDates.length === 0) {
-    return <EmptyState icon={Receipt} description="No transactions found." />;
+  const filteredDates = Object.keys(filteredGroups);
+
+  if (filteredDates.length === 0) {
+    return (
+      <div className="space-y-2">
+        {selectedCategoryId && (
+          <div className="flex items-center justify-between px-1 py-1">
+            <span className="text-xs text-muted-foreground">
+              Filtered by: <span className="font-medium">{selectedCategoryName || selectedCategoryId}</span>
+            </span>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+              onClick={() => {
+                setSelectedCategoryId(null);
+                setSelectedCategoryName(null);
+              }}
+            >
+              Clear filter
+            </button>
+          </div>
+        )}
+        <EmptyState icon={Receipt} description={selectedCategoryId ? "No transactions for this category." : "No transactions found."} />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {sortedDates.map((date) => {
-        const dailyTotal = getDailyTotal(groupedTransactions[date]);
+      {selectedCategoryId && (
+        <div className="flex items-center justify-between px-2 py-1.5 bg-accent/30 rounded-md">
+          <span className="text-xs text-muted-foreground">
+            Filtered by: <span className="font-medium">{selectedCategoryName || selectedCategoryId}</span>
+          </span>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+            onClick={() => {
+              setSelectedCategoryId(null);
+              setSelectedCategoryName(null);
+            }}
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
+      {filteredDates.map((date) => {
+        const dailyTotal = getDailyTotal(filteredGroups[date]);
         
         return (
           <div key={date} className="space-y-3">
@@ -80,7 +151,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
             </div>
             
             <div className="grid grid-cols-1 gap-3">
-              {groupedTransactions[date].map((transaction: TransactionWithDetails) => (
+              {filteredGroups[date].map((transaction: TransactionWithDetails) => (
                 <TransactionItem
                   key={transaction._id}
                   transaction={transaction}
