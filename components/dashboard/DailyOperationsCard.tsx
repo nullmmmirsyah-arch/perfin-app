@@ -15,6 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export type BudgetBreakdownItem = {
   categoryId: string;
@@ -174,6 +175,47 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
   const remainingBudget = summary?.remainingBudget || 0;
   const dailySafeSpend = remainingBudget > 0 ? remainingBudget / daysRemaining : 0;
 
+  const now = new Date();
+  const { year, month } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
+
+  const getStatus = (item: BudgetBreakdownItem): 'over' | 'warning' | 'safe' => {
+    if (item.spent > item.limit) return 'over'
+    if (!item.enablePacing || item.limit <= 0) return 'safe'
+    const p = calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay)
+    if (p.status === 'danger') return 'over'
+    if (p.status === 'warning') return 'warning'
+    return 'safe'
+  }
+
+  const expenseItems = (summary?.budgetBreakdown || [])
+    .filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
+    .sort((a, b) => {
+      const now = new Date();
+      const { year, month } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
+
+      const getPacingScore = (item: BudgetBreakdownItem) => {
+          if (!item.enablePacing) return 0;
+          if (item.limit <= 0) return 3;
+          const p = calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay);
+          if (p.status === 'danger') return 3;
+          if (p.status === 'warning') return 2;
+          return 1;
+      };
+
+      const scoreA = getPacingScore(a);
+      const scoreB = getPacingScore(b);
+
+      if (scoreA !== scoreB) return scoreB - scoreA;
+
+      const pctA = a.limit > 0 ? (a.spent / a.limit) : 0;
+      const pctB = b.limit > 0 ? (b.spent / b.limit) : 0;
+      return pctB - pctA;
+    })
+
+  const overBudget = expenseItems.filter(i => getStatus(i) === 'over');
+  const warningItems = expenseItems.filter(i => getStatus(i) === 'warning');
+  const safeItems = expenseItems.filter(i => getStatus(i) === 'safe');
+
   return (
     <Card className="w-full h-full">
       <CardHeader className="pb-2">
@@ -314,37 +356,61 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
             </div>
             
             <div className="space-y-3 max-h-[240px] overflow-y-auto pr-1 scrollbar-thin pb-12">
-              {summary?.budgetBreakdown?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving').length === 0 && (
+              {expenseItems.length === 0 && (
                 <EmptyState compact icon={Wallet} description="No expense budgets set." />
               )}
-              {summary?.budgetBreakdown
-                ?.filter((item: BudgetBreakdownItem) => item.categoryType !== 'saving')
-                .sort((a, b) => {
-                    const now = new Date();
-                    const { year, month } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
-                    
-                    const getPacingScore = (item: BudgetBreakdownItem) => {
-                        if (!item.enablePacing) return 0;
-                        if (item.limit <= 0) return 3;
-                        
-                        const p = calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay);
-                        if (p.status === 'danger') return 3;
-                        if (p.status === 'warning') return 2;
-                        return 1;
-                    };
 
-                    const scoreA = getPacingScore(a);
-                    const scoreB = getPacingScore(b);
+              {/* Over Budget */}
+              {overBudget.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-destructive uppercase tracking-wider flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                    Over Budget ({overBudget.length})
+                  </p>
+                  {overBudget.map((item, i) => (
+                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                  ))}
+                </div>
+              )}
 
-                    if (scoreA !== scoreB) return scoreB - scoreA;
-                    
-                    const pctA = a.limit > 0 ? (a.spent / a.limit) : 0;
-                    const pctB = b.limit > 0 ? (b.spent / b.limit) : 0;
-                    return pctB - pctA;
-                })
-                .map((item: BudgetBreakdownItem, index: number) => (
-                    <BudgetRow key={index} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
-                ))}
+              {/* Watch */}
+              {warningItems.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400 uppercase tracking-wider flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+                    Watch ({warningItems.length})
+                  </p>
+                  {warningItems.map((item, i) => (
+                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                  ))}
+                </div>
+              )}
+
+              {/* On Track (collapsible if > 3) */}
+              {safeItems.length > 0 && (
+                <Collapsible defaultOpen={safeItems.length <= 3} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success/50" />
+                      On Track ({safeItems.length})
+                    </p>
+                    {safeItems.length > 3 && (
+                      <CollapsibleTrigger className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+                        <span>{safeItems.length - 3} more</span>
+                        <ChevronDown className="h-3 w-3" />
+                      </CollapsibleTrigger>
+                    )}
+                  </div>
+                  {safeItems.slice(0, 3).map((item, i) => (
+                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                  ))}
+                  <CollapsibleContent className="space-y-1">
+                    {safeItems.slice(3).map((item, i) => (
+                      <BudgetRow key={i + 3} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
             </div>
           </TabsContent>
 
