@@ -179,9 +179,10 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
                     <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
                       <div className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }} />
                     </div>
-                    <span className="text-xs font-medium tabular-nums shrink-0">
-                      {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}<span className="text-muted-foreground font-normal">/hari</span>
+                    <span className="text-xs font-medium tabular-nums shrink-0 w-[68px] text-right">
+                      {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}
                     </span>
+                    <span className="text-xs text-muted-foreground">/hari</span>
                   </div>
                 </div>
               )
@@ -204,9 +205,10 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
                     <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
                       <div className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }} />
                     </div>
-                    <span className="text-xs font-medium tabular-nums shrink-0">
-                      {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}<span className="text-muted-foreground font-normal">/hari</span>
+                    <span className="text-xs font-medium tabular-nums shrink-0 w-[68px] text-right">
+                      {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}
                     </span>
+                    <span className="text-xs text-muted-foreground">/hari</span>
                   </div>
                 </div>
               )
