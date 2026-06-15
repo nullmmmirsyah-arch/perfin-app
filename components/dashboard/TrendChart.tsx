@@ -1,15 +1,15 @@
 'use client'
 
+import { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from 'recharts';
-import { useMemo } from 'react';
 import { FileBarChart } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 
 type MonthlyTrend = {
   year: number;
@@ -36,8 +36,11 @@ type Props = {
 };
 
 export function TrendChart({ householdId, isPrivacyMode }: Props) {
+  const [range, setRange] = useState(3);
+
   const trends = useQuery(api.dashboard.getMonthlyTrends, {
     householdId: householdId ?? undefined,
+    months: range,
   });
 
   const { chartData, chartConfig, topCategoryNames, showOthers } = useMemo(() => {
@@ -134,10 +137,26 @@ export function TrendChart({ householdId, isPrivacyMode }: Props) {
 
   return (
     <Card className="w-full">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           Monthly Trend
         </CardTitle>
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+          {[3, 6, 12].map((m) => (
+            <button
+              key={m}
+              onClick={() => setRange(m)}
+              className={cn(
+                'px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors',
+                range === m
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {m}mo
+            </button>
+          ))}
+        </div>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[240px] w-full">
