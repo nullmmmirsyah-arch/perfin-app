@@ -7,12 +7,11 @@ import { ReactNode, useState, useEffect, useCallback } from 'react'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { Plus, Bell, LogOut, Settings } from 'lucide-react'
+import { Plus, LogOut, Settings } from 'lucide-react'
 import TransactionDrawer from './TransactionDrawer'
 import { SettingsSheet } from './SettingsSheet'
 import { UserButton, useClerk } from '@clerk/nextjs'
-import { ThemeToggle } from './ThemeToggle'
-import { PushNotificationSettings } from './PushNotificationSettings'
+
 import { BottomNav } from './BottomNav'
 import { HouseholdSwitcher } from './HouseholdSwitcher'
 
@@ -125,16 +124,7 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
                    <Settings className="h-4 w-4" />
                  </Button>
                  <NotificationBell />
-                 <ThemeToggle />
-                 <UserButton>
-                   <UserButton.UserProfilePage 
-                     label="Push Settings" 
-                     labelIcon={<Bell className="h-4 w-4" />}
-                     url="push-settings"
-                   >
-                     <PushNotificationSettings />
-                   </UserButton.UserProfilePage>
-                 </UserButton>
+                 <UserButton />
                </div>
             </header>
             <main className="flex-1 p-4 lg:p-8">

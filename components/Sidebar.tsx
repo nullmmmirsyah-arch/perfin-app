@@ -11,7 +11,8 @@ import {
   Hash,
   Target,
   FileBarChart,
-  CalendarClock
+  CalendarClock,
+  Settings
 } from 'lucide-react'
 
 import {
@@ -40,6 +41,7 @@ const links = [
   { href: '/report', label: 'Reports', icon: FileBarChart },
   { href: '/recurring', label: 'Recurring', icon: CalendarClock },
   { href: '/labels', label: 'Labels', icon: Hash },
+  { href: '/preferences', label: 'Preferences', icon: Settings },
 ]
 
 export default function Sidebar({ className, hideLogo }: { className?: string, hideLogo?: boolean }) {

@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { Target, FolderTree, Tags, Landmark, ChevronRight } from 'lucide-react'
+import { Target, FolderTree, Tags, Landmark, Settings, ChevronRight } from 'lucide-react'
 
 const settingsLinks = [
   { href: '/goals', label: 'Goals', icon: Target },
   { href: '/categories', label: 'Categories', icon: FolderTree },
   { href: '/labels', label: 'Labels', icon: Tags },
   { href: '/accounts', label: 'Accounts', icon: Landmark },
+  { href: '/preferences', label: 'Preferences', icon: Settings },
 ]
 
 type Props = {
