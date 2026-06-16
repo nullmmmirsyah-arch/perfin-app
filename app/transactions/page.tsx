@@ -114,6 +114,10 @@ export default function TransactionsPage() {
       ? {
           householdId: householdId ?? undefined,
           search: debouncedSearch,
+          type: filters.type,
+          accountId: filters.accountId,
+          categoryId: filters.categoryId,
+          labelId: filters.labelId,
           dateRange: filters.dateRange
             ? {
                 start: filters.dateRange.from?.toISOString(),

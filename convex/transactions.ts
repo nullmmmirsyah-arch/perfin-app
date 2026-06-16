@@ -596,13 +596,17 @@ export const searchTransactions = query({
   args: {
     householdId: v.optional(v.id("households")),
     search: v.string(),
+    type: v.optional(v.array(v.string())),
+    accountId: v.optional(v.array(v.string())),
+    categoryId: v.optional(v.array(v.string())),
+    labelId: v.optional(v.array(v.string())),
     dateRange: v.optional(v.object({
       start: v.optional(v.string()),
       end: v.optional(v.string()),
     })),
   },
   handler: async (ctx, args) => {
-    const { householdId, search, dateRange } = args;
+    const { householdId, search, type, accountId, categoryId, labelId, dateRange } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -631,7 +635,34 @@ export const searchTransactions = query({
       queryBuilder = queryBuilder.filter((q) => q.lte(q.field("date"), dateRange.end!));
     }
 
+    if (type && type.length > 0) {
+      queryBuilder = queryBuilder.filter((q) => 
+        q.or(...type.map(t => q.eq(q.field("type"), t)))
+      );
+    }
+
+    if (accountId && accountId.length > 0) {
+      queryBuilder = queryBuilder.filter((q) => 
+        q.or(
+           q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
+           q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
+        )
+      );
+    }
+
     let results = await queryBuilder.order("desc").collect();
+
+    // JS Filtering for Category & Label
+    if (categoryId && categoryId.length > 0) {
+      results = results.filter(t => 
+        t.searchCategoryIds?.some(id => categoryId.includes(id))
+      );
+    }
+    if (labelId && labelId.length > 0) {
+      results = results.filter(t => 
+        t.searchLabelIds?.some(id => labelId.includes(id))
+      );
+    }
 
     // Batch fetch related entities
     const accountIds = new Set<Id<"accounts">>();
