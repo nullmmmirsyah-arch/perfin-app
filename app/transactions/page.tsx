@@ -229,7 +229,9 @@ export default function TransactionsPage() {
             onConfirm={handleDeleteConfirm}
         />
 
-        {transactions === undefined ? (
+        {(isSearching && searchResults === undefined) ? (
+            <TransactionsListSkeleton />
+        ) : !isSearching && transactions === undefined ? (
             <TransactionsListSkeleton />
         ) : (
             <Carousel setApi={setApi} opts={{ duration: 30 }}>
@@ -237,7 +239,7 @@ export default function TransactionsPage() {
                     {/* LIST VIEW */}
                     <CarouselItem className="basis-full">
                          <div className="space-y-4">
-                            {displayTransactions && displayTransactions.length === 0 && (
+                            {(displayTransactions ?? []).length === 0 && (
                                 <div className="mt-8 p-4 border rounded-md bg-muted/50">
                                 <p className="text-muted-foreground">
                                     {isSearching
