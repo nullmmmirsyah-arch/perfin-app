@@ -592,6 +592,148 @@ export const exportTransactions = query({
   }
 });
 
+export const searchTransactions = query({
+  args: {
+    householdId: v.optional(v.id("households")),
+    search: v.string(),
+    dateRange: v.optional(v.object({
+      start: v.optional(v.string()),
+      end: v.optional(v.string()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const { householdId, search, dateRange } = args;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    if (!search.trim()) return [];
+
+    let queryBuilder;
+    if (householdId) {
+      if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) {
+        return [];
+      }
+      queryBuilder = ctx.db
+        .query("transactions")
+        .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId));
+    } else {
+      queryBuilder = ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) => q.eq("userId", identity.subject));
+    }
+
+    if (dateRange?.start) {
+      queryBuilder = queryBuilder.filter((q) => q.gte(q.field("date"), dateRange.start!));
+    }
+    if (dateRange?.end) {
+      queryBuilder = queryBuilder.filter((q) => q.lte(q.field("date"), dateRange.end!));
+    }
+
+    let results = await queryBuilder.order("desc").collect();
+
+    // Batch fetch related entities
+    const accountIds = new Set<Id<"accounts">>();
+    const categoryIds = new Set<Id<"categories">>();
+    const labelIds = new Set<Id<"labels">>();
+
+    results.forEach(t => {
+      accountIds.add(t.accountId);
+      if (t.toAccountId) accountIds.add(t.toAccountId);
+      if (t.categoryId) categoryIds.add(t.categoryId);
+      if (t.labelId) labelIds.add(t.labelId);
+      t.splits?.forEach(s => {
+        categoryIds.add(s.categoryId);
+        if (s.labelId) labelIds.add(s.labelId);
+      });
+    });
+
+    const [accounts, categories, labels] = await Promise.all([
+      Promise.all(Array.from(accountIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(categoryIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(labelIds).map(id => ctx.db.get(id))),
+    ]);
+
+    const accountMap = new Map(accounts.filter(Boolean).map(a => [a!._id, a!]));
+    const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
+    const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
+
+    const searchLower = search.toLowerCase();
+
+    const matchesSearch = (t: typeof results[number]) => {
+      if (t.description?.toLowerCase().includes(searchLower)) return true;
+      if (t.amount.replace(/,/g, '').includes(searchLower)) return true;
+
+      const catName = t.categoryId ? categoryMap.get(t.categoryId)?.name : undefined;
+      if (catName?.toLowerCase().includes(searchLower)) return true;
+
+      const accName = accountMap.get(t.accountId)?.name;
+      if (accName?.toLowerCase().includes(searchLower)) return true;
+
+      const lblName = t.labelId ? labelMap.get(t.labelId)?.name : undefined;
+      if (lblName?.toLowerCase().includes(searchLower)) return true;
+
+      if (t.toAccountId) {
+        const toAccName = accountMap.get(t.toAccountId)?.name;
+        if (toAccName?.toLowerCase().includes(searchLower)) return true;
+      }
+
+      if (t.isSplit && t.splits) {
+        for (const split of t.splits) {
+          if (split.description?.toLowerCase().includes(searchLower)) return true;
+          const splitCatName = categoryMap.get(split.categoryId)?.name;
+          if (splitCatName?.toLowerCase().includes(searchLower)) return true;
+          if (split.labelId) {
+            const splitLblName = labelMap.get(split.labelId)?.name;
+            if (splitLblName?.toLowerCase().includes(searchLower)) return true;
+          }
+        }
+      }
+
+      return false;
+    };
+
+    results = results.filter(matchesSearch);
+
+    // Limit to top 30 results sorted by date (already sorted desc)
+    results = results.slice(0, 30);
+
+    // Build enriched response (same pattern as get query)
+    return results.map((transaction) => {
+      const fromAccount = accountMap.get(transaction.accountId);
+      const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
+      const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
+      const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
+
+      const splitsWithDetails = transaction.splits?.map((split) => {
+        const splitCategory = categoryMap.get(split.categoryId);
+        const splitLabel = split.labelId ? labelMap.get(split.labelId) : null;
+        return {
+          ...split,
+          categoryName: splitCategory?.name,
+          labelName: splitLabel?.name,
+          labelColor: splitLabel?.color,
+        };
+      });
+
+      const hideAmount = transaction.isSplit && transaction.splits && transaction.splits.length > 0
+        ? transaction.splits.some(s => categoryMap.get(s.categoryId)?.hideAmount === true)
+        : (category?.hideAmount ?? false);
+
+      return {
+        ...transaction,
+        fromAccountName: fromAccount?.name,
+        toAccountName: toAccount?.name,
+        categoryName: category?.name,
+        hideAmount,
+        label: label || null,
+        splits: splitsWithDetails,
+      };
+    });
+  },
+});
+
 export const create = mutation({
   args: {
     householdId: v.optional(v.id("households")),
