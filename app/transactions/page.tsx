@@ -85,51 +85,47 @@ export default function TransactionsPage() {
   const isSearching = debouncedSearch.trim().length > 0
 
   const { results: transactions, status, loadMore } = usePaginatedQuery(
-    isSearching ? "skip" : convexApi.transactions.get,
-    isSearching
-      ? "skip"
-      : {
-          householdId: householdId ?? undefined,
-          type: filters.type,
-          accountId: filters.accountId,
-          categoryId: filters.categoryId,
-          labelId: filters.labelId,
-          dateRange: filters.dateRange
-            ? {
-                start: filters.dateRange.from?.toISOString(),
-                end: filters.dateRange.to ? (() => {
-                    const d = new Date(filters.dateRange.to);
-                    d.setHours(23, 59, 59, 999);
-                    return d.toISOString();
-                })() : undefined,
-              }
-            : undefined,
-        },
+    convexApi.transactions.get,
+    {
+      householdId: householdId ?? undefined,
+      type: filters.type,
+      accountId: filters.accountId,
+      categoryId: filters.categoryId,
+      labelId: filters.labelId,
+      dateRange: filters.dateRange
+        ? {
+            start: filters.dateRange.from?.toISOString(),
+            end: filters.dateRange.to ? (() => {
+                const d = new Date(filters.dateRange.to);
+                d.setHours(23, 59, 59, 999);
+                return d.toISOString();
+            })() : undefined,
+          }
+        : undefined,
+    },
     { initialNumItems: 20 }
   )
 
   const searchResults = useQuery(
-    isSearching ? convexApi.transactions.searchTransactions : "skip",
-    isSearching
-      ? {
-          householdId: householdId ?? undefined,
-          search: debouncedSearch,
-          type: filters.type,
-          accountId: filters.accountId,
-          categoryId: filters.categoryId,
-          labelId: filters.labelId,
-          dateRange: filters.dateRange
-            ? {
-                start: filters.dateRange.from?.toISOString(),
-                end: filters.dateRange.to ? (() => {
-                    const d = new Date(filters.dateRange.to);
-                    d.setHours(23, 59, 59, 999);
-                    return d.toISOString();
-                })() : undefined,
-              }
-            : undefined,
-        }
-      : "skip"
+    convexApi.transactions.searchTransactions,
+    {
+      householdId: householdId ?? undefined,
+      search: debouncedSearch,
+      type: filters.type,
+      accountId: filters.accountId,
+      categoryId: filters.categoryId,
+      labelId: filters.labelId,
+      dateRange: filters.dateRange
+        ? {
+            start: filters.dateRange.from?.toISOString(),
+            end: filters.dateRange.to ? (() => {
+                const d = new Date(filters.dateRange.to);
+                d.setHours(23, 59, 59, 999);
+                return d.toISOString();
+            })() : undefined,
+          }
+        : undefined,
+    }
   )
 
   const displayTransactions = isSearching ? (searchResults ?? undefined) : transactions
