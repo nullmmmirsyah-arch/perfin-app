@@ -13,10 +13,10 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { CalendarIcon, Filter, X } from 'lucide-react'
-import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { Label } from './ui/label'
 import { useState } from 'react'
 import { MultiSelect, Option } from './ui/multi-select'
+import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 
 type TransactionFiltersProps = {
@@ -49,7 +49,8 @@ export default function TransactionFilters({
   const activeFiltersCount = (filters.type?.length || 0) + 
                              (filters.accountId?.length || 0) + 
                              (filters.categoryId?.length || 0) + 
-                             (filters.labelId?.length || 0);
+                             (filters.labelId?.length || 0) +
+                             (filters.dateRange ? 1 : 0);
 
   const typeOptions: Option[] = [
     { label: 'Income', value: 'income' },
@@ -64,12 +65,6 @@ export default function TransactionFilters({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {/* Date Picker - Always Visible */}
-        <DateRangePicker
-          date={filters.dateRange}
-          setDate={handleDateChange}
-        />
-
         {/* Filter Button & Popover */}
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -84,7 +79,7 @@ export default function TransactionFilters({
             </Button>
           </PopoverTrigger>
           <PopoverContent 
-            className="w-xs p-4 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[state=open]:slide-in-from-top-2 duration-300" 
+            className="w-[var(--radix-popover-content-available-width)] min-w-72 p-4" 
             align="start"
           >
             <div className="space-y-4">
@@ -147,6 +142,21 @@ export default function TransactionFilters({
                     placeholder="All Labels"
                   />
                 </div>
+
+                <Separator className="my-2" />
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date Range</Label>
+                  <Calendar
+                    mode="range"
+                    selected={{ from: filters.dateRange?.from, to: filters.dateRange?.to }}
+                    onSelect={(range) => handleDateChange(range)}
+                    numberOfMonths={1}
+                    defaultMonth={filters.dateRange?.from || new Date()}
+                    captionLayout="dropdown"
+                    className="rounded-md border"
+                  />
+                </div>
               </div>
             </div>
           </PopoverContent>
@@ -156,7 +166,7 @@ export default function TransactionFilters({
       </div>
 
       {/* Active Filter Badges */}
-      {(activeFiltersCount > 0 || filters.dateRange) && (
+      {(activeFiltersCount > 0) && (
         <div className="flex flex-wrap gap-2">
           {filters.dateRange && (
              <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">

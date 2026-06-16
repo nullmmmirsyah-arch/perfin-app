@@ -188,6 +188,26 @@ export default function TransactionsPage() {
                     </TabsTrigger>
                 </TabsList>
             </Tabs>
+
+            {/* Search Bar */}
+            <div className="relative w-full md:flex-1 md:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search transactions..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
             <div className="w-full md:w-auto">
                 <TransactionFilters 
                     filters={filters} 
@@ -195,25 +215,6 @@ export default function TransactionsPage() {
                     extraAction={<ExportTransactionDialog currentFilters={filters} />}
                 />
             </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by description, amount, category, account, or label..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 pr-10"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
         </div>
 
         <TransactionDrawer
