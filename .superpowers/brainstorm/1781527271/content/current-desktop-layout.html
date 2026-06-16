@@ -1,0 +1,160 @@
+<h2>Desktop Dashboard — Current Layout</h2>
+<p class="subtitle">Ini adalah layout dashboard desktop yang ada sekarang (2-column grid, hidden on mobile)</p>
+
+<div class="mockup">
+  <div class="mockup-header">Desktop Dashboard (md:grid md:grid-cols-2)</div>
+  <div class="mockup-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;background:#f5f5f5;font-size:10px;">
+    <!-- Left Column -->
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e0e0e0;">
+        <div style="font-weight:600;color:#666;font-size:9px;margin-bottom:4px;">DailyOperationsCard</div>
+        <div style="display:flex;gap:4px;margin-bottom:4px;">
+          <span style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:8px;">Budget</span>
+          <span style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:8px;">Balance</span>
+          <span style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:8px;">Lent</span>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:#2563eb;">Rp 2.500.000</div>
+        <div style="font-size:8px;color:#666;">Monthly Budget Left &middot; 18 days remaining</div>
+        <div style="height:6px;background:#e5e7eb;border-radius:3px;margin:6px 0;"></div>
+        <div style="font-size:8px;color:#666;display:flex;justify-content:space-between;">
+          <span>Makanan: Rp 800rb / Rp 1jt</span>
+          <span>On Track</span>
+        </div>
+        <div style="font-size:8px;color:#666;display:flex;justify-content:space-between;">
+          <span>Transport: Rp 600rb / Rp 800rb</span>
+          <span>Watch</span>
+        </div>
+        <div style="font-size:8px;color:#666;display:flex;justify-content:space-between;">
+          <span>Belanja: Rp 1.2jt / Rp 1jt</span>
+          <span style="color:red;">Over Budget</span>
+        </div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e0e0e0;">
+        <div style="font-weight:600;color:#666;font-size:9px;margin-bottom:4px;">QuickAdjust</div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;margin-bottom:2px;">
+          <span>Makanan</span>
+          <span>Rp 800.000</span>
+        </div>
+        <div style="height:8px;background:#e5e7eb;border-radius:4px;margin:4px 0;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;margin-bottom:2px;">
+          <span>Transport</span>
+          <span>Rp 600.000</span>
+        </div>
+        <div style="height:8px;background:#e5e7eb;border-radius:4px;margin:4px 0;"></div>
+        <div style="margin-top:4px;padding-top:4px;border-top:1px dashed #ddd;font-size:9px;">
+          <div style="display:flex;justify-content:space-between;">
+            <span>Total budget</span><span>Rp 3.000.000</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span>Daily allowance</span><span>Rp 100.000/day</span>
+          </div>
+        </div>
+        <div style="margin-top:6px;background:#2563eb;color:white;text-align:center;padding:4px;border-radius:6px;font-size:9px;">Apply Changes</div>
+      </div>
+    </div>
+    <!-- Right Column -->
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e0e0e0;">
+        <div style="font-weight:600;color:#666;font-size:9px;margin-bottom:4px;">TrendChart (Monthly Trend)</div>
+        <div style="display:flex;align-items:flex-end;gap:2px;height:48px;padding:4px 0;">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;">
+            <div style="width:100%;background:#2563eb;height:40%;border-radius:2px 2px 0 0;"></div>
+            <div style="font-size:7px;">Jan</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;">
+            <div style="width:100%;background:#2563eb;height:65%;border-radius:2px 2px 0 0;"></div>
+            <div style="font-size:7px;">Feb</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;">
+            <div style="width:100%;background:#2563eb;height:55%;border-radius:2px 2px 0 0;"></div>
+            <div style="font-size:7px;">Mar</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;justify-content:center;">
+          <span style="background:#e5e7eb;padding:1px 4px;border-radius:2px;font-size:7px;">Makanan</span>
+          <span style="background:#e5e7eb;padding:1px 4px;border-radius:2px;font-size:7px;">Transport</span>
+          <span style="background:#e5e7eb;padding:1px 4px;border-radius:2px;font-size:7px;">Belanja</span>
+        </div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e0e0e0;">
+        <div style="font-weight:600;color:#666;font-size:9px;margin-bottom:4px;">MonthlyComparison (vs Last Month)</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:18px;font-weight:700;color:#16a34a;">↓12%</span>
+        </div>
+        <div style="font-size:8px;color:#666;">Rp 3.2jt this month &middot; Rp 3.6jt last month</div>
+        <div style="font-size:8px;margin-top:4px;color:#666;">Biggest changes:</div>
+        <div style="font-size:8px;display:flex;justify-content:space-between;"><span>Makanan</span><span style="color:#16a34a;">↓8%</span></div>
+        <div style="font-size:8px;display:flex;justify-content:space-between;"><span>Transport</span><span style="color:#dc2626;">↑15%</span></div>
+      </div>
+      <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e0e0e0;">
+        <div style="font-weight:600;color:#666;font-size:9px;margin-bottom:4px;">RecurringSummary</div>
+        <div style="font-size:8px;display:flex;justify-content:space-between;">
+          <span>Total this month</span><span style="font-weight:600;">Rp 500.000</span>
+        </div>
+        <div style="font-size:8px;display:flex;gap:6px;">
+          <span style="color:#16a34a;">✓ 2 paid</span>
+          <span>📄 1 unpaid</span>
+        </div>
+      </div>
+    </div>
+    <!-- Full Width Bottom -->
+    <div style="grid-column:1/-1;background:white;border-radius:8px;padding:8px;border:1px solid #e0e0e0;">
+      <div style="font-weight:600;font-size:9px;display:flex;justify-content:space-between;">
+        <span>Recent Transactions</span>
+        <span style="color:#2563eb;font-size:8px;">View All →</span>
+      </div>
+      <div style="font-size:8px;margin-top:4px;">• 15 Jun - Makan siang - Rp 25.000</div>
+      <div style="font-size:8px;">• 15 Jun - Bensin - Rp 50.000</div>
+      <div style="font-size:8px;">• 14 Jun - Belanja bulanan - Rp 350.000</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Yang ingin di-review?</h3>
+  <p class="subtitle">Pilih area yang ingin dibahas:</p>
+  <div class="options">
+    <div class="option" data-choice="layout" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Layout & Grid</h3>
+        <p>Review struktur grid 2-column, spacing, visual hierarchy, responsiveness</p>
+      </div>
+    </div>
+    <div class="option" data-choice="components" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Komponen Individual</h3>
+        <p>Review masing-masing komponen: DailyOperationsCard, QuickAdjust, TrendChart, dll</p>
+      </div>
+    </div>
+    <div class="option" data-choice="ux" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>UX & Data Flow</h3>
+        <p>Review user experience, loading states, empty states, interaksi, data fetching</p>
+      </div>
+    </div>
+    <div class="option" data-choice="code" onclick="toggleSelect(this)">
+      <div class="letter">D</div>
+      <div class="content">
+        <h3>Kode & Architecture</h3>
+        <p>Review kualitas kode, component boundaries, state management, performance</p>
+      </div>
+    </div>
+    <div class="option" data-choice="all" onclick="toggleSelect(this)">
+      <div class="letter">E</div>
+      <div class="content">
+        <h3>Semua</h3>
+        <p>Review menyeluruh dari semua aspek</p>
+      </div>
+    </div>
+    <div class="option" data-choice="other" onclick="toggleSelect(this)">
+      <div class="letter">F</div>
+      <div class="content">
+        <h3>Lainnya</h3>
+        <p>Saya punya request spesifik</p>
+      </div>
+    </div>
+  </div>
+</div>

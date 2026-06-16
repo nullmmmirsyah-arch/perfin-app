@@ -1,0 +1,172 @@
+<h2>Desktop Dashboard Review</h2>
+<p class="subtitle">Temuan & prioritas perbaikan — semua aspek (Layout, Components, UX, Code)</p>
+
+<div class="section">
+  <h3>🔴 P1 — Critical (Harus diperbaiki)</h3>
+  
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>1.1 Empty State QuickAdjust inconsistent</h3>
+      <p>Saat belum ada budget, QuickAdjust menampilkan card kosong dengan pesan "Set up budgets to adjust them here" — tapi card tetap memakan ruang grid. Sebaiknya <strong>hidden/remove dari layout</strong> atau jadi <strong>inline prompt untuk buat budget</strong>.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Lokasi</h4><span style="font-size:11px;">components/dashboard/QuickAdjust.tsx:128-143</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>1.2 Privacy Mode tidak konsisten</h3>
+      <p><code>TransactionListGrouped</code> di desktop tidak menerima <code>isPrivacyMode</code> prop — tidak ada masking amount. <code>RecurringSummary</code>, <code>TrendChart</code>, <code>MonthlyComparison</code> sudah handle. Ini inkonsistensi data exposure.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Lokasi</h4><span style="font-size:11px;">app/dashboard/page.tsx:262 — TransactionListGrouped tidak dikasih isPrivacyMode</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>1.3 QuickAdjust range slider mentok di 50%-150%</h3>
+      <p>Slider budget cuma bisa adjust antara 50% s/d 150% dari alokasi awal. Kalau pengen set ke 0 atau double, gabisa. Ini terlalu restriktif untuk power user.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Lokasi</h4><span style="font-size:11px;">components/dashboard/QuickAdjust.tsx:159-160 — min/max hardcoded</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🟠 P2 — High Priority</h3>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>2.1 Tidak ada Key Metrics / Summary Baris Atas</h3>
+      <p>Desktop tidak menampilkan ringkasan cepat seperti Total Balance, Total Budget, Unassigned Cash di baris atas. Mobile punya <code>MobileHeroSummary</code>, tapi desktop langsung lompat ke grid. Pengguna desktop perlu info cepat tanpa scroll.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>2.2 TrendChart hanya 3 bulan default</h3>
+      <p>Tidak ada kontrol untuk mengubah rentang waktu (3mo, 6mo, 12mo). Pengguna tidak bisa melihat tren jangka panjang. <code>getMonthlyTrends</code> dipanggil tanpa argumen <code>months</code>.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Lokasi</h4><span style="font-size:11px;">components/dashboard/TrendChart.tsx:39-41</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>2.3 DailyOperationsCard — Budget rows tidak ada visual hierarchy</h3>
+      <p>Semua kategori budget tampil dalam list sederhana. Tidak ada grouping (by type, by urgency), tidak ada collapsing untuk kategori yang on-track. Pengguna dengan banyak kategori akan kewalahan.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>2.4 QuickAdjust tidak sinkron real-time</h3>
+      <p>Setelah apply, nilai slider kembali ke original karena state lokal tidak sync dengan server. Perlu refresh page untuk melihat perubahan. Seharusnya setelah apply sukses, nilai langsung update.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Lokasi</h4><span style="font-size:11px;">components/dashboard/QuickAdjust.tsx:92-126 — handleApply tidak update local state</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>2.5 RecurringSummary tidak ada action button untuk mark paid</h3>
+      <p>Mobile punya tombol mark paid inline di <code>MobileRecurringRow</code>. Desktop hanya view-only. Pengguna harus navigasi ke halaman Recurring untuk mark paid.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🟡 P3 — Medium Priority</h3>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>3.1 Loading state hanya skeleton generik</h3>
+      <p>2 skeleton cards untuk 2 kolom. Tidak ada skeleton spesifik per komponen (DailyOperationsCard skeleton, TrendChart skeleton, dll). Pengguna tidak tahu komponen mana yang sedang loading.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>3.2 Tidak ada error state per komponen</h3>
+      <p>Query Convex bisa gagal. Saat ini tidak ada error boundary / error state. Hanya skeleton loading indefinite.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>3.3 2-column grid tidak responsive dalam ukuran layar</h3>
+      <p>Grid pake <code>md:grid-cols-2</code> — dari 768px sampai 2560px+ selalu 2 kolom. Di layar lebar (1440px+) terasa terlalu stretched. Di layar kecil (768-900px) terasa sempit.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>3.4 Belum ada interaksi antar komponen</h3>
+      <p>Klik kategori di DailyOperationsCard navigate ke halaman detail. Tidak ada filtering/highlighting lintas komponen (misal: klik kategori → TrendChart highlight kategori tsb). Pengalaman desktop lebih statis.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>3.5 MonthlyComparison hanya compare month-to-month</h3>
+      <p>Tidak bisa bandingkan periode kustom (misal: bulan ini vs rata-rata 3 bulan terakhir). Insight jadi terbatas.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>⚪ P4 — Low Priority / Enhancement</h3>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>4.1 Tidak ada fitur export/cetak</h3>
+      <p>Dashboard desktop tidak punya opsi export PDF, print layout, atau share snapshot.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>4.2 Animasi Framer Motion minimal</h3>
+      <p>Hanya fade in/up animation via staggerContainer. Tidak ada micro-interactions (hover scale, smooth transitions, layout animations).</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:8px;">
+    <div class="card-body">
+      <h3>4.3 Keyboard navigation tidak optimal</h3>
+      <p>QuickAdjust slider bisa dioper dengan keyboard, tapi DailyOperationsCard tabs tidakaccessible dengan keyboard.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="subtitle" style="margin-top:16px;">Setuju dengan prioritas di atas? Ada yang mau ditambah/dikurangi? Klik tombol di bawah atau jawab di terminal.</p>
+  <div class="options">
+    <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>Setuju, lanjut ke design</h3>
+        <p>Prioritas sudah sesuai, lanjut bikin design spec untuk perbaikan</p>
+      </div>
+    </div>
+    <div class="option" data-choice="adjust" onclick="toggleSelect(this)">
+      <div class="letter">✎</div>
+      <div class="content">
+        <h3>Sesuaikan prioritas</h3>
+        <p>Ada perubahan urutan/tambahan yang perlu didiskusikan</p>
+      </div>
+    </div>
+    <div class="option" data-choice="discuss" onclick="toggleSelect(this)">
+      <div class="letter">?</div>
+      <div class="content">
+        <h3>Diskusikan dulu</h3>
+        <p>Mau bahas item tertentu lebih detail</p>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,65 @@
+<h2>Approach untuk Implementasi</h2>
+<p class="subtitle">3 opsi dengan trade-off — pilih yang cocok</p>
+
+<div class="section">
+  <div class="options">
+    <div class="option" data-choice="a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Quick Fix (Recommended)</h3>
+        <p>Fix setiap issue secara individual di komponen masing-masing tanpa ubah struktur. Paling cepat, lowest risk, cocok untuk bug fix murni.</p>
+        <div class="pros-cons" style="margin-top:6px;">
+          <div class="pros"><h4>Pro</h4><ul>
+            <li>Minimal code changes</li>
+            <li>Zero regression risk</li>
+            <li>Cepat selesai</li>
+          </ul></div>
+          <div class="cons"><h4>Con</h4><ul>
+            <li>3.4 (cross-component) susah dilakukan</li>
+            <li>2.3 mungkin perlu refactor kecil</li>
+            <li>Improvisasi, bukan redesign</li>
+          </ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="option" data-choice="b" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Hybrid — Fix + Refactor Terbatas</h3>
+        <p>P1 dan P2 fix cepat. P3 items (#3.1, #3.2, #3.4) dikerjakan dengan refactor kecil: extract ErrorBoundary, unified loading state, event bus untuk cross-component interaction. Tambah <code>lg:grid-cols-3</code> untuk responsive.</p>
+        <div class="pros-cons" style="margin-top:6px;">
+          <div class="pros"><h4>Pro</h4><ul>
+            <li>Semua item bisa dikerjakan</li>
+            <li>3.4 solved dengan event bus</li>
+            <li>Code lebih terstruktur</li>
+          </ul></div>
+          <div class="cons"><h4>Con</h4><ul>
+            <li>Sedikit lebih lama</li>
+            <li>Perlu test regresi</li>
+            <li>Event bus complexity</li>
+          </ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="option" data-choice="c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Structured Redesign</h3>
+        <p>Refactor dashboard desktop ke arsitektur baru: komponen lebih kecil, custom hooks untuk data fetching, error boundary wrapper, unified loading/error/empty states. Semua item selesai dalam 1 siklus.</p>
+        <div class="pros-cons" style="margin-top:6px;">
+          <div class="pros"><h4>Pro</h4><ul>
+            <li>Kualitas kode meningkat signifikan</li>
+            <li>Semua solved properly</li>
+            <li>Mudah ditambah fitur ke depan</li>
+          </ul></div>
+          <div class="cons"><h4>Con</h4><ul>
+            <li>Paling lama</li>
+            <li>Higher risk regresi</li>
+            <li>Mungkin overkill untuk scope ini</li>
+          </ul></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="subtitle" style="margin-top:16px;">Pilih approach di browser, atau jawab di terminal.</p>
+</div>

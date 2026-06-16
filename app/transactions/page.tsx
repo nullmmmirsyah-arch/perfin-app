@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePaginatedQuery, useMutation } from 'convex/react'
+import { usePaginatedQuery, useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../convex/_generated/api'
 import TransactionDrawer from '@/components/TransactionDrawer'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,9 @@ import { TransactionWithDetails } from '@/components/transactions/types'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { List, PieChart } from 'lucide-react'
+import { List, PieChart, Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { useDebounce } from '@/hooks/use-debounce'
 import { TransactionAnalytics } from '@/components/transactions/TransactionAnalytics'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { getFiscalMonthRange, getFiscalDateDetails } from '@/lib/finance-utils'
@@ -38,6 +40,8 @@ export default function TransactionsPage() {
   // Carousel & Tab State
   const [api, setApi] = useState<CarouselApi>()
   const [activeTab, setActiveTab] = useState("list")
+  const [search, setSearch] = useState("")
+  const debouncedSearch = useDebounce(search, 300)
 
   const { householdId, households } = useHousehold()
   const activeHousehold = households.find(h => h._id === householdId)
@@ -78,23 +82,53 @@ export default function TransactionsPage() {
       }
   }, [budgetStartDay]);
 
-  const { results: transactions, status, loadMore } = usePaginatedQuery(convexApi.transactions.get, {
-    householdId: householdId ?? undefined,
-    type: filters.type,
-    accountId: filters.accountId,
-    categoryId: filters.categoryId,
-    labelId: filters.labelId,
-    dateRange: filters.dateRange
+  const isSearching = debouncedSearch.trim().length > 0
+
+  const { results: transactions, status, loadMore } = usePaginatedQuery(
+    isSearching ? "skip" : convexApi.transactions.get,
+    isSearching
+      ? "skip"
+      : {
+          householdId: householdId ?? undefined,
+          type: filters.type,
+          accountId: filters.accountId,
+          categoryId: filters.categoryId,
+          labelId: filters.labelId,
+          dateRange: filters.dateRange
+            ? {
+                start: filters.dateRange.from?.toISOString(),
+                end: filters.dateRange.to ? (() => {
+                    const d = new Date(filters.dateRange.to);
+                    d.setHours(23, 59, 59, 999);
+                    return d.toISOString();
+                })() : undefined,
+              }
+            : undefined,
+        },
+    { initialNumItems: 20 }
+  )
+
+  const searchResults = useQuery(
+    isSearching ? convexApi.transactions.searchTransactions : "skip",
+    isSearching
       ? {
-          start: filters.dateRange.from?.toISOString(),
-          end: filters.dateRange.to ? (() => {
-              const d = new Date(filters.dateRange.to);
-              d.setHours(23, 59, 59, 999);
-              return d.toISOString();
-          })() : undefined,
+          householdId: householdId ?? undefined,
+          search: debouncedSearch,
+          dateRange: filters.dateRange
+            ? {
+                start: filters.dateRange.from?.toISOString(),
+                end: filters.dateRange.to ? (() => {
+                    const d = new Date(filters.dateRange.to);
+                    d.setHours(23, 59, 59, 999);
+                    return d.toISOString();
+                })() : undefined,
+              }
+            : undefined,
         }
-      : undefined,
-  }, { initialNumItems: 20 })
+      : "skip"
+  )
+
+  const displayTransactions = isSearching ? (searchResults ?? undefined) : transactions
   
   const deleteTransaction = useMutation(convexApi.transactions.deleteTransaction)
 
@@ -163,6 +197,25 @@ export default function TransactionsPage() {
             </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by description, amount, category, account, or label..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 pr-10"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
         <TransactionDrawer
             open={open}
             onOpenChange={setOpen}
@@ -184,23 +237,25 @@ export default function TransactionsPage() {
                     {/* LIST VIEW */}
                     <CarouselItem className="basis-full">
                          <div className="space-y-4">
-                            {transactions.length === 0 && (
+                            {displayTransactions && displayTransactions.length === 0 && (
                                 <div className="mt-8 p-4 border rounded-md bg-muted/50">
                                 <p className="text-muted-foreground">
-                                    No transactions yet. Click &quot;Create Transaction&quot; to get started.
+                                    {isSearching
+                                        ? "No transactions matching your search."
+                                        : "No transactions yet. Click \"Create Transaction\" to get started."}
                                 </p>
                                 </div>
                             )}
                             
                             <TransactionListGrouped 
-                                transactions={transactions as TransactionWithDetails[]}
+                                transactions={(displayTransactions ?? []) as TransactionWithDetails[]}
                                 onEdit={handleEdit}
                                 onDelete={setTransactionToDelete}
                                 highlightLabelId={filters.labelId}
                                 highlightCategoryId={filters.categoryId}
                             />
 
-                            {status === "CanLoadMore" && (
+                            {!isSearching && status === "CanLoadMore" && (
                                 <div className="mt-8 flex justify-center">
                                     <Button 
                                         variant="outline" 
@@ -217,11 +272,11 @@ export default function TransactionsPage() {
                     {/* ANALYTICS VIEW */}
                     <CarouselItem className="basis-full">
                          <div className="space-y-4 px-1">
-                             <TransactionAnalytics 
-                                transactions={transactions as TransactionWithDetails[]} 
+                              <TransactionAnalytics 
+                                 transactions={(displayTransactions ?? []) as TransactionWithDetails[]} 
                                 filters={filters}
                              />
-                             {status === "CanLoadMore" && (
+                             {!isSearching && status === "CanLoadMore" && (
                                 <div className="mt-8 flex justify-center">
                                     <p className="text-xs text-muted-foreground">
                                         * Analytics currently showing only loaded transactions. 

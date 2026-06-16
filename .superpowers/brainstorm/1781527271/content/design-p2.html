@@ -1,0 +1,52 @@
+<h2>Design — Group 2 (P2)</h2>
+
+<div class="section">
+  <div class="card">
+    <div class="card-body">
+      <h3>2.2 TrendChart — Month Range Control</h3>
+      <p><strong>Problem:</strong> TrendChart selalu nampilin 3 bulan (default dari <code>getMonthlyTrends</code>). Tidak ada opsi ganti range.</p>
+      <p><strong>Fix:</strong> Tambah <code>ViewToggle</code>-style buttons (3mo | 6mo | 12mo) di card header. State <code>monthRange</code> di <code>useState(3)</code> — pass ke query <code>getMonthlyTrends</code>. Minimal change, component-scoped state.</p>
+      <p style="margin-top:6px;font-size:11px;color:#666;">File: TrendChart.tsx — tambah ViewToggle di CardHeader, useState monthRange, pass ke query argumen.</p>
+      <div style="background:#f9f9f9;padding:8px;border-radius:6px;margin-top:8px;font-size:11px;">
+        <code style="background:#e5e7eb;padding:1px 4px;border-radius:2px;">const [range, setRange] = useState(3)</code><br>
+        <code style="background:#e5e7eb;padding:1px 4px;border-radius:2px;">useQuery(api.dashboard.getMonthlyTrends, { householdId, months: range })</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="card-body">
+      <h3>2.3 DailyOperationsCard — Visual Hierarchy</h3>
+      <p><strong>Problem:</strong> Semua kategori budget flat list — tidak ada grouping/prioritization visual selain sorting by urgency.</p>
+      <p><strong>Fix:</strong> Kelompokkan kategori jadi 3 grup:</p>
+      <ul style="font-size:11px;margin:6px 0;padding-left:16px;">
+        <li><strong style="color:#dc2626;">⚠ Over Budget</strong> — kategori yang sudah over (paling atas, merah)</li>
+        <li><strong style="color:#eab308;">⚠ Watch</strong> — pacing status "warning" (kuning)</li>
+        <li><strong style="color:#666;">✓ On Track</strong> — sisanya (collapsible, default collapsed kalo > 3 item)</li>
+      </ul>
+      <p>Grup Over Budget dan Watch selalu visible. On Track di-collapse dengan counter badge (mis: "5 more on track"). Sorting dalam grup tetap pake urgency.</p>
+      <p style="margin-top:6px;font-size:11px;color:#666;">File: DailyOperationsCard.tsx — tambah logic grouping di Budget tab, Collapsible wrapper untuk "On Track".</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <div class="card-body">
+      <h3>2.5 RecurringSummary — Mark Paid Inline</h3>
+      <p><strong>Problem:</strong> Desktop view-only. Mobile punya tombol mark paid di <code>MobileRecurringRow</code>.</p>
+      <p><strong>Fix:</strong> Tambah tombol "Mark Paid" kecil di samping setiap unpaid/overdue item di recurring list. Panggil <code>useMutation(api.recurring.markRecurringPaid)</code>. Loading state + toast feedback. Pattern ikuti yang sudah ada di <code>MobileRecurringRow</code>.</p>
+      <p style="margin-top:6px;font-size:11px;color:#666;">File: RecurringSummary.tsx — import useMutation, tambah Button "Mark Paid" di overdue & upcoming items.</p>
+    </div>
+  </div>
+
+  <p class="subtitle" style="margin-top:16px;">Group 2 desainnya gini. Setuju? Lanjut ke Group 3?</p>
+  <div class="options">
+    <div class="option" data-choice="yes" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content"><h3>Setuju, lanjut</h3></div>
+    </div>
+    <div class="option" data-choice="revise" onclick="toggleSelect(this)">
+      <div class="letter">✎</div>
+      <div class="content"><h3>Revisi</h3></div>
+    </div>
+  </div>
+</div>
