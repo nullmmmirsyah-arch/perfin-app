@@ -12,12 +12,12 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { CalendarIcon, Filter, X } from 'lucide-react'
+import { Filter, X } from 'lucide-react'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { Label } from './ui/label'
 import { useState } from 'react'
 import { MultiSelect, Option } from './ui/multi-select'
-import { Calendar } from '@/components/ui/calendar'
-import { format } from 'date-fns'
+
 
 type TransactionFiltersProps = {
   filters: {
@@ -49,8 +49,7 @@ export default function TransactionFilters({
   const activeFiltersCount = (filters.type?.length || 0) + 
                              (filters.accountId?.length || 0) + 
                              (filters.categoryId?.length || 0) + 
-                             (filters.labelId?.length || 0) +
-                             (filters.dateRange ? 1 : 0);
+                             (filters.labelId?.length || 0);
 
   const typeOptions: Option[] = [
     { label: 'Income', value: 'income' },
@@ -142,40 +141,22 @@ export default function TransactionFilters({
                     placeholder="All Labels"
                   />
                 </div>
-
-                <Separator className="my-2" />
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date Range</Label>
-                  <Calendar
-                    mode="range"
-                    selected={{ from: filters.dateRange?.from, to: filters.dateRange?.to }}
-                    onSelect={(range) => handleDateChange(range)}
-                    numberOfMonths={1}
-                    defaultMonth={filters.dateRange?.from || new Date()}
-                    captionLayout="dropdown"
-                    className="rounded-md border"
-                  />
-                </div>
               </div>
             </div>
           </PopoverContent>
         </Popover>
+
+        <DateRangePicker
+          date={filters.dateRange}
+          setDate={handleDateChange}
+        />
         
         {extraAction}
       </div>
 
       {/* Active Filter Badges */}
-      {(activeFiltersCount > 0) && (
+      {activeFiltersCount > 0 && (
         <div className="flex flex-wrap gap-2">
-          {filters.dateRange && (
-             <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
-                <CalendarIcon className="h-3 w-3" />
-                {format(filters.dateRange.from!, 'dd MMM')} 
-                {filters.dateRange.to && ` - ${format(filters.dateRange.to, 'dd MMM')}`}
-                <button onClick={() => handleDateChange(undefined)} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
-             </Badge>
-          )}
           {filters.type?.map(t => (
             <Badge key={t} variant="secondary" className="gap-1 rounded-md px-2 py-1 capitalize">
               {t}
@@ -204,7 +185,7 @@ export default function TransactionFilters({
             variant="ghost" 
             size="sm" 
             className="h-6 text-xs text-muted-foreground hover:text-destructive"
-            onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, dateRange: undefined })}
+            onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, dateRange: filters.dateRange })}
           >
             Clear all
           </Button>

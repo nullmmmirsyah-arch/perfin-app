@@ -170,27 +170,28 @@ export default function TransactionsPage() {
       />
 
       <div className="space-y-4">
-        {/* Header Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <Tabs 
-                value={activeTab} 
-                onValueChange={handleTabChange} 
-                className="w-full md:w-auto"
-            >
-                <TabsList className="w-full md:w-auto grid grid-cols-2 h-10">
-                    <TabsTrigger value="list" className="gap-2">
-                        <List className="h-4 w-4" />
-                        <span>List</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="analytics" className="gap-2">
-                        <PieChart className="h-4 w-4" />
-                        <span>Analytics</span>
-                    </TabsTrigger>
-                </TabsList>
-            </Tabs>
+        {/* Tabs */}
+        <Tabs 
+            value={activeTab} 
+            onValueChange={handleTabChange} 
+            className="w-full"
+        >
+            <TabsList className="w-full md:w-auto grid grid-cols-2 h-10">
+                <TabsTrigger value="list" className="gap-2">
+                    <List className="h-4 w-4" />
+                    <span>List</span>
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="gap-2">
+                    <PieChart className="h-4 w-4" />
+                    <span>Analytics</span>
+                </TabsTrigger>
+            </TabsList>
+        </Tabs>
 
+        {/* Controls Toolbar */}
+        <div className="flex flex-wrap items-center gap-2">
             {/* Search Bar */}
-            <div className="relative w-full md:flex-1 md:max-w-xs">
+            <div className="relative w-full sm:w-auto sm:min-w-[200px] md:w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search transactions..."
@@ -208,13 +209,11 @@ export default function TransactionsPage() {
               )}
             </div>
 
-            <div className="w-full md:w-auto">
-                <TransactionFilters 
-                    filters={filters} 
-                    onFilterChange={setFilters} 
-                    extraAction={<ExportTransactionDialog currentFilters={filters} />}
-                />
-            </div>
+            <TransactionFilters 
+                filters={filters} 
+                onFilterChange={setFilters} 
+                extraAction={<ExportTransactionDialog currentFilters={filters} />}
+            />
         </div>
 
         <TransactionDrawer
