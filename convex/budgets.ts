@@ -11,6 +11,7 @@ import {
   getFiscalMonthRange,
   getFiscalDateDetails 
 } from "./lib/finance";
+import { recomputeUserCache } from "./lib/recomputeCache";
 
 async function getHousehold(ctx: QueryCtx, householdId?: Id<"households">, userId?: string) {
     if (householdId) {
@@ -570,6 +571,8 @@ export const upsertBudget = mutation({
         totalAdjustments: "0",
       });
     }
+
+    await recomputeUserCache(ctx, userId, householdId);
   },
 });
 
@@ -592,6 +595,7 @@ export const deleteBudget = mutation({
     }
 
     await ctx.db.delete(args.id);
+    await recomputeUserCache(ctx, identity.subject, budget.householdId);
   },
 });
 
@@ -756,6 +760,8 @@ export const moveBudgetFunds = mutation({
             totalAdjustments: moveAmount.toString(),
         });
     }
+
+    await recomputeUserCache(ctx, userId, householdId);
   }
 });
 
@@ -768,12 +774,13 @@ export const sweepBudgets = mutation({
   handler: async (ctx, { householdId, month, year }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
     
     if (householdId) {
        if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
     }
 
-    const household = await getHousehold(ctx, householdId, identity.subject);
+    const household = await getHousehold(ctx, householdId, userId);
     const startDay = household?.budgetStartDay || 1;
 
     // 1. Get Budgets for the target month
@@ -843,6 +850,7 @@ export const sweepBudgets = mutation({
         }
     }
 
+    await recomputeUserCache(ctx, userId, householdId);
     return sweptCount;
   }
 });
@@ -976,7 +984,9 @@ export const rolloverBudgets = mutation({
         const household = await getHousehold(ctx, householdId, userId);
         const startDay = household?.budgetStartDay || 1;
 
-        return await performRollover(ctx, userId, householdId, year, month, startDay);
+        const rolloverCount = await performRollover(ctx, userId, householdId, year, month, startDay);
+        await recomputeUserCache(ctx, userId, householdId);
+        return rolloverCount;
     }
 });
 
@@ -1101,6 +1111,7 @@ export const fixAllCarryovers = mutation({
       }
     }
 
+    await recomputeUserCache(ctx, userId, householdId);
     return { processedMonths: currentMonth + 1, totalRollovers };
   }
 });
@@ -1132,6 +1143,7 @@ export const ensureCurrentRollover = mutation({
     }
 
     const rolloverCount = await performRollover(ctx, userId, householdId, prevYear, prevMonth, startDay);
+    await recomputeUserCache(ctx, userId, householdId);
     return { month: prevMonth, year: prevYear, rolloverCount };
   }
 });
