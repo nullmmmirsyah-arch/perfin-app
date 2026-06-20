@@ -156,11 +156,16 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
       key={item.categoryId}
       type="button"
       onClick={() => setSelectedCategoryId(item.categoryId)}
-      className="w-full text-left space-y-1 group"
+      className="w-full text-left space-y-1.5 group rounded-xl bg-muted/30 hover:bg-muted/50 active:bg-muted/60 px-3 py-2 -mx-1 transition-colors active:scale-[0.99]"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium truncate min-w-0 flex-1">{item.categoryName}</span>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 ml-2 group-hover:text-muted-foreground transition-colors" />
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors">
+          <span className="hidden sm:inline">Detail</span>
+          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted-foreground/10 group-hover:bg-muted-foreground/20 transition-colors">
+            <ChevronRight className="h-3 w-3" />
+          </span>
+        </span>
       </div>
       <div className="flex items-center gap-2">
         <div className="flex-1 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
