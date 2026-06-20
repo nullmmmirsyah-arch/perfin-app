@@ -27,6 +27,7 @@ import { MobileRecentTransactions } from '@/components/dashboard/MobileRecentTra
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { TrendChart } from '@/components/dashboard/TrendChart'
 import { MonthlyComparison } from '@/components/dashboard/MonthlyComparison'
 import { RecurringSummary } from '@/components/dashboard/RecurringSummary'
@@ -60,6 +61,7 @@ export default function Dashboard() {
   const summary = useQuery(api.dashboard.getDashboardSummary, {
     householdId: householdId ?? undefined
   })
+  const isMobile = useIsMobile()
   
   // Edit & Delete State
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
@@ -221,50 +223,52 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Desktop: Grid Layout */}
-      <motion.div
-        className="hidden md:grid gap-6 md:grid-cols-2 mb-8"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {summary === undefined ? (
-            <>
-                <motion.div variants={scaleIn}><DailyOperationsCardSkeleton /></motion.div>
-                <motion.div variants={scaleIn}><QuickAdjustSkeleton /></motion.div>
-                <motion.div variants={scaleIn}><TrendChartSkeleton /></motion.div>
-                <motion.div variants={scaleIn}><MonthlyComparisonSkeleton /></motion.div>
-                <motion.div variants={scaleIn}><RecurringSummarySkeleton /></motion.div>
-            </>
-        ) : (
-            <>
-                <motion.div variants={fadeInUp} className="flex flex-col gap-6">
-                  <ErrorBoundary key={`dailyops-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
-                    <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
-                  </ErrorBoundary>
-                  {summary?.budgetBreakdown?.some((item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0) && (
-                    <ErrorBoundary key={`quickadj-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
-                      <QuickAdjust
-                        householdId={householdId ?? undefined}
-                        summary={summary}
-                        isPrivacyMode={isPrivacyMode}
-                      />
+      {!isMobile && (
+        <motion.div
+          className="hidden md:grid gap-6 md:grid-cols-2 mb-8"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
+          {summary === undefined ? (
+              <>
+                  <motion.div variants={scaleIn}><DailyOperationsCardSkeleton /></motion.div>
+                  <motion.div variants={scaleIn}><QuickAdjustSkeleton /></motion.div>
+                  <motion.div variants={scaleIn}><TrendChartSkeleton /></motion.div>
+                  <motion.div variants={scaleIn}><MonthlyComparisonSkeleton /></motion.div>
+                  <motion.div variants={scaleIn}><RecurringSummarySkeleton /></motion.div>
+              </>
+          ) : (
+              <>
+                  <motion.div variants={fadeInUp} className="flex flex-col gap-6">
+                    <ErrorBoundary key={`dailyops-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                      <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
                     </ErrorBoundary>
-                  )}
-                </motion.div>
-                <motion.div variants={fadeInUp} className="flex flex-col gap-6">
-                  <ErrorBoundary key={`trend-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
-                    <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
-                  </ErrorBoundary>
-                  <ErrorBoundary key={`monthly-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
-                    <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
-                  </ErrorBoundary>
-                  <ErrorBoundary key={`recurring-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
-                    <RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
-                  </ErrorBoundary>
-                </motion.div>
-            </>
-        )}
-      </motion.div>
+                    {summary?.budgetBreakdown?.some((item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0) && (
+                      <ErrorBoundary key={`quickadj-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                        <QuickAdjust
+                          householdId={householdId ?? undefined}
+                          summary={summary}
+                          isPrivacyMode={isPrivacyMode}
+                        />
+                      </ErrorBoundary>
+                    )}
+                  </motion.div>
+                  <motion.div variants={fadeInUp} className="flex flex-col gap-6">
+                    <ErrorBoundary key={`trend-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                      <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                    </ErrorBoundary>
+                    <ErrorBoundary key={`monthly-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                      <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                    </ErrorBoundary>
+                    <ErrorBoundary key={`recurring-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                      <RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
+                    </ErrorBoundary>
+                  </motion.div>
+              </>
+          )}
+        </motion.div>
+      )}
 
       <motion.div
         className="space-y-4 hidden md:block"
