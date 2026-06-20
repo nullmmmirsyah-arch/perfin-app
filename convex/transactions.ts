@@ -19,6 +19,7 @@ import {
   GOAL_STATUS
 } from "./lib/constants";
 import { generateSearchTags } from "./lib/transactions";
+import { recomputeUserCache } from "./lib/recomputeCache";
 
 import { paginationOptsValidator } from "convex/server";
 
@@ -1066,6 +1067,8 @@ export const create = mutation({
         await checkGoalProgress(ctx, finalCategoryId as Id<"categories">, args.householdId, identity.subject);
     }
 
+    await recomputeUserCache(ctx, identity.subject, args.householdId);
+
     return transaction;
   },
 });
@@ -1404,6 +1407,8 @@ export const update = mutation({
     if (newTx.categoryId) {
         await checkGoalProgress(ctx, newTx.categoryId, newTx.householdId, newTx.userId);
     }
+
+    await recomputeUserCache(ctx, identity.subject, newTx.householdId);
   },
 });
 
@@ -1549,6 +1554,8 @@ export const deleteTransaction = mutation({
     if (transaction.categoryId) {
         await checkGoalProgress(ctx, transaction.categoryId, transaction.householdId, transaction.userId);
     }
+
+    await recomputeUserCache(ctx, identity.subject, transaction.householdId);
   },
 });
 
