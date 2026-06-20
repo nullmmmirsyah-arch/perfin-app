@@ -201,7 +201,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
         {/* Status + overall progress */}
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground uppercase tracking-tighter font-semibold">
-            Budget Today
+            Budget Tracker
           </p>
           {hasBudgets && (
             <Badge variant="outline" className={cn('text-xs font-semibold px-3 py-1', config.class)}>
@@ -220,27 +220,25 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
         {/* Per-category budget */}
         {hasBudgets && pacedItems.length > 0 && (
           <div className="bg-muted/30 rounded-xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
-                Budget per Category
-              </p>
-              <div className="flex items-center gap-0.5 bg-muted-foreground/10 rounded-lg p-0.5">
-                {(['daily', 'weekly', 'remaining'] as const).map(mode => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setViewMode(mode)}
-                    className={cn(
-                      'text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors',
-                      viewMode === mode
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground/60 hover:text-muted-foreground'
-                    )}
-                  >
-                    {mode === 'daily' ? 'Harian' : mode === 'weekly' ? 'Mingguan' : 'Sisa'}
-                  </button>
-                ))}
-              </div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
+              Budget per Category
+            </p>
+            <div className="flex items-center gap-0.5 bg-muted-foreground/10 rounded-lg p-0.5 w-fit">
+              {(['daily', 'weekly', 'remaining'] as const).map(mode => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  className={cn(
+                    'text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors',
+                    viewMode === mode
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground/60 hover:text-muted-foreground'
+                  )}
+                >
+                  {mode === 'daily' ? 'Harian' : mode === 'weekly' ? 'Mingguan' : 'Sisa'}
+                </button>
+              ))}
             </div>
             {[...dangerItems, ...warningItems].map(renderCategoryRow)}
             {safeItems.length > 0 && (
