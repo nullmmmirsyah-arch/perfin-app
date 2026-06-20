@@ -230,4 +230,26 @@ export default defineSchema({
   })
     .index("by_recurringExpenseId", ["recurringExpenseId"])
     .index("by_year_month", ["year", "month"]),
+
+  userCaches: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    accumulatedByCategory: v.array(v.object({
+      categoryId: v.string(),
+      amount: v.number(),
+    })),
+    unassignedCash: v.number(),
+    monthlySpending: v.array(v.object({
+      year: v.number(),
+      month: v.number(),
+      spending: v.array(v.object({
+        categoryId: v.string(),
+        amount: v.number(),
+      })),
+      totalSpent: v.number(),
+    })),
+    lastUpdatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"]),
 });
