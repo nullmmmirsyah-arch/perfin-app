@@ -2,7 +2,6 @@
 
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Progress } from '@/components/ui/progress'
-import { Button } from '@/components/ui/button'
 import { cn, formatCurrency } from '@/lib/utils'
 import { type BudgetBreakdownItem } from './MobileBudgetToday'
 import type { PacingResult } from '@/lib/finance-utils'
@@ -73,6 +72,13 @@ export function BudgetCategorySheet({ item, pace, isPrivacyMode, open, onOpenCha
               <span className="text-sm font-semibold tabular-nums">
                 {formatCurrency(weeklyAllowance, { isPrivacyMode })}
                 <span className="text-xs text-muted-foreground font-normal"> /minggu</span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Sisa hari</span>
+              <span className="text-sm font-semibold tabular-nums">
+                {pace.daysRemaining}
+                <span className="text-xs text-muted-foreground font-normal"> hari</span>
               </span>
             </div>
           </div>
