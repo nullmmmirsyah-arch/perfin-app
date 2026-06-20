@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type BudgetBreakdownItem = {
+export type BudgetBreakdownItem = {
   categoryId: string
   categoryName: string
   categoryType: string
