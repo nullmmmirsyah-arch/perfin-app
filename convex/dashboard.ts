@@ -559,40 +559,36 @@ export const getMonthlyTrends = query({
       allCategories.map((c) => [String(c._id), c.name])
     );
 
-    // Build output in chronological order
-    const result: Array<{
-      year: number;
-      month: number;
-      totalSpent: number;
-      categories: Array<{
-        categoryId: string;
-        categoryName: string;
-        spent: number;
-      }>;
-    }> = [];
+    // Build output — ensure all N months are present (fill zeros for missing months)
+    const monthArray = Array.from(monthKeys)
+      .map((key) => {
+        const [y, m] = key.split("-").map(Number);
+        const cached = filteredMonths.find((ms) => ms.year === y && ms.month === m);
+        if (cached) {
+          const categories = cached.spending
+            .map((s) => ({
+              categoryId: s.categoryId,
+              categoryName: categoryNameMap.get(s.categoryId) ?? "Unknown",
+              spent: s.amount,
+            }))
+            .sort((a, b) => b.spent - a.spent);
 
-    const sortedMonths = [...filteredMonths].sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month - b.month;
-    });
+          return {
+            year: cached.year,
+            month: cached.month,
+            totalSpent: cached.totalSpent,
+            categories,
+          };
+        }
+        return {
+          year: y,
+          month: m,
+          totalSpent: 0,
+          categories: [],
+        };
+      })
+      .sort((a, b) => a.year - b.year || a.month - b.month);
 
-    for (const ms of sortedMonths) {
-      const categories = ms.spending
-        .map((s) => ({
-          categoryId: s.categoryId,
-          categoryName: categoryNameMap.get(s.categoryId) ?? "Unknown",
-          spent: s.amount,
-        }))
-        .sort((a, b) => b.spent - a.spent);
-
-      result.push({
-        year: ms.year,
-        month: ms.month,
-        totalSpent: ms.totalSpent,
-        categories,
-      });
-    }
-
-    return result;
+    return monthArray;
   },
 });
