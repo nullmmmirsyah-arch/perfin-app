@@ -13,48 +13,54 @@ export async function recomputeUserCache(
   userId: string,
   householdId?: Id<"households">
 ): Promise<void> {
-  // 1. Fetch all data
-  let allTransactions: Doc<"transactions">[];
-  let allAccounts: Doc<"accounts">[];
-  let allCategories: Doc<"categories">[];
-  let allBudgets: Doc<"budgets">[];
+  // 1. Fetch all data in parallel
   let startDay = 1;
 
+  let transactionsPromise, accountsPromise, categoriesPromise, budgetsPromise;
+
   if (householdId) {
-    allTransactions = await ctx.db
+    transactionsPromise = ctx.db
       .query("transactions")
       .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
       .collect();
-    allAccounts = await ctx.db
+    accountsPromise = ctx.db
       .query("accounts")
       .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
       .collect();
-    allCategories = await ctx.db
+    categoriesPromise = ctx.db
       .query("categories")
       .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
       .collect();
-    allBudgets = await ctx.db
+    budgetsPromise = ctx.db
       .query("budgets")
       .withIndex("by_householdId_year_month", (q) => q.eq("householdId", householdId))
       .collect();
+
   } else {
-    allTransactions = await ctx.db
+    transactionsPromise = ctx.db
       .query("transactions")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
-    allAccounts = await ctx.db
+    accountsPromise = ctx.db
       .query("accounts")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
-    allCategories = await ctx.db
+    categoriesPromise = ctx.db
       .query("categories")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
-    allBudgets = await ctx.db
+    budgetsPromise = ctx.db
       .query("budgets")
       .withIndex("by_userId_year_month", (q) => q.eq("userId", userId))
       .collect();
   }
+
+  const [allTransactions, allAccounts, allCategories, allBudgets] = await Promise.all([
+    transactionsPromise,
+    accountsPromise,
+    categoriesPromise,
+    budgetsPromise,
+  ]);
 
   if (householdId) {
     const household = await ctx.db.get(householdId);
