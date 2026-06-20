@@ -4,6 +4,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import {
   calculateSpendingByCategory,
   calculateMonthlyBudgetLeft,
+  calculateUnassignedCash,
   AccountMap,
   isLiquidAccount,
   getFiscalMonthRange,
@@ -389,7 +390,15 @@ export const getDashboardSummary = query({
         }
     });
 
-    const unassignedCash = cache?.unassignedCash ?? 0;
+    const unassignedCash = calculateUnassignedCash(
+      currentMonthTransactions,
+      budgets,
+      accountsMap,
+      startDay,
+      categoriesMap,
+      currentMonth,
+      currentYear
+    );
 
     // 2.3 Calculate Receivables (Pending & Partial Only)
     const pendingReceivablesList = allTransactions

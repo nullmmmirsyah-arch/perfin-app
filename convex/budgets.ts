@@ -169,8 +169,16 @@ export const getBudgetStatus = query({
         (cache?.accumulatedByCategory ?? []).map((item) => [item.categoryId, item.amount])
     );
 
-    // 9. Unassigned cash from cache
-    const unassignedCash = cache?.unassignedCash ?? 0;
+    // 9. Unassigned cash — compute from current month data (cache stores all-time value)
+    const unassignedCash = calculateUnassignedCash(
+      currentMonthTransactions,
+      budgets,
+      accountsMap,
+      startDay,
+      categoriesMap,
+      currentMonth,
+      currentYear
+    );
 
     // 10. Combine data for Response
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
