@@ -1,9 +1,8 @@
 import { query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc, Id } from "./_generated/dataModel";
-import { 
-  calculateSpendingByCategory, 
-  calculateUnassignedCash, 
+import {
+  calculateSpendingByCategory,
   calculateMonthlyBudgetLeft,
   AccountMap,
   isLiquidAccount,
@@ -13,6 +12,7 @@ import {
   parseAmount
 } from "./lib/finance";
 import { TRANSACTION_TYPES, ACCOUNT_TYPES } from "./lib/constants";
+import { getCache } from "./lib/recomputeCache";
 
 // Helper for Auth Check
 async function ensureHouseholdAccess(ctx: QueryCtx, householdId: Id<"households">, userId: string) {
@@ -147,6 +147,8 @@ export const getDashboardSummary = query({
     const household = await getHousehold(ctx, householdId, userId);
     const startDay = household?.budgetStartDay || 1;
 
+    const cache = await getCache(ctx, userId, householdId ?? undefined);
+
     // 0. Fetch Accounts & Transactions (GLOBAL FETCH FIRST)
     let allAccounts;
     let allTransactions;
@@ -268,9 +270,13 @@ export const getDashboardSummary = query({
         ).collect();
     }
 
-    const currentMonthTransactions = allTransactions.filter(t => {
-      return t.date >= startOfFiscal && t.date <= endOfFiscal;
-    });
+    const currentMonthTransactions = householdId
+      ? await ctx.db.query("transactions")
+          .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+          .collect()
+      : await ctx.db.query("transactions")
+          .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+          .collect();
 
     let categories;
     if (householdId) {
@@ -281,7 +287,9 @@ export const getDashboardSummary = query({
     const categoriesMap = new Map(categories.map(c => [c._id, c]));
 
     const spendingByCategory = calculateSpendingByCategory(currentMonthTransactions, accountsMap, categoriesMap);
-    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap, categoriesMap);
+    const accumulatedByCategoryMap = new Map(
+      (cache?.accumulatedByCategory ?? []).map((item) => [item.categoryId, item.amount])
+    );
 
     // 2.0.1 Calculate Pending Receivables Per Category (For Visual Arsir)
     const pendingReceivablesByCategory: Record<string, number> = {};
@@ -322,7 +330,7 @@ export const getDashboardSummary = query({
             const limit = allocated + carryover;
             
             const spent = spendingByCategory[cat._id] || 0;
-            const accumulated = accumulatedMap[cat._id] || 0;
+            const accumulated = accumulatedByCategoryMap.get(String(cat._id)) ?? 0;
             
             return {
                 categoryId: cat._id,
@@ -356,26 +364,15 @@ export const getDashboardSummary = query({
     const catMap = new Map(categories.map(c => [c._id, c]));
     
     // Group all transactions by month/category for historical obligation check
-    const monthlySpendingAll = new Map<string, Map<string, number>>();
-    allTransactions.forEach(t => {
-        const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
-        const { year, month } = getFiscalDateDetails(t.date, startDay);
-        const key = `${year}-${month}`; 
-        if (!monthlySpendingAll.has(key)) monthlySpendingAll.set(key, new Map());
-        const categoryMap = monthlySpendingAll.get(key)!;
-        flows.forEach((flow: any) => {
-            const catId = String(flow.categoryId);
-            categoryMap.set(catId, (categoryMap.get(catId) || 0) + (flow.type === 'SPENDING' ? flow.amount : 0));
-        });
-    });
+    const monthlySpendingAll = cache?.monthlySpending ?? [];
 
     let totalExpenseObligations = 0;
     let totalSavingObligations = 0;
     let totalDebtCovered = 0;
 
     allBudgets.forEach(b => {
-        const key = `${b.year}-${b.month}`;
-        const spent = monthlySpendingAll.get(key)?.get(String(b.categoryId)) || 0;
+        const monthData = monthlySpendingAll.find(m => m.year === b.year && m.month === b.month);
+        const spent = monthData?.spending.find(s => s.categoryId === String(b.categoryId))?.amount ?? 0;
         const allocated = parseAmount(b.amount);
         const carryover = parseAmount(b.carryoverAmount);
         const swept = parseAmount(b.sweptAmount);
@@ -392,7 +389,7 @@ export const getDashboardSummary = query({
         }
     });
 
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, currentMonth, currentYear);
+    const unassignedCash = cache?.unassignedCash ?? 0;
 
     // 2.3 Calculate Receivables (Pending & Partial Only)
     const pendingReceivablesList = allTransactions
@@ -405,16 +402,15 @@ export const getDashboardSummary = query({
     }, 0);
 
     // 3. Recent Transactions
-    const sortedTransactions = allTransactions
-        .sort((a, b) => {
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            if (dateA !== dateB) {
-                return dateB - dateA;
-            }
-            return b._creationTime - a._creationTime;
-        })
-        .slice(0, 10);
+    const sortedTransactions = householdId
+      ? await ctx.db.query("transactions")
+          .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId))
+          .order("desc")
+          .take(10)
+      : await ctx.db.query("transactions")
+          .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+          .order("desc")
+          .take(10);
 
     // Batch Fetch Related Entities for Recent Transactions
     const txAccountIds = new Set<Id<"accounts">>();
