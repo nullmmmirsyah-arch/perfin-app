@@ -223,14 +223,14 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
               Budget per Category
             </p>
-            <div className="flex items-center gap-0.5 bg-muted-foreground/10 rounded-lg p-0.5 w-fit">
+            <div className="flex items-center gap-0.5 bg-muted-foreground/10 rounded-lg p-0.5 w-full">
               {(['daily', 'weekly', 'remaining'] as const).map(mode => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => setViewMode(mode)}
                   className={cn(
-                    'text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors',
+                    'text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors flex-1 text-center',
                     viewMode === mode
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground/60 hover:text-muted-foreground'
