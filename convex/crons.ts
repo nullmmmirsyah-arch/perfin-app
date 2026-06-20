@@ -13,4 +13,10 @@ crons.interval(
   internal.automations.processDueSchedules
 );
 
+crons.interval(
+  "recompute user caches",
+  { hours: 6 },
+  internal.cronJobs.recomputeAllCaches
+);
+
 export default crons;
