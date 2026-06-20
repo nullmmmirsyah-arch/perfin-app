@@ -103,6 +103,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
   const startDay = budgetStartDay ?? 1
   const [showSafe, setShowSafe] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'remaining'>('daily')
 
   const daysRemaining = calculateFiscalDaysRemaining(startDay)
   const totalBudget = summary?.budgetBreakdown?.reduce((acc, item) => acc + item.limit, 0) || 0
@@ -151,36 +152,48 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
     }
   }
 
-  const renderCategoryRow = (item: typeof pacedItems[number]) => (
-    <button
-      key={item.categoryId}
-      type="button"
-      onClick={() => setSelectedCategoryId(item.categoryId)}
-      className="w-full text-left space-y-1.5 group rounded-xl bg-muted/30 hover:bg-muted/50 active:bg-muted/60 px-3 py-2 -mx-1 transition-colors active:scale-[0.99]"
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium truncate min-w-0 flex-1">{item.categoryName}</span>
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors">
-          <span className="hidden sm:inline">Detail</span>
-          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted-foreground/10 group-hover:bg-muted-foreground/20 transition-colors">
-            <ChevronRight className="h-3 w-3" />
+  const renderCategoryRow = (item: typeof pacedItems[number]) => {
+    const weeklyLimit = item.pace.daysRemaining >= 7
+      ? item.pace.dailyLimit * 7
+      : item.remaining
+
+    const displayValue = viewMode === 'daily'
+      ? { value: item.pace.dailyLimit, suffix: '/hari' }
+      : viewMode === 'weekly'
+      ? { value: weeklyLimit, suffix: '/minggu' }
+      : { value: item.remaining, suffix: 'sisa' }
+
+    return (
+      <button
+        key={item.categoryId}
+        type="button"
+        onClick={() => setSelectedCategoryId(item.categoryId)}
+        className="w-full text-left space-y-1.5 group rounded-xl bg-muted/30 hover:bg-muted/50 active:bg-muted/60 px-3 py-2 -mx-1 transition-colors active:scale-[0.99]"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium truncate min-w-0 flex-1">{item.categoryName}</span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors">
+            <span className="hidden sm:inline">Detail</span>
+            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted-foreground/10 group-hover:bg-muted-foreground/20 transition-colors">
+              <ChevronRight className="h-3 w-3" />
+            </span>
           </span>
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
-          <div
-            className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))}
-            style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }}
-          />
         </div>
-        <span className="text-xs font-medium tabular-nums shrink-0">
-          {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}
-        </span>
-        <span className="text-xs text-muted-foreground shrink-0">/hari</span>
-      </div>
-    </button>
-  )
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+            <div
+              className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))}
+              style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }}
+            />
+          </div>
+          <span className="text-xs font-medium tabular-nums shrink-0">
+            {formatCurrency(displayValue.value, { isPrivacyMode })}
+          </span>
+          <span className="text-xs text-muted-foreground shrink-0">{displayValue.suffix}</span>
+        </div>
+      </button>
+    )
+  }
 
   return (
     <Card className="w-full">
@@ -204,12 +217,31 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
           </div>
         </div>
 
-        {/* Per-category daily allowance */}
+        {/* Per-category budget */}
         {hasBudgets && pacedItems.length > 0 && (
           <div className="bg-muted/30 rounded-xl p-3 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
-              Daily Allowance per Category
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
+                Budget per Category
+              </p>
+              <div className="flex items-center gap-0.5 bg-muted-foreground/10 rounded-lg p-0.5">
+                {(['daily', 'weekly', 'remaining'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      'text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors',
+                      viewMode === mode
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground/60 hover:text-muted-foreground'
+                    )}
+                  >
+                    {mode === 'daily' ? 'Harian' : mode === 'weekly' ? 'Mingguan' : 'Sisa'}
+                  </button>
+                ))}
+              </div>
+            </div>
             {[...dangerItems, ...warningItems].map(renderCategoryRow)}
             {safeItems.length > 0 && (
               <Button
