@@ -1,5 +1,6 @@
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
 import { generateSearchTags } from "./lib/transactions";
+import { recomputeUserCache } from "./lib/recomputeCache";
 
 /**
  * Migration: Backfill Search Tags
@@ -60,6 +61,24 @@ export const backfillSearchTags = mutation({
       updated: updatedCount,
       skipped: skippedCount,
     };
+  },
+});
+
+export const seedAllCaches = internalMutation({
+  handler: async (ctx) => {
+    const allAccounts = await ctx.db.query("accounts").collect();
+    const seen = new Set<string>();
+
+    for (const account of allAccounts) {
+      const key = `${account.userId}:${account.householdId ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      await recomputeUserCache(
+        ctx,
+        account.userId,
+        account.householdId ?? undefined
+      );
+    }
   },
 });
 
