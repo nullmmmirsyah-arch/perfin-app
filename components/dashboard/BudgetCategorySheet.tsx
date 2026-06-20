@@ -23,7 +23,7 @@ export function BudgetCategorySheet({ item, pace, isPrivacyMode, open, onOpenCha
     { label: 'Sisa Budget', value: item.remaining, color: 'text-foreground' },
     { label: 'Anggaran', value: item.limit, color: 'text-muted-foreground' },
     { label: 'Terpakai', value: item.spent, color: 'text-destructive' },
-  ] as const
+  ]
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -37,7 +37,7 @@ export function BudgetCategorySheet({ item, pace, isPrivacyMode, open, onOpenCha
             <p className="text-base font-bold">{item.categoryName}</p>
             <Progress value={pace.spendProgress} className="h-2.5" />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{pace.spendProgress.toFixed(0)}% terpakai</span>
+              <span>{Number.isFinite(pace.spendProgress) ? `${pace.spendProgress.toFixed(0)}%` : '0%'} terpakai</span>
               <span>{pace.daysRemaining} hari tersisa</span>
             </div>
           </div>
@@ -85,7 +85,7 @@ export function BudgetCategorySheet({ item, pace, isPrivacyMode, open, onOpenCha
 
           {/* Link to transactions */}
           <Link
-            href={`/transactions?categoryId=${item.categoryId}`}
+            href={`/transactions?categoryId=${encodeURIComponent(item.categoryId)}`}
             className="flex items-center justify-center gap-1.5 text-sm text-primary font-medium underline underline-offset-2"
             onClick={() => onOpenChange(false)}
           >
