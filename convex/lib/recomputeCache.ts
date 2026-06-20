@@ -1,4 +1,4 @@
-import { MutationCtx } from "../_generated/server";
+import { MutationCtx, QueryCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import {
   calculateSpendingByCategory,
@@ -6,7 +6,6 @@ import {
   AccountMap,
   getFiscalDateDetails,
   analyzeTransactionFlow,
-  parseAmount,
 } from "./finance";
 
 export async function recomputeUserCache(
@@ -135,10 +134,10 @@ export async function recomputeUserCache(
 }
 
 export async function getCache(
-  ctx: MutationCtx,
+  ctx: QueryCtx,
   userId: string,
   householdId?: Id<"households">
-) {
+): Promise<Doc<"userCaches"> | null> {
   const existing = householdId
     ? await ctx.db
         .query("userCaches")
@@ -149,17 +148,5 @@ export async function getCache(
         .withIndex("by_userId", (q) => q.eq("userId", userId))
         .first();
 
-  if (existing) return existing;
-
-  // First-time visitor: recompute inline (one-time cost)
-  await recomputeUserCache(ctx, userId, householdId);
-  return householdId
-    ? await ctx.db
-        .query("userCaches")
-        .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
-        .first()
-    : await ctx.db
-        .query("userCaches")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .first();
+  return existing ?? null;
 }
