@@ -156,21 +156,23 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
       key={item.categoryId}
       type="button"
       onClick={() => setSelectedCategoryId(item.categoryId)}
-      className="flex items-center justify-between gap-2 w-full text-left"
+      className="w-full text-left space-y-1 group"
     >
-      <span className="text-xs truncate min-w-0 flex-1">{item.categoryName}</span>
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium truncate min-w-0 flex-1">{item.categoryName}</span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 ml-2 group-hover:text-muted-foreground transition-colors" />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
           <div
             className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))}
             style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }}
           />
         </div>
-        <span className="text-xs font-medium tabular-nums shrink-0 w-[68px] text-right">
+        <span className="text-xs font-medium tabular-nums shrink-0">
           {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}
         </span>
-        <span className="text-xs text-muted-foreground">/hari</span>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="text-xs text-muted-foreground shrink-0">/hari</span>
       </div>
     </button>
   )
