@@ -17,7 +17,9 @@ type Props = {
 }
 
 export function BudgetCategorySheet({ item, pace, isPrivacyMode, open, onOpenChange }: Props) {
-  const weeklyAllowance = pace.dailyLimit * 7
+  const weeklyAllowance = pace.daysRemaining >= 7
+    ? pace.dailyLimit * 7
+    : item.remaining
 
   const dataRows = [
     { label: 'Sisa Budget', value: item.remaining, color: 'text-foreground' },
