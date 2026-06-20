@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BudgetCategorySheet } from './BudgetCategorySheet'
 
 export type BudgetBreakdownItem = {
   categoryId: string
@@ -101,6 +102,7 @@ function getTxEntries(tx: TransactionWithDetails): { id: string; description: st
 export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Props) {
   const startDay = budgetStartDay ?? 1
   const [showSafe, setShowSafe] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
 
   const daysRemaining = calculateFiscalDaysRemaining(startDay)
   const totalBudget = summary?.budgetBreakdown?.reduce((acc, item) => acc + item.limit, 0) || 0
@@ -135,6 +137,12 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
   const warningItems = pacedItems.filter(item => item.pace.status === 'warning')
   const safeItems = pacedItems.filter(item => item.pace.status === 'safe')
 
+  const pacedItemsMap = new Map(pacedItems.map(item => [item.categoryId, item]))
+  const selectedItem = selectedCategoryId
+    ? (summary?.budgetBreakdown?.find(i => i.categoryId === selectedCategoryId) ?? null)
+    : null
+  const selectedPace = selectedCategoryId ? (pacedItemsMap.get(selectedCategoryId)?.pace ?? null) : null
+
   const getPaceBarColor = (status: PacingStatus) => {
     switch (status) {
       case 'danger': return 'bg-destructive'
@@ -142,6 +150,30 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
       default: return 'bg-success'
     }
   }
+
+  const renderCategoryRow = (item: typeof pacedItems[number]) => (
+    <button
+      key={item.categoryId}
+      type="button"
+      onClick={() => setSelectedCategoryId(item.categoryId)}
+      className="flex items-center justify-between gap-2 w-full text-left"
+    >
+      <span className="text-xs truncate min-w-0 flex-1">{item.categoryName}</span>
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+          <div
+            className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))}
+            style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }}
+          />
+        </div>
+        <span className="text-xs font-medium tabular-nums shrink-0 w-[68px] text-right">
+          {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}
+        </span>
+        <span className="text-xs text-muted-foreground">/hari</span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      </div>
+    </button>
+  )
 
   return (
     <Card className="w-full">
@@ -171,22 +203,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
               Daily Allowance per Category
             </p>
-            {[...dangerItems, ...warningItems].map(item => {
-              return (
-                <div key={item.categoryId} className="flex items-center justify-between gap-2">
-                  <span className="text-xs truncate min-w-0 flex-1">{item.categoryName}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
-                      <div className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }} />
-                    </div>
-                    <span className="text-xs font-medium tabular-nums shrink-0 w-[68px] text-right">
-                      {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}
-                    </span>
-                    <span className="text-xs text-muted-foreground">/hari</span>
-                  </div>
-                </div>
-              )
-            })}
+            {[...dangerItems, ...warningItems].map(renderCategoryRow)}
             {safeItems.length > 0 && (
               <Button
                 variant="ghost"
@@ -197,22 +214,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
                 {showSafe ? 'Hide on track budgets' : `${safeItems.length} other budget${safeItems.length > 1 ? 's' : ''} on track`}
               </Button>
             )}
-            {showSafe && safeItems.map(item => {
-              return (
-                <div key={item.categoryId} className="flex items-center justify-between gap-2">
-                  <span className="text-xs truncate min-w-0 flex-1">{item.categoryName}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="w-20 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
-                      <div className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))} style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }} />
-                    </div>
-                    <span className="text-xs font-medium tabular-nums shrink-0 w-[68px] text-right">
-                      {formatCurrency(item.pace.dailyLimit, { isPrivacyMode })}
-                    </span>
-                    <span className="text-xs text-muted-foreground">/hari</span>
-                  </div>
-                </div>
-              )
-            })}
+            {showSafe && safeItems.map(renderCategoryRow)}
             <Link href="/budgets" className="block text-center text-xs text-primary underline underline-offset-2 mt-1">
               Lihat semua budget →
             </Link>
@@ -246,6 +248,17 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
             <p className="text-xs text-muted-foreground italic">No spending yet today.</p>
           )}
         </div>
+        {selectedItem && selectedPace && (
+          <BudgetCategorySheet
+            item={selectedItem}
+            pace={selectedPace}
+            isPrivacyMode={isPrivacyMode}
+            open={selectedCategoryId !== null}
+            onOpenChange={(open) => {
+              if (!open) setSelectedCategoryId(null)
+            }}
+          />
+        )}
       </CardContent>
     </Card>
   )
