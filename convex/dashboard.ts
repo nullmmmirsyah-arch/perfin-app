@@ -516,83 +516,81 @@ export const getMonthlyTrends = query({
     const household = await getHousehold(ctx, householdId, userId);
     const startDay = household?.budgetStartDay || 1;
 
-    let allTransactions;
-    if (householdId) {
-      allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
-    } else {
-      allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
-    }
+    const cache = await getCache(ctx, userId, householdId ?? undefined);
+    if (!cache) return [];
 
-    // Determine fiscal month range (last N fiscal months)
+    const numMonths = months;
+
+    // Calculate fiscal start date
     const now = new Date();
-    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(
+      now.toISOString(),
+      startDay
+    );
 
-    // Collect transactions in the last N fiscal months
-    const monthGroups = new Map<string, { year: number; month: number; categories: Map<string, number> }>();
-    const categoryIds = new Set<string>();
-
-    for (let i = 0; i < months; i++) {
-      let targetYear = currentYear;
-      let targetMonth = currentMonth - i;
-      if (targetMonth < 0) { targetMonth += 12; targetYear -= 1; }
-      const key = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
-      monthGroups.set(key, { year: targetYear, month: targetMonth, categories: new Map() });
-    }
-
-    for (const tx of allTransactions) {
-      if (tx.type === 'transfer' || tx.type === 'income') continue;
-      const { year: txYear, month: txMonth } = getFiscalDateDetails(tx.date, startDay);
-      const key = `${txYear}-${String(txMonth).padStart(2, '0')}`;
-
-      if (monthGroups.has(key)) {
-        const group = monthGroups.get(key)!;
-        const isSplit = tx.isSplit && tx.splits && tx.splits.length > 0;
-
-        if (isSplit) {
-          // Only count split amounts, skip main category
-          for (const split of tx.splits!) {
-            const splitCatId = split.categoryId || '__uncategorized__';
-            categoryIds.add(splitCatId);
-            const splitAmt = parseAmount(split.amount);
-            group.categories.set(splitCatId, (group.categories.get(splitCatId) || 0) + splitAmt);
-          }
-        } else {
-          const catId = tx.categoryId || '__uncategorized__';
-          categoryIds.add(catId);
-          const amt = parseAmount(tx.amount);
-          group.categories.set(catId, (group.categories.get(catId) || 0) + amt);
-        }
+    // Filter cached monthlySpending to last N months
+    const monthKeys = new Set<string>();
+    for (let i = 0; i < numMonths; i++) {
+      let y = currentYear;
+      let m = currentMonth - i;
+      while (m < 1) {
+        m += 12;
+        y -= 1;
       }
+      monthKeys.add(`${y}-${String(m).padStart(2, "0")}`);
     }
 
-    // Resolve category names
-    const categoryNameMap = new Map<string, string>();
-    for (const catId of categoryIds) {
-      if (catId === '__uncategorized__') {
-        categoryNameMap.set(catId, 'Uncategorized');
-        continue;
-      }
-      const cat = await ctx.db.get(catId as any) as Doc<"categories"> | null;
-      categoryNameMap.set(catId, cat?.name || 'Unknown');
-    }
+    const filteredMonths = cache.monthlySpending.filter((ms) =>
+      monthKeys.has(`${ms.year}-${String(ms.month).padStart(2, "0")}`)
+    );
 
-    // Build output
-    const result: Array<{ year: number; month: number; totalSpent: number; categories: Array<{ categoryId: string; categoryName: string; spent: number }> }> = [];
+    // Resolve category names - one bulk query instead of per-category point reads
+    const allCategories = householdId
+      ? await ctx.db
+          .query("categories")
+          .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+          .collect()
+      : await ctx.db
+          .query("categories")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .collect();
 
-    // Iterate in chronological order (oldest first)
-    const sortedKeys = [...monthGroups.keys()].sort();
-    for (const key of sortedKeys) {
-      const group = monthGroups.get(key)!;
-      const totalSpent = [...group.categories.values()].reduce((a, b) => a + b, 0);
-      const categories = [...group.categories.entries()]
-        .map(([catId, spent]) => ({
-          categoryId: catId,
-          categoryName: categoryNameMap.get(catId) || 'Unknown',
-          spent,
+    const categoryNameMap = new Map(
+      allCategories.map((c) => [String(c._id), c.name])
+    );
+
+    // Build output in chronological order
+    const result: Array<{
+      year: number;
+      month: number;
+      totalSpent: number;
+      categories: Array<{
+        categoryId: string;
+        categoryName: string;
+        spent: number;
+      }>;
+    }> = [];
+
+    const sortedMonths = [...filteredMonths].sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+
+    for (const ms of sortedMonths) {
+      const categories = ms.spending
+        .map((s) => ({
+          categoryId: s.categoryId,
+          categoryName: categoryNameMap.get(s.categoryId) ?? "Unknown",
+          spent: s.amount,
         }))
         .sort((a, b) => b.spent - a.spent);
 
-      result.push({ year: group.year, month: group.month, totalSpent, categories });
+      result.push({
+        year: ms.year,
+        month: ms.month,
+        totalSpent: ms.totalSpent,
+        categories,
+      });
     }
 
     return result;
