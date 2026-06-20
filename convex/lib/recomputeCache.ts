@@ -1,0 +1,165 @@
+import { MutationCtx } from "../_generated/server";
+import { Doc, Id } from "../_generated/dataModel";
+import {
+  calculateSpendingByCategory,
+  calculateUnassignedCash,
+  AccountMap,
+  getFiscalDateDetails,
+  analyzeTransactionFlow,
+  parseAmount,
+} from "./finance";
+
+export async function recomputeUserCache(
+  ctx: MutationCtx,
+  userId: string,
+  householdId?: Id<"households">
+): Promise<void> {
+  // 1. Fetch all data
+  let allTransactions: Doc<"transactions">[];
+  let allAccounts: Doc<"accounts">[];
+  let allCategories: Doc<"categories">[];
+  let allBudgets: Doc<"budgets">[];
+  let startDay = 1;
+
+  if (householdId) {
+    allTransactions = await ctx.db
+      .query("transactions")
+      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+      .collect();
+    allAccounts = await ctx.db
+      .query("accounts")
+      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+      .collect();
+    allCategories = await ctx.db
+      .query("categories")
+      .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+      .collect();
+    allBudgets = await ctx.db
+      .query("budgets")
+      .withIndex("by_householdId_year_month", (q) => q.eq("householdId", householdId))
+      .collect();
+  } else {
+    allTransactions = await ctx.db
+      .query("transactions")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    allAccounts = await ctx.db
+      .query("accounts")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    allCategories = await ctx.db
+      .query("categories")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    allBudgets = await ctx.db
+      .query("budgets")
+      .withIndex("by_userId_year_month", (q) => q.eq("userId", userId))
+      .collect();
+  }
+
+  if (householdId) {
+    const household = await ctx.db.get(householdId);
+    startDay = household?.budgetStartDay || 1;
+  }
+
+  const accountsMap: AccountMap = new Map(allAccounts.map((a) => [String(a._id), a]));
+  const categoriesMap = new Map(allCategories.map((c) => [String(c._id), c]));
+
+  // 2. Accumulated (all-time spending per category)
+  const accumulatedByCategory = Object.entries(
+    calculateSpendingByCategory(allTransactions, accountsMap, categoriesMap)
+  ).map(([categoryId, amount]) => ({ categoryId, amount }));
+
+  // 3. Monthly spending (for trends)
+  const monthlyMap = new Map<string, Map<string, number>>();
+  for (const tx of allTransactions) {
+    const flows = analyzeTransactionFlow(tx, accountsMap, categoriesMap);
+    const { year, month } = getFiscalDateDetails(tx.date, startDay);
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    if (!monthlyMap.has(key)) monthlyMap.set(key, new Map());
+    const catMap = monthlyMap.get(key)!;
+    for (const flow of flows) {
+      if (flow.type === "SPENDING") {
+        catMap.set(flow.categoryId, (catMap.get(flow.categoryId) || 0) + flow.amount);
+      }
+    }
+  }
+  const monthlySpending = Array.from(monthlyMap.entries())
+    .map(([key, spending]) => {
+      const [yearStr, monthStr] = key.split("-");
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr);
+      const entries = Array.from(spending.entries()).map(([categoryId, amount]) => ({
+        categoryId,
+        amount,
+      }));
+      const totalSpent = entries.reduce((sum, e) => sum + e.amount, 0);
+      return { year, month, spending: entries, totalSpent };
+    })
+    .sort((a, b) => b.year - a.year || b.month - a.month);
+
+  // 4. Unassigned cash
+  const unassignedCash = calculateUnassignedCash(
+    allTransactions,
+    allBudgets,
+    accountsMap,
+    startDay,
+    categoriesMap
+  );
+
+  // 5. Upsert cache
+  const existing = householdId
+    ? await ctx.db
+        .query("userCaches")
+        .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+        .first()
+    : await ctx.db
+        .query("userCaches")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .first();
+
+  const cacheData = {
+    userId,
+    householdId,
+    accumulatedByCategory,
+    unassignedCash,
+    monthlySpending,
+    lastUpdatedAt: Date.now(),
+  };
+
+  if (existing) {
+    await ctx.db.patch(existing._id, cacheData);
+  } else {
+    await ctx.db.insert("userCaches", cacheData);
+  }
+}
+
+export async function getCache(
+  ctx: MutationCtx,
+  userId: string,
+  householdId?: Id<"households">
+) {
+  const existing = householdId
+    ? await ctx.db
+        .query("userCaches")
+        .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+        .first()
+    : await ctx.db
+        .query("userCaches")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .first();
+
+  if (existing) return existing;
+
+  // First-time visitor: recompute inline (one-time cost)
+  await recomputeUserCache(ctx, userId, householdId);
+  return householdId
+    ? await ctx.db
+        .query("userCaches")
+        .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
+        .first()
+    : await ctx.db
+        .query("userCaches")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .first();
+}
