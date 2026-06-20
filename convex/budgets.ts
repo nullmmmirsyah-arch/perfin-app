@@ -11,7 +11,7 @@ import {
   getFiscalMonthRange,
   getFiscalDateDetails 
 } from "./lib/finance";
-import { recomputeUserCache } from "./lib/recomputeCache";
+import { recomputeUserCache, getCache } from "./lib/recomputeCache";
 
 async function getHousehold(ctx: QueryCtx, householdId?: Id<"households">, userId?: string) {
     if (householdId) {
@@ -92,7 +92,10 @@ export const getBudgetStatus = query({
     const currentYear = year ?? fiscalDetails.year;
     const currentMonth = month ?? fiscalDetails.month;
     
-    // 1. Get all categories
+    // 1. Fetch cache
+    const cache = await getCache(ctx, userId, householdId ?? undefined);
+
+    // 2. Get all categories
     let categories;
     if (householdId) {
         categories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
@@ -100,7 +103,7 @@ export const getBudgetStatus = query({
         categories = await ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
 
-    // 2. Get budgets for THIS SPECIFIC PERIOD
+    // 3. Get budgets for THIS SPECIFIC PERIOD
     let budgets;
     if (householdId) {
         budgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", currentYear).eq("month", currentMonth)).collect();
@@ -110,25 +113,26 @@ export const getBudgetStatus = query({
         ).collect();
     }
 
-    // 3. Calculate date range for the month (Using Fiscal Helper)
+    // 4. Calculate date range for the month (Using Fiscal Helper)
     const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, currentMonth, startDay);
-    const startObj = new Date(startOfFiscal);
-    const endObj = new Date(endOfFiscal);
 
-    // 4. Get all transactions (needed for Spending and Unassigned Cash)
-    let allTransactions;
+    // 5. Get current month transactions ONLY (date-range filter on index, MUCH cheaper)
+    let currentMonthTransactions;
     if (householdId) {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        currentMonthTransactions = await ctx.db.query("transactions")
+            .withIndex("by_householdId_date", (q) =>
+                q.eq("householdId", householdId).gte("date", startOfFiscal).lte("date", endOfFiscal)
+            )
+            .collect();
     } else {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+        currentMonthTransactions = await ctx.db.query("transactions")
+            .withIndex("by_userId_date", (q) =>
+                q.eq("userId", userId).gte("date", startOfFiscal).lte("date", endOfFiscal)
+            )
+            .collect();
     }
 
-    const transactionsInMonth = allTransactions.filter((t) => {
-      const tDate = new Date(t.date);
-      return tDate >= startObj && tDate <= endObj;
-    });
-
-    // 5. Get Accounts for Helper Map
+    // 6. Get Accounts for Helper Map
     let allAccounts;
     if (householdId) {
         allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
@@ -138,12 +142,12 @@ export const getBudgetStatus = query({
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
     const categoriesMap = new Map(categories.map(c => [c._id, c]));
 
-    // 6. Calculate Spending using Helper
-    const spendingByCategory = calculateSpendingByCategory(transactionsInMonth, accountsMap, categoriesMap);
+    // 7. Calculate Spending using Helper
+    const spendingByCategory = calculateSpendingByCategory(currentMonthTransactions, accountsMap, categoriesMap);
 
-    // 6.1 Calculate Pending Receivables Per Category (For Visual Arsir)
+    // 7.1 Calculate Pending Receivables Per Category (For Visual Arsir)
     const pendingReceivablesByCategory: Record<string, number> = {};
-    transactionsInMonth.forEach(t => {
+    currentMonthTransactions.forEach(t => {
         if (t.isReimbursable && (t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial')) {
             const amountValue = parseAmount(t.amount);
             const paidValue = parseAmount(t.amountPaid);
@@ -152,7 +156,6 @@ export const getBudgetStatus = query({
             const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
             flows.forEach(flow => {
                 if (flow.type === 'SPENDING') {
-                    // Calculate proportional remaining for this flow (important for future split support)
                     const flowRatio = flow.amount / amountValue;
                     const flowRemaining = remaining * flowRatio;
                     pendingReceivablesByCategory[flow.categoryId] = (pendingReceivablesByCategory[flow.categoryId] || 0) + flowRemaining;
@@ -161,66 +164,54 @@ export const getBudgetStatus = query({
         }
     });
 
-    // 7. Calculate Accumulated (All Time) for Savings
-    const accumulatedMap = calculateSpendingByCategory(allTransactions, accountsMap, categoriesMap);
+    // 8. Accumulated from cache (all-time per category, no full scan)
+    const accumulatedByCategoryMap = new Map(
+        (cache?.accumulatedByCategory ?? []).map((item) => [item.categoryId, item.amount])
+    );
 
-    // 8. Calculate Unassigned Cash using Helper
-    // Need ALL budgets for this
-    let allBudgets;
-    if (householdId) {
-        allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
-    } else {
-        allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
-    }
-    
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, currentMonth, currentYear);
+    // 9. Unassigned cash from cache
+    const unassignedCash = cache?.unassignedCash ?? 0;
 
-    // 9. Combine data for Response
+    // 10. Combine data for Response
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
 
-    const data = categories
-        .filter(c => (c.type === 'expense' || c.type === 'saving') && c.status !== 'achieved' && c.status !== 'archived' && !c.isArchived)
-        .map((category) => {
-            const budget = budgetMap.get(category._id);
-            const spent = spendingByCategory[category._id] || 0;
-            
-            // Fix: Calculate Accumulated with Cycle Reset logic
-            let accumulated = accumulatedMap[category._id] || 0;
-            
-            if (category.type === 'saving' && category.lastResetDate) {
-                const resetTime = new Date(category.lastResetDate).getTime();
-                // Filter transactions relevant to THIS category only
-                const relevantTx = allTransactions.filter(t => {
-                    const isAfter = new Date(t.date).getTime() > resetTime;
-                    if (!isAfter) return false;
-                    
-                    if (t.categoryId === category._id) return true;
-                    if (t.isSplit && t.splits?.some(s => s.categoryId === category._id)) return true;
-                    return false;
-                });
+    const data = await Promise.all(
+        categories
+            .filter(c => (c.type === 'expense' || c.type === 'saving') && c.status !== 'achieved' && c.status !== 'archived' && !c.isArchived)
+            .map(async (category) => {
+                const budget = budgetMap.get(category._id);
+                const spent = spendingByCategory[category._id] || 0;
                 
-                const cycleMap = calculateSpendingByCategory(relevantTx, accountsMap, categoriesMap);
-                accumulated = cycleMap[category._id] || 0;
-            }
-            
-            return {
-                category,
-                budget,
-                spent,
-                accumulated,
-                pendingReceivables: pendingReceivablesByCategory[category._id] || 0,
-            };
-    });
+                let accumulated = accumulatedByCategoryMap.get(category._id) || 0;
+                
+                if (category.type === 'saving' && category.lastResetDate) {
+                    const resetTxns = householdId
+                        ? await ctx.db.query("transactions")
+                            .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", category.lastResetDate!))
+                            .collect()
+                        : await ctx.db.query("transactions")
+                            .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", category.lastResetDate!))
+                            .collect();
+                    const resetSpending = calculateSpendingByCategory(resetTxns, accountsMap, categoriesMap);
+                    accumulated = resetSpending[category._id] ?? 0;
+                }
+                
+                return {
+                    category,
+                    budget,
+                    spent,
+                    accumulated,
+                    pendingReceivables: pendingReceivablesByCategory[category._id] || 0,
+                };
+        })
+    );
 
     const budgetSummary = calculateMonthlyBudgetLeft(budgets, categories, spendingByCategory);
 
     // Breakdown for UI
-    const thisMonthIncome = allTransactions
+    const thisMonthIncome = currentMonthTransactions
         .filter(t => {
-            const isDateMatch = t.date >= startOfFiscal && t.date <= endOfFiscal;
-            if (!isDateMatch || t.type !== 'income') return false;
-            
-            // Only count as income if category is of type income (not settlement)
+            if (t.type !== 'income') return false;
             const category = t.categoryId ? categoriesMap.get(t.categoryId) : null;
             return category?.type === 'income';
         })
@@ -243,7 +234,7 @@ export const getBudgetStatus = query({
         totalBudgeted: 0 
     };
 
-    // 10. Check for Month-End Processing (Sweep & Rollover)
+    // 11. Check for Month-End Processing (Sweep & Rollover)
     const monthEndProposals: { 
         type: 'sweep' | 'rollover', 
         categoryId: Id<"categories">, 
@@ -264,13 +255,14 @@ export const getBudgetStatus = query({
 
     if (prevBudgets.length > 0) {
          const { start: startOfPrev, end: endOfPrev } = getFiscalMonthRange(prevYear, prevMonth, startDay);
-         const startOfPrevObj = new Date(startOfPrev);
-         const endOfPrevObj = new Date(endOfPrev);
          
-         const prevTransactions = allTransactions.filter(t => {
-            const tDate = new Date(t.date);
-            return tDate >= startOfPrevObj && tDate <= endOfPrevObj;
-         });
+         const prevTransactions = householdId
+             ? await ctx.db.query("transactions")
+                 .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", startOfPrev).lte("date", endOfPrev))
+                 .collect()
+             : await ctx.db.query("transactions")
+                 .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", startOfPrev).lte("date", endOfPrev))
+                 .collect();
          
          const prevSpending = calculateSpendingByCategory(prevTransactions, accountsMap, categoriesMap);
 
@@ -281,10 +273,8 @@ export const getBudgetStatus = query({
              const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
              const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
              
-             // The effective remaining amount from the previous month
              const sisa = (allocated + carryover - swept) - spent;
 
-             // Case 1: Standard Sweepable Leftover (Positive balance, no pacing)
              if (!category?.enablePacing && sisa > 0) {
                  monthEndProposals.push({
                      type: 'sweep',
@@ -294,9 +284,7 @@ export const getBudgetStatus = query({
                  });
              }
 
-             // Case 2: Smart Rollover (Positive or Negative balance, with pacing)
              if (category?.enablePacing && sisa !== 0) {
-                 // Check if it's already rolled over accurately to the current month
                  let targetBudget;
                  if (householdId) {
                      targetBudget = await ctx.db.query("budgets")
@@ -316,7 +304,6 @@ export const getBudgetStatus = query({
                          ).first();
                  }
 
-                 // If not yet rolled over, OR if the carryover amount in target doesn't match the actual 'sisa'
                  const targetCarryoverValue = targetBudget ? parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0') : 0;
                  
                  if (!targetBudget || Math.abs(targetCarryoverValue - sisa) > 0.01) {
@@ -788,7 +775,7 @@ export const sweepBudgets = mutation({
     if (householdId) {
         budgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", year).eq("month", month)).collect();
     } else {
-        budgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", identity.subject).eq("year", year).eq("month", month)).collect();
+        budgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", year).eq("month", month)).collect();
     }
 
     // 2. Calculate Spending using Helper
@@ -800,7 +787,7 @@ export const sweepBudgets = mutation({
     if (householdId) {
         allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
+        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
     }
 
     const monthTransactions = allTransactions.filter(t => {
@@ -813,7 +800,7 @@ export const sweepBudgets = mutation({
     if (householdId) {
         allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
-        allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", identity.subject)).collect();
+        allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
@@ -821,7 +808,7 @@ export const sweepBudgets = mutation({
     if (householdId) {
         allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
-        allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
+        allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
     }
     const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
