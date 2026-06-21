@@ -400,8 +400,16 @@ export const getDashboardSummary = query({
     );
 
     // 2.3 Calculate Receivables (Pending & Partial Only)
-    const pendingReceivablesList = currentMonthTransactions
-        .filter(t => t.isReimbursable && t.reimbursementStatus === 'pending' && (t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial'))
+    const rawReceivables = householdId
+        ? await ctx.db.query("transactions")
+            .withIndex("by_receivables_status", q => q.eq("householdId", householdId).eq("isReimbursable", true).eq("reimbursementStatus", "pending"))
+            .collect()
+        : await ctx.db.query("transactions")
+            .withIndex("by_userId_reimbursable_status", q => q.eq("userId", userId).eq("isReimbursable", true).eq("reimbursementStatus", "pending"))
+            .collect();
+
+    const pendingReceivablesList = rawReceivables
+        .filter(t => t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial')
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const totalReceivables = pendingReceivablesList.reduce((acc, t) => {

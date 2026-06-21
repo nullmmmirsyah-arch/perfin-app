@@ -83,6 +83,7 @@ export default defineSchema({
     .index("by_toAccountId", ["toAccountId"])
     // Index for finding Active Receivables
     .index("by_receivables_status", ["householdId", "isReimbursable", "reimbursementStatus"])
+    .index("by_userId_reimbursable_status", ["userId", "isReimbursable", "reimbursementStatus"])
     // Index for cascading deletes and calculations
     .index("by_parentTransactionId", ["parentTransactionId"]),
   accounts: defineTable({
