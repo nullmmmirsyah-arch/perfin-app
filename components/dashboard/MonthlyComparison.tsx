@@ -65,9 +65,8 @@ export function MonthlyComparison({ householdId, isPrivacyMode }: Props) {
     );
   }
 
-  const comparisonIndex = comparisonMode === 'prev' ? 1 : 12;
-  const thisMonth = trends[0];
-  const comparisonMonth = trends[comparisonIndex];
+  const thisMonth = trends[trends.length - 1];
+  const comparisonMonth = trends[0];
   const diff = thisMonth.totalSpent - comparisonMonth.totalSpent;
   const pctChange = comparisonMonth.totalSpent > 0
     ? Math.round((diff / comparisonMonth.totalSpent) * 100)
