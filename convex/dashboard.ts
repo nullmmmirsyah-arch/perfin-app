@@ -150,22 +150,33 @@ export const getDashboardSummary = query({
 
     const cache = await getCache(ctx, userId, householdId ?? undefined);
 
-    // 0. Fetch Accounts & Transactions (GLOBAL FETCH FIRST)
+    // 0. Fetch Accounts
     let allAccounts;
-    let allTransactions;
 
     if (householdId) {
         allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
-        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
         allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
-        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
     }
     
     const accounts = allAccounts.filter(a => !a.isArchived && (a.visibility !== "private" || a.userId === userId));
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
+    // Pre-compute fiscal month details
+    const now = new Date();
+    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
+    const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, currentMonth, startDay);
 
+    let currentMonthTransactions;
+    if (householdId) {
+        currentMonthTransactions = await ctx.db.query("transactions")
+            .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+            .collect();
+    } else {
+        currentMonthTransactions = await ctx.db.query("transactions")
+            .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+            .collect();
+    }
 
     // 1. Split Balances & Funds Allocation
     const liquidCash = accounts
@@ -182,7 +193,7 @@ export const getDashboardSummary = query({
 
     // --- FUNDS ALLOCATION LOGIC (In-Memory) ---
     const allocationMap = new Map<string, { name: string, amount: number }[]>();
-    const transfers = allTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER && t.toAccountId);
+    const transfers = currentMonthTransactions.filter(t => t.type === TRANSACTION_TYPES.TRANSFER && t.toAccountId);
     
     const specialAccountIds = new Set(
         accounts
@@ -258,10 +269,6 @@ export const getDashboardSummary = query({
       }));
 
     // 2. Remaining Budget Logic (Monthly)
-    const now = new Date();
-    const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
-    const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, currentMonth, startDay);
-
     let budgets;
     if (householdId) {
         budgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", currentYear).eq("month", currentMonth)).collect();
@@ -270,14 +277,6 @@ export const getDashboardSummary = query({
             q.eq("userId", userId).eq("year", currentYear).eq("month", currentMonth)
         ).collect();
     }
-
-    const currentMonthTransactions = householdId
-      ? await ctx.db.query("transactions")
-          .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", startOfFiscal).lte("date", endOfFiscal))
-          .collect()
-      : await ctx.db.query("transactions")
-          .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", startOfFiscal).lte("date", endOfFiscal))
-          .collect();
 
     let categories;
     if (householdId) {
@@ -401,7 +400,7 @@ export const getDashboardSummary = query({
     );
 
     // 2.3 Calculate Receivables (Pending & Partial Only)
-    const pendingReceivablesList = allTransactions
+    const pendingReceivablesList = currentMonthTransactions
         .filter(t => t.isReimbursable && t.reimbursementStatus === 'pending' && (t.settlementStatus === 'unpaid' || t.settlementStatus === 'partial'))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
