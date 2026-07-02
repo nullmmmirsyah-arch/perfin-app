@@ -149,102 +149,115 @@ export const getExpensesTrend = query({
     })),
   },
   handler: async (ctx, args) => {
-    const { householdId, type, accountId, categoryId, labelId, dateRange } = args;
+    const { householdId, accountId, categoryId, labelId, dateRange } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Helper to get totals for a specific date range
-    const getPeriodTotal = async (start: string, end: string) => {
-        let query;
-        if (householdId) {
-            if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) return 0;
-            query = ctx.db.query("transactions").withIndex("by_householdId_date", q => q.eq("householdId", householdId));
-        } else {
-            query = ctx.db.query("transactions").withIndex("by_userId_date", q => q.eq("userId", identity.subject));
-        }
-
-        // Apply Date Filter
-        query = query.filter(q => q.gte(q.field("date"), start)).filter(q => q.lte(q.field("date"), end));
-
-        // Apply Other Filters (Same as main get query logic)
-        // Ensure we only count Expenses for trend
-        query = query.filter(q => q.eq(q.field("type"), TRANSACTION_TYPES.EXPENSE));
-
-        if (accountId && accountId.length > 0) {
-             query = query.filter((q) => 
-                q.or(
-                   q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
-                   q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
-                )
-             );
-        }
-
-        const transactions = await query.collect();
-
-        // JS Filter for Category/Label & Summation
-        return transactions.reduce((acc, t) => {
-            // New Optimized Check using helper fields
-            const matchesCat = !categoryId || categoryId.length === 0 || 
-                t.searchCategoryIds?.some(id => categoryId.includes(id));
-            const matchesLabel = !labelId || labelId.length === 0 || 
-                t.searchLabelIds?.some(id => labelId.includes(id));
-
-            if (!matchesCat || !matchesLabel) return acc;
-            
-            // Note: For trend, we sum matching splits or main amount
-            let amountToAdd = 0;
-            if (t.isSplit && t.splits && categoryId && categoryId.length > 0) {
-                 amountToAdd = t.splits.reduce((sAcc, s) => {
-                    const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelId && labelId.includes(s.labelId));
-                    const splitMatchesCat = categoryId.includes(s.categoryId);
-                    if (splitMatchesLabel && splitMatchesCat) {
-                        return sAcc + parseFloat(s.amount.replace(/,/g, '') || '0');
-                    }
-                    return sAcc;
-                 }, 0);
-            } else {
-                 amountToAdd = parseFloat(t.amount.replace(/,/g, '') || '0');
-            }
-
-            return acc + amountToAdd;
-        }, 0);
-    };
-
-    // 1. Calculate Current Period
+    // Calculate period boundaries
     let startDay = 1;
     if (householdId) {
-        const household = await ctx.db.get(householdId);
-        startDay = household?.budgetStartDay || 1;
+      const household = await ctx.db.get(householdId);
+      startDay = household?.budgetStartDay || 1;
     }
     const { year, month } = getFiscalDateDetails(new Date().toISOString(), startDay);
     const currentStart = dateRange?.start || getFiscalMonthRange(year, month, startDay).start;
     const currentEnd = dateRange?.end || new Date().toISOString();
-    const currentTotal = await getPeriodTotal(currentStart, currentEnd);
 
-    // 2. Calculate Previous Period (Same Duration Shifted Back)
+    // Previous period (same duration shifted back)
     const startObj = new Date(currentStart);
     const endObj = new Date(currentEnd);
     const duration = endObj.getTime() - startObj.getTime();
-    
-    // Shift back by duration (e.g., last 30 days -> prev 30 days)
-    const prevEndObj = new Date(startObj.getTime() - 1); // 1ms before current start
+    const prevEndObj = new Date(startObj.getTime() - 1);
     const prevStartObj = new Date(prevEndObj.getTime() - duration);
-    
-    const prevTotal = await getPeriodTotal(prevStartObj.toISOString(), prevEndObj.toISOString());
 
-    // 3. Calculate Percentage
+    // Build single DB query for combined date range
+    let query;
+    if (householdId) {
+      if (!await checkHouseholdAccess(ctx, householdId, identity.subject)) {
+        return { currentTotal: 0, prevTotal: 0, percentage: 0, direction: 'down' };
+      }
+      query = ctx.db.query("transactions").withIndex("by_householdId_date", q => q.eq("householdId", householdId));
+    } else {
+      query = ctx.db.query("transactions").withIndex("by_userId_date", q => q.eq("userId", identity.subject));
+    }
+
+    const allStart = prevStartObj.toISOString();
+    const allEnd = currentEnd;
+    query = query.filter(q => q.gte(q.field("date"), allStart)).filter(q => q.lte(q.field("date"), allEnd));
+
+    // Always filter to expenses only
+    query = query.filter(q => q.eq(q.field("type"), TRANSACTION_TYPES.EXPENSE));
+
+    // AccountId filter (DB side)
+    if (accountId && accountId.length > 0) {
+      query = query.filter((q) =>
+        q.or(
+          q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
+          q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
+        )
+      );
+    }
+
+    // Note: categoryId/labelId filtering cannot be pushed to DB via filter()
+    // because Convex filter() doesn't support array containment checks on
+    // searchCategoryIds/searchLabelIds. Filtering stays in JS after collect().
+
+    // Single DB collect
+    const transactions = await query.collect();
+
+    // Split into current and previous period sums in JS
+    let currentTotal = 0;
+    let prevTotal = 0;
+    const currentStartTime = new Date(currentStart).getTime();
+    const currentEndTime = new Date(currentEnd).getTime();
+    const prevStartTime = prevStartObj.getTime();
+    const prevEndTime = prevEndObj.getTime();
+
+    for (const t of transactions) {
+      const tDate = new Date(t.date).getTime();
+      const isCurrent = tDate >= currentStartTime && tDate <= currentEndTime;
+      const isPrev = tDate >= prevStartTime && tDate <= prevEndTime;
+      if (!isCurrent && !isPrev) continue;
+
+      // JS Filter for Category/Label (same logic as before)
+      const matchesCat = !categoryId || categoryId.length === 0 ||
+        t.searchCategoryIds?.some(id => categoryId.includes(id));
+      const matchesLabel = !labelId || labelId.length === 0 ||
+        t.searchLabelIds?.some(id => labelId.includes(id));
+
+      if (!matchesCat || !matchesLabel) continue;
+
+      let amountToAdd = 0;
+      if (t.isSplit && t.splits) {
+        amountToAdd = t.splits.reduce((sAcc, s) => {
+          const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelId && labelId.includes(s.labelId));
+          const splitMatchesCat = !categoryId || categoryId.length === 0 || categoryId.includes(s.categoryId);
+          if (splitMatchesLabel && splitMatchesCat) {
+            return sAcc + parseFloat(s.amount.replace(/,/g, '') || '0');
+          }
+          return sAcc;
+        }, 0);
+      } else {
+        amountToAdd = parseFloat(t.amount.replace(/,/g, '') || '0');
+      }
+
+      if (isCurrent) currentTotal += amountToAdd;
+      if (isPrev) prevTotal += amountToAdd;
+    }
+
+    // Calculate Percentage
     let percentage = 0;
     if (prevTotal > 0) {
-        percentage = ((currentTotal - prevTotal) / prevTotal) * 100;
+      percentage = ((currentTotal - prevTotal) / prevTotal) * 100;
     } else if (currentTotal > 0) {
-        percentage = 100; // From 0 to something is 100% increase (technically infinite, but cap for UI)
+      percentage = 100;
     }
 
     return {
-        currentTotal,
-        prevTotal,
-        percentage,
-        direction: percentage > 0 ? 'up' : 'down'
+      currentTotal,
+      prevTotal,
+      percentage,
+      direction: percentage > 0 ? 'up' : 'down'
     };
   }
 });
