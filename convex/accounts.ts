@@ -41,7 +41,7 @@ export const create = mutation({
     unit: v.optional(v.string()),
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
-    goalType: v.optional(v.string()),
+    goalType: v.optional(v.union(v.literal("investment"), v.literal("bill"), v.literal("purchase"))),
     monthlyBudget: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -71,7 +71,7 @@ export const create = mutation({
             type: CATEGORY_TYPES.SAVING,
             targetAmount: args.targetAmount,
             targetDate: args.targetDate,
-            goalType: finalGoalType as any, // Cast to avoid strict typing issues with string vs union in mutation args
+            goalType: finalGoalType,
         });
 
         // AUTO-CREATE BUDGET if monthlyBudget provided
@@ -85,7 +85,7 @@ export const create = mutation({
             const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
             const existingBudget = await ctx.db.query("budgets")
                 .withIndex(args.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
-                    let builder = q.eq(args.householdId ? "householdId" : "userId", args.householdId || identity.subject)
+                    const builder = q.eq(args.householdId ? "householdId" : "userId", args.householdId || identity.subject)
                                    .eq("categoryId", linkedCategoryId!)
                                    .eq("year", fiscalYear)
                                    .eq("month", fiscalMonth);
@@ -172,7 +172,7 @@ export const update = mutation({
     unit: v.optional(v.string()),
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
-    goalType: v.optional(v.string()),
+    goalType: v.optional(v.union(v.literal("investment"), v.literal("bill"), v.literal("purchase"))),
     monthlyBudget: v.optional(v.string()),
     visibility: v.optional(v.union(v.literal("shared"), v.literal("private"))),
   },
@@ -209,15 +209,15 @@ export const update = mutation({
     if (args.name && account.linkedCategoryId) {
         await ctx.db.patch(account.linkedCategoryId, { 
             name: args.name,
-            targetAmount: targetAmount ?? undefined, // Only update if provided
+            targetAmount: targetAmount ?? undefined,
             targetDate: targetDate ?? undefined,
-            goalType: goalType as any ?? undefined
+            goalType: goalType ?? undefined
         });
     } else if (account.linkedCategoryId && (targetAmount !== undefined || targetDate !== undefined || goalType !== undefined)) {
          await ctx.db.patch(account.linkedCategoryId, { 
             targetAmount: targetAmount ?? undefined,
             targetDate: targetDate ?? undefined,
-            goalType: goalType as any ?? undefined
+            goalType: goalType ?? undefined
         });
     }
 
@@ -280,7 +280,7 @@ export const update = mutation({
             type: CATEGORY_TYPES.SAVING,
             targetAmount: targetAmount,
             targetDate: targetDate,
-            goalType: finalGoalType as any,
+            goalType: finalGoalType,
         });
 
         // Also create budget here if provided
@@ -294,7 +294,7 @@ export const update = mutation({
             const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
              const existingBudget = await ctx.db.query("budgets")
                 .withIndex(account.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
-                    let builder = q.eq(account.householdId ? "householdId" : "userId", account.householdId || identity.subject)
+                    const builder = q.eq(account.householdId ? "householdId" : "userId", account.householdId || identity.subject)
                                    .eq("categoryId", newLinkedCategoryId!)
                                    .eq("year", fiscalYear)
                                    .eq("month", fiscalMonth);

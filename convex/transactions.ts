@@ -966,6 +966,11 @@ export const create = mutation({
         else {
            const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
            const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
+
+           if (fromBalance < amount) {
+               throw new Error(`Insufficient balance in ${fromAccount.name}. Available: ${fromAccount.balance}`);
+           }
+
            await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
            await ctx.db.patch(toAccount._id, { balance: (toBalance + amount).toString() });
         }
@@ -973,6 +978,10 @@ export const create = mutation({
       } else {
         const fromBalance = parseFloat(fromAccount.balance.replace(/,/g, ''));
         const toBalance = parseFloat(toAccount.balance.replace(/,/g, ''));
+
+        if (fromBalance < amount) {
+            throw new Error(`Insufficient balance in ${fromAccount.name}. Available: ${fromAccount.balance}`);
+        }
 
         await ctx.db.patch(fromAccount._id, { balance: (fromBalance - amount).toString() });
         await ctx.db.patch(toAccount._id, { balance: (toBalance + amount).toString() });

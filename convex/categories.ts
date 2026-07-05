@@ -12,6 +12,32 @@ import {
   analyzeTransactionFlow 
 } from "./lib/finance";
 
+function calculateThisMonthContribution(
+  transactions: Doc<"transactions">[],
+  categoryId: Id<"categories">,
+  linkedAccountId: Id<"accounts"> | undefined,
+  startOfThisMonth: number
+): number {
+  return transactions
+    .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
+    .reduce((acc, t) => {
+      const amt = parseFloat(t.amount.replace(/,/g, '') || '0');
+      if (linkedAccountId) {
+        if (t.toAccountId === linkedAccountId) return acc + amt;
+        if (t.accountId === linkedAccountId) {
+          if (t.isGoalDisbursement) return acc;
+          return acc - amt;
+        }
+      }
+      if (t.categoryId === categoryId) return acc + amt;
+      if (t.isSplit && t.splits?.some(s => s.categoryId === categoryId)) {
+        const s = t.splits.find(s => s.categoryId === categoryId);
+        return acc + (s ? parseFloat(s.amount.replace(/,/g, '') || '0') : 0);
+      }
+      return acc;
+    }, 0);
+}
+
 export const getGoalDetails = query({
   args: {
     id: v.id("categories"),
@@ -54,7 +80,7 @@ export const getGoalDetails = query({
     let currentAmount = 0;
     
     if (linkedAccount) {
-        currentAmount = parseFloat(linkedAccount.balance.replace(/,/g, '') || '0');
+        currentAmount = Math.max(0, parseFloat(linkedAccount.balance.replace(/,/g, '') || '0'));
     } else {
         if (category.type === CATEGORY_TYPES.SAVING && category.lastResetDate) {
             const resetTime = new Date(category.lastResetDate).getTime();
@@ -117,24 +143,7 @@ export const getGoalDetails = query({
 
     const { start } = getFiscalMonthRange(currentYear, currentMonth, startDay);
     const startOfThisMonth = new Date(start).getTime();
-    const thisMonthContribution = transactions
-        .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
-        .reduce((acc, t) => {
-            const amt = parseFloat(t.amount.replace(/,/g, '') || '0');
-            if (linkedAccountId) {
-                if (t.toAccountId === linkedAccountId) return acc + amt;
-                if (t.accountId === linkedAccountId) {
-                    if (t.isGoalDisbursement) return acc;
-                    return acc - amt;
-                }
-            }
-            if (t.categoryId === id) return acc + amt;
-            if (t.isSplit && t.splits?.some(s => s.categoryId === id)) {
-                 const s = t.splits.find(s => s.categoryId === id);
-                 return acc + (s ? parseFloat(s.amount.replace(/,/g, '') || '0') : 0);
-            }
-            return acc;
-        }, 0);
+    const thisMonthContribution = calculateThisMonthContribution(transactions, id, linkedAccountId, startOfThisMonth);
 
     return {
         category,
@@ -428,7 +437,7 @@ export const get = query({
             const cLinkedAccountId = cLinkedAccount?._id;
 
             if (cLinkedAccount) {
-                 amount = parseFloat(cLinkedAccount.balance.replace(/,/g, '') || '0');
+                 amount = Math.max(0, parseFloat(cLinkedAccount.balance.replace(/,/g, '') || '0'));
             } else {
                 amount = baseSpendingMap[c._id] || 0;
                 if (c.lastResetDate) {
@@ -445,24 +454,7 @@ export const get = query({
                 }
             }
 
-            const thisMonthContribution = transactions
-                .filter(t => new Date(t.date).getTime() >= startOfThisMonth)
-                .reduce((acc, t) => {
-                    const amt = parseFloat(t.amount.replace(/,/g, '') || '0');
-                    if (cLinkedAccountId) {
-                        if (t.toAccountId === cLinkedAccountId) return acc + amt;
-                        if (t.accountId === cLinkedAccountId) {
-                            if (t.isGoalDisbursement) return acc;
-                            return acc - amt;
-                        }
-                    }
-                    if (t.categoryId === c._id) return acc + amt;
-                    if (t.isSplit && t.splits) {
-                        const s = t.splits.find(s => s.categoryId === c._id);
-                        if (s) return acc + parseFloat(s.amount.replace(/,/g, '') || '0');
-                    }
-                    return acc;
-                }, 0);
+            const thisMonthContribution = calculateThisMonthContribution(transactions, c._id, cLinkedAccountId, startOfThisMonth);
 
             return {
                 ...c,
@@ -485,7 +477,7 @@ export const create = mutation({
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
     enablePacing: v.optional(v.boolean()),
-    goalType: v.optional(v.string()),
+    goalType: v.optional(v.union(v.literal("investment"), v.literal("bill"), v.literal("purchase"))),
     monthlyBudget: v.optional(v.string()),
     hideAmount: v.optional(v.boolean()),
   },
@@ -504,7 +496,7 @@ export const create = mutation({
       ...rest,
       userId: identity.subject,
       status: GOAL_STATUS.ACTIVE,
-      goalType: args.goalType as any,
+      goalType: args.goalType,
       hideAmount: hideAmount ?? false,
     });
 
@@ -569,7 +561,7 @@ export const update = mutation({
     targetAmount: v.optional(v.string()),
     targetDate: v.optional(v.string()),
     enablePacing: v.optional(v.boolean()),
-    goalType: v.optional(v.string()),
+    goalType: v.optional(v.union(v.literal("investment"), v.literal("bill"), v.literal("purchase"))),
     monthlyBudget: v.optional(v.string()),
     hideAmount: v.optional(v.boolean()),
   },
@@ -587,7 +579,7 @@ export const update = mutation({
         if (category.userId !== identity.subject) throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(id, { ...rest, goalType: goalType as any, hideAmount: hideAmount ?? undefined });
+    await ctx.db.patch(id, { ...rest, goalType, hideAmount: hideAmount ?? undefined });
 
     if (monthlyBudget !== undefined) {
         let startDay = 1;
@@ -855,5 +847,36 @@ export const fixStuckCycleTemp = mutation({
         status: GOAL_STATUS.ACTIVE
     });
     return "Done";
+  },
+});
+
+export const resetNegativeGoalBalances = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const accounts = await ctx.db.query("accounts")
+      .withIndex("by_userId", q => q.eq("userId", identity.subject))
+      .collect();
+
+    const negativeGoalAccounts = accounts.filter(a =>
+      a.type === ACCOUNT_TYPES.SAVING &&
+      a.linkedCategoryId &&
+      parseFloat(a.balance.replace(/,/g, '')) < 0
+    );
+
+    for (const acc of negativeGoalAccounts) {
+      await ctx.db.patch(acc._id, { balance: "0" });
+    }
+
+    return {
+      fixed: negativeGoalAccounts.length,
+      accounts: negativeGoalAccounts.map(a => ({
+        name: a.name,
+        previousBalance: a.balance,
+        newBalance: "0",
+      })),
+    };
   },
 });

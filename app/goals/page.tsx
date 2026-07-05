@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,24 @@ import { cn } from '@/lib/utils'
 import { getFiscalDateDetails } from '@/lib/finance-utils'
 import { useRouter } from 'next/navigation'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+
+type EnrichedGoal = Doc<'categories'> & {
+  currentAmount: number
+  currentBudget: Doc<'budgets'> | undefined
+  thisMonthContribution: number
+}
+
+function SectionHeader({ title, icon: Icon, count, className }: { title: string, icon: React.ComponentType<{ className?: string }>, count: number, className?: string }) {
+  return (
+    <div className={cn("flex items-center gap-2 mb-3 pb-2 border-b", className)}>
+      <div className="p-1.5 rounded-md bg-muted">
+        <Icon className="h-4 w-4 text-foreground" />
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      <span className="text-xs text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full font-medium">{count}</span>
+    </div>
+  );
+}
 
 export default function GoalsPage() {
   const [openCreate, setOpenCreate] = useState(false)
@@ -43,7 +61,7 @@ export default function GoalsPage() {
   });
 
   // 3. Merge Data
-  const enrichedGoals = goals?.map(g => {
+  const enrichedGoals: EnrichedGoal[] | undefined = goals?.map(g => {
       const status = budgetData?.data?.find(b => b.category._id === g._id);
       return {
           ...g,
@@ -76,16 +94,6 @@ export default function GoalsPage() {
       if (!open) setCategoryToEdit(undefined)
   }
 
-  const SectionHeader = ({ title, icon: Icon, count, className }: { title: string, icon: any, count: number, className?: string }) => (
-      <div className={cn("flex items-center gap-2 mb-3 pb-2 border-b", className)}>
-          <div className="p-1.5 rounded-md bg-muted">
-            <Icon className="h-4 w-4 text-foreground" />
-          </div>
-          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-          <span className="text-xs text-muted-foreground ml-auto bg-muted px-2 py-0.5 rounded-full font-medium">{count}</span>
-      </div>
-  );
-
   return (
     <div className="pb-24 p-4 md:p-8 space-y-8 max-w-5xl mx-auto">
       <div className="flex justify-between items-end gap-4">
@@ -108,7 +116,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Security & Growth" icon={ShieldCheck} count={investments.length} className="text-chart-2" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {investments.map(goal => (
-                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
+                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                     ))}
                     {investments.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-2/5">
@@ -123,7 +131,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Upcoming Obligations" icon={CalendarClock} count={bills.length} className="text-chart-3" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {bills.map(goal => (
-                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
+                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                     ))}
                     {bills.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-3/5">
@@ -138,7 +146,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Wishlist" icon={Sparkles} count={purchases.length} className="text-chart-1" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {purchases.map(goal => (
-                        <GoalCard key={goal._id} goal={goal as any} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
+                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                     ))}
                     {purchases.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-1/5">
@@ -165,7 +173,7 @@ export default function GoalsPage() {
                     <CollapsibleContent>
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-4">
                             {completedGoals.map(goal => (
-                                <GoalCard key={goal._id} goal={goal as any} isCompleted onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
+                                <GoalCard key={goal._id} goal={goal} isCompleted onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
                             ))}
                         </div>
                     </CollapsibleContent>

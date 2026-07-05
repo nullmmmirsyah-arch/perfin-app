@@ -1,20 +1,35 @@
 'use client'
 
+import { useState } from 'react'
+import { useMutation } from 'convex/react'
+import { api } from '../convex/_generated/api'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Doc } from '../convex/_generated/dataModel'
 import { format } from 'date-fns'
 import { cn, formatCurrency } from '@/lib/utils'
 import { calculateGoalStrategy } from '@/lib/finance-utils'
-import { MoreVertical, Pencil } from 'lucide-react'
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from 'sonner'
 
 interface GoalCardProps {
   goal: Doc<'categories'> & { 
@@ -28,6 +43,8 @@ interface GoalCardProps {
 }
 
 export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }: GoalCardProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const deleteGoal = useMutation(api.categories.deleteCategory)
   const globalTarget = goal.targetAmount ? parseFloat(goal.targetAmount.replace(/,/g, '')) : 0
   const globalCollected = goal.currentAmount || 0
   
@@ -89,12 +106,23 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }:
                     <DropdownMenuItem 
                         onClick={(e) => {
                             e.stopPropagation();
-                            onEdit?.(goal as any);
+                            onEdit?.(goal);
                         }}
                         className="gap-2"
                     >
                         <Pencil className="h-3.5 w-3.5" />
                         <span>Edit Goal</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteDialogOpen(true);
+                        }}
+                        className="gap-2 text-destructive focus:text-destructive"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete</span>
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -140,6 +168,39 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }:
             )}
         </div>
       </div>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Goal</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{goal.name}&quot;? This action cannot be undone.
+              {goal.currentAmount && goal.currentAmount > 0 && (
+                <span className="block mt-2 text-destructive font-medium">
+                  This goal has {formatCurrency(goal.currentAmount)} in funds. Delete the linked account first if you want to preserve the money.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  await deleteGoal({ id: goal._id });
+                  toast.success("Goal deleted");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Failed to delete goal");
+                }
+                setDeleteDialogOpen(false);
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
