@@ -1004,36 +1004,55 @@ export const fixAllCarryovers = mutation({
     const now = new Date();
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
-    let allTransactions;
+    // Batch collect all budgets once — index by month and by category key for O(1) lookups
+    let allBudgets;
+    if (householdId) {
+      allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
+    } else {
+      allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId)).collect();
+    }
+    const budgetsByMonth = new Map<number, typeof allBudgets>();
+    const budgetByKey = new Map<string, typeof allBudgets[number]>();
+    for (const b of allBudgets) {
+      if (!budgetsByMonth.has(b.month)) budgetsByMonth.set(b.month, []);
+      budgetsByMonth.get(b.month)!.push(b);
+      budgetByKey.set(`${b.categoryId}_${b.year}_${b.month}`, b);
+    }
+
+    // Collect accounts and categories (small tables, unchanged)
     let allAccounts;
     let allCategories;
     if (householdId) {
-      allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
       allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
       allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
     } else {
-      allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
       allAccounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
       allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
     }
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
     const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
+    // Collect only transactions within fiscal range (month 0 → currentMonth)
+    const { start: fiscalStart } = getFiscalMonthRange(currentYear, 0, startDay);
+    const { end: fiscalEnd } = getFiscalMonthRange(currentYear, currentMonth, startDay);
+    let allTransactions;
+    if (householdId) {
+      allTransactions = await ctx.db.query("transactions")
+        .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", fiscalStart))
+        .filter(q => q.lte(q.field("date"), fiscalEnd))
+        .collect();
+    } else {
+      allTransactions = await ctx.db.query("transactions")
+        .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", fiscalStart))
+        .filter(q => q.lte(q.field("date"), fiscalEnd))
+        .collect();
+    }
+
     const correctedCarryover = new Map<string, number>();
     let totalRollovers = 0;
 
     for (let m = 0; m <= currentMonth; m++) {
-      let sourceBudgets;
-      if (householdId) {
-        sourceBudgets = await ctx.db.query("budgets")
-          .withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", currentYear).eq("month", m))
-          .collect();
-      } else {
-        sourceBudgets = await ctx.db.query("budgets")
-          .withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", currentYear).eq("month", m))
-          .collect();
-      }
-
+      const sourceBudgets = budgetsByMonth.get(m) ?? [];
       if (sourceBudgets.length === 0) continue;
 
       let targetMonth = m + 1;
@@ -1065,33 +1084,18 @@ export const fixAllCarryovers = mutation({
         correctedCarryover.set(b.categoryId, sisa);
 
         if (sisa !== 0) {
-          let targetBudget;
-          if (householdId) {
-            targetBudget = await ctx.db.query("budgets")
-              .withIndex("by_householdId_category_year_month", q =>
-                q.eq("householdId", householdId)
-                 .eq("categoryId", b.categoryId)
-                 .eq("year", targetYear)
-                 .eq("month", targetMonth)
-              ).first();
-          } else {
-            targetBudget = await ctx.db.query("budgets")
-              .withIndex("by_user_category_year_month", q =>
-                q.eq("userId", userId)
-                 .eq("categoryId", b.categoryId)
-                 .eq("year", targetYear)
-                 .eq("month", targetMonth)
-              ).first();
-          }
+          const targetKey = `${b.categoryId}_${targetYear}_${targetMonth}`;
+          const targetBudget = budgetByKey.get(targetKey);
 
           if (targetBudget) {
             const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
             if (Math.abs(targetCarryover - sisa) > 0.01) {
               await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
               totalRollovers++;
+              budgetByKey.set(targetKey, { ...targetBudget, carryoverAmount: sisa.toString() });
             }
           } else {
-            await ctx.db.insert("budgets", {
+            const newId = await ctx.db.insert("budgets", {
               userId,
               householdId,
               categoryId: b.categoryId,
@@ -1101,6 +1105,22 @@ export const fixAllCarryovers = mutation({
               carryoverAmount: sisa.toString()
             });
             totalRollovers++;
+
+            // Add to in-memory maps for subsequent month iterations
+            const newEntry = {
+              _id: newId,
+              _creationTime: Date.now(),
+              userId,
+              householdId,
+              categoryId: b.categoryId,
+              amount: "0" as const,
+              year: targetYear,
+              month: targetMonth,
+              carryoverAmount: sisa.toString(),
+            };
+            budgetByKey.set(targetKey, newEntry as typeof allBudgets[number]);
+            if (!budgetsByMonth.has(targetMonth)) budgetsByMonth.set(targetMonth, []);
+            budgetsByMonth.get(targetMonth)!.push(newEntry as typeof allBudgets[number]);
           }
         }
       }
