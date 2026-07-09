@@ -1159,7 +1159,9 @@ export const ensureCurrentRollover = mutation({
     }
 
     const rolloverCount = await performRollover(ctx, userId, householdId, prevYear, prevMonth, startDay);
-    await recomputeUserCache(ctx, userId, householdId);
+    if (rolloverCount > 0) {
+      await recomputeUserCache(ctx, userId, householdId);
+    }
     return { month: prevMonth, year: prevYear, rolloverCount };
   }
 });
