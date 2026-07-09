@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { 
   calculateSpendingByCategory, 
   AccountMap, 
@@ -344,30 +344,43 @@ export const get = query({
       query = query.filter((q) => q.lte(q.field("date"), end));
     }
 
-    // Manual Pagination & Filtering Logic to support Split Labels
-    const allCandidates = await query.order("desc").collect();
+    // Two-path pagination
+    const hasJsFilters = (categoryId && categoryId.length > 0) || (labelId && labelId.length > 0);
 
-    let filteredResults = allCandidates;
-    
-    // JS Filtering for Category & Label (handling Splits & Multi-Select)
-    if ((labelId && labelId.length > 0) || (categoryId && categoryId.length > 0)) {
-        filteredResults = allCandidates.filter(t => {
-            const matchesCat = !categoryId || categoryId.length === 0 || 
-                t.searchCategoryIds?.some(id => categoryId.includes(id));
-            
-            const matchesLabel = !labelId || labelId.length === 0 || 
-                t.searchLabelIds?.some(id => labelId.includes(id));
+    query = query.order("desc");
 
-            return matchesCat && matchesLabel;
-        });
+    let pageResults: Doc<"transactions">[];
+    let isDone: boolean;
+    let continueCursor: string;
+
+    if (!hasJsFilters) {
+      // Efficient DB-level pagination — only fetches numItems documents
+      const paginated = await query.paginate(paginationOpts);
+      pageResults = paginated.page;
+      isDone = paginated.isDone;
+      continueCursor = paginated.continueCursor;
+    } else {
+      // JS-side filtering for category/label requires over-fetching
+      const allCandidates = await query.collect();
+
+      let filteredResults = allCandidates;
+      if (categoryId?.length) {
+        filteredResults = filteredResults.filter(t =>
+          t.searchCategoryIds?.some(id => categoryId.includes(id))
+        );
+      }
+      if (labelId?.length) {
+        filteredResults = filteredResults.filter(t =>
+          t.searchLabelIds?.some(id => labelId.includes(id))
+        );
+      }
+
+      const cursor = paginationOpts.cursor ? parseInt(paginationOpts.cursor) : 0;
+      const limit = paginationOpts.numItems;
+      pageResults = filteredResults.slice(cursor, cursor + limit);
+      isDone = cursor + limit >= filteredResults.length;
+      continueCursor = isDone ? "" : (cursor + limit).toString();
     }
-
-    const cursor = paginationOpts.cursor ? parseInt(paginationOpts.cursor) : 0;
-    const limit = paginationOpts.numItems;
-    
-    const pageResults = filteredResults.slice(cursor, cursor + limit);
-    const isDone = cursor + limit >= filteredResults.length;
-    const continueCursor = isDone ? "" : (cursor + limit).toString();
 
     // Batch fetch related entities to avoid N+1 queries
     const accountIds = new Set<Id<"accounts">>();
