@@ -1032,22 +1032,6 @@ export const fixAllCarryovers = mutation({
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
     const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
-    // Collect only transactions within fiscal range (month 0 → currentMonth)
-    const { start: fiscalStart } = getFiscalMonthRange(currentYear, 0, startDay);
-    const { end: fiscalEnd } = getFiscalMonthRange(currentYear, currentMonth, startDay);
-    let allTransactions;
-    if (householdId) {
-      allTransactions = await ctx.db.query("transactions")
-        .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", fiscalStart))
-        .filter(q => q.lte(q.field("date"), fiscalEnd))
-        .collect();
-    } else {
-      allTransactions = await ctx.db.query("transactions")
-        .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", fiscalStart))
-        .filter(q => q.lte(q.field("date"), fiscalEnd))
-        .collect();
-    }
-
     const correctedCarryover = new Map<string, number>();
     let totalRollovers = 0;
 
@@ -1062,13 +1046,22 @@ export const fixAllCarryovers = mutation({
         targetYear++;
       }
 
+      // Query only this month's transactions (not the entire fiscal year)
       const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, m, startDay);
-      const sourceTransactions = allTransactions.filter(t => {
-        const tDate = new Date(t.date);
-        return tDate >= new Date(startOfFiscal) && tDate <= new Date(endOfFiscal);
-      });
+      let monthTransactions;
+      if (householdId) {
+        monthTransactions = await ctx.db.query("transactions")
+          .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", startOfFiscal))
+          .filter(q => q.lte(q.field("date"), endOfFiscal))
+          .collect();
+      } else {
+        monthTransactions = await ctx.db.query("transactions")
+          .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", startOfFiscal))
+          .filter(q => q.lte(q.field("date"), endOfFiscal))
+          .collect();
+      }
 
-      const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap, categoriesMap);
+      const spendingMap = calculateSpendingByCategory(monthTransactions, accountsMap, categoriesMap);
 
       for (const b of sourceBudgets) {
         const category = categoriesMap.get(b.categoryId);
