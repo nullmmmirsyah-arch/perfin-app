@@ -149,7 +149,7 @@ export const getExpensesTrend = query({
     })),
   },
   handler: async (ctx, args) => {
-    const { householdId, accountId, categoryId, labelId, dateRange } = args;
+    const { householdId, type, accountId, categoryId, labelId, dateRange } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -185,8 +185,14 @@ export const getExpensesTrend = query({
     const allEnd = currentEnd;
     query = query.filter(q => q.gte(q.field("date"), allStart)).filter(q => q.lte(q.field("date"), allEnd));
 
-    // Always filter to expenses only
-    query = query.filter(q => q.eq(q.field("type"), TRANSACTION_TYPES.EXPENSE));
+    // Filter by type(s) — fallback to expenses only
+    if (type && type.length > 0) {
+      query = query.filter((q) =>
+        q.or(...type.map(t => q.eq(q.field("type"), t)))
+      );
+    } else {
+      query = query.filter(q => q.eq(q.field("type"), TRANSACTION_TYPES.EXPENSE));
+    }
 
     // AccountId filter (DB side)
     if (accountId && accountId.length > 0) {
