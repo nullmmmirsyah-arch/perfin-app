@@ -128,14 +128,14 @@ export default function BudgetsPage() {
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
   const sweepBudgets = useMutation(convexApi.budgets.sweepBudgets)
   const rolloverBudgets = useMutation(convexApi.budgets.rolloverBudgets)
-  const fixAllCarryovers = useMutation(convexApi.budgets.fixAllCarryovers)
+  const ensureCurrentRollover = useMutation(convexApi.budgets.ensureCurrentRollover)
 
   const rolloverInitRef = useRef(false)
 
   useEffect(() => {
     if (activeHousehold && !rolloverInitRef.current) {
       rolloverInitRef.current = true
-      fixAllCarryovers({ householdId: householdId ?? undefined })
+      ensureCurrentRollover({ householdId: householdId ?? undefined })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeHousehold])

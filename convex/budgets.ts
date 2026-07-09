@@ -872,21 +872,34 @@ async function performRollover(
     targetYear++;
   }
 
-  const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
-  const startObj = new Date(startOfFiscal);
-  const endObj = new Date(endOfFiscal);
-
-  let allTransactions;
+  // Batch collect next-month budgets for O(1) target lookups
+  let allTargetBudgets;
   if (householdId) {
-    allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    allTargetBudgets = await ctx.db.query("budgets")
+      .withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", targetYear).eq("month", targetMonth))
+      .collect();
   } else {
-    allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+    allTargetBudgets = await ctx.db.query("budgets")
+      .withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", targetYear).eq("month", targetMonth))
+      .collect();
   }
+  const targetBudgetByCategory = new Map(allTargetBudgets.map(b => [b.categoryId, b]));
 
-  const sourceTransactions = allTransactions.filter(t => {
-    const tDate = new Date(t.date);
-    return tDate >= startObj && tDate <= endObj;
-  });
+  const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
+
+  // Query transactions with date range instead of full scan
+  let sourceTransactions;
+  if (householdId) {
+    sourceTransactions = await ctx.db.query("transactions")
+      .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", startOfFiscal))
+      .filter(q => q.lte(q.field("date"), endOfFiscal))
+      .collect();
+  } else {
+    sourceTransactions = await ctx.db.query("transactions")
+      .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", startOfFiscal))
+      .filter(q => q.lte(q.field("date"), endOfFiscal))
+      .collect();
+  }
 
   let allAccounts;
   if (householdId) {
@@ -917,24 +930,7 @@ async function performRollover(
       const sisa = (allocated + carryover - swept) - spent;
 
       if (sisa !== 0) {
-        let targetBudget;
-        if (householdId) {
-          targetBudget = await ctx.db.query("budgets")
-            .withIndex("by_householdId_category_year_month", q => 
-              q.eq("householdId", householdId)
-               .eq("categoryId", b.categoryId)
-               .eq("year", targetYear)
-               .eq("month", targetMonth)
-            ).first();
-        } else {
-          targetBudget = await ctx.db.query("budgets")
-            .withIndex("by_user_category_year_month", q => 
-              q.eq("userId", userId)
-               .eq("categoryId", b.categoryId)
-               .eq("year", targetYear)
-               .eq("month", targetMonth)
-            ).first();
-        }
+        const targetBudget = targetBudgetByCategory.get(b.categoryId);
 
         if (targetBudget) {
           const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
@@ -1032,6 +1028,9 @@ export const fixAllCarryovers = mutation({
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
     const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
+    // Lazy-load fiscal year transactions once (only if any month has budgets)
+    let allTransactions: Doc<"transactions">[] | undefined;
+
     const correctedCarryover = new Map<string, number>();
     let totalRollovers = 0;
 
@@ -1046,22 +1045,31 @@ export const fixAllCarryovers = mutation({
         targetYear++;
       }
 
-      // Query only this month's transactions (not the entire fiscal year)
-      const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, m, startDay);
-      let monthTransactions;
-      if (householdId) {
-        monthTransactions = await ctx.db.query("transactions")
-          .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", startOfFiscal))
-          .filter(q => q.lte(q.field("date"), endOfFiscal))
-          .collect();
-      } else {
-        monthTransactions = await ctx.db.query("transactions")
-          .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", startOfFiscal))
-          .filter(q => q.lte(q.field("date"), endOfFiscal))
-          .collect();
+      // Single efficient range query for all fiscal year transactions
+      const { start: monthStart, end: monthEnd } = getFiscalMonthRange(currentYear, m, startDay);
+
+      if (!allTransactions) {
+        const { start: fiscalStart } = getFiscalMonthRange(currentYear, 0, startDay);
+        const { end: fiscalEnd } = getFiscalMonthRange(currentYear, currentMonth, startDay);
+        if (householdId) {
+          allTransactions = await ctx.db.query("transactions")
+            .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", fiscalStart))
+            .filter(q => q.lte(q.field("date"), fiscalEnd))
+            .collect();
+        } else {
+          allTransactions = await ctx.db.query("transactions")
+            .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", fiscalStart))
+            .filter(q => q.lte(q.field("date"), fiscalEnd))
+            .collect();
+        }
       }
 
-      const spendingMap = calculateSpendingByCategory(monthTransactions, accountsMap, categoriesMap);
+      const sourceTransactions = allTransactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate >= new Date(monthStart) && tDate <= new Date(monthEnd);
+      });
+
+      const spendingMap = calculateSpendingByCategory(sourceTransactions, accountsMap, categoriesMap);
 
       for (const b of sourceBudgets) {
         const category = categoriesMap.get(b.categoryId);
