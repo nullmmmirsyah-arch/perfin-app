@@ -274,10 +274,12 @@ export default function TransactionsPage() {
                     {/* ANALYTICS VIEW */}
                     <CarouselItem className="basis-full">
                          <div className="space-y-4 px-1">
+                              {activeTab === "analytics" && (
                               <TransactionAnalytics 
                                  transactions={(displayTransactions ?? []) as TransactionWithDetails[]} 
                                 filters={filters}
                              />
+                              )}
                              {!isSearching && status === "CanLoadMore" && (
                                 <div className="mt-8 flex justify-center">
                                     <p className="text-xs text-muted-foreground">
