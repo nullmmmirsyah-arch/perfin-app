@@ -183,6 +183,24 @@ export const getBudgetStatus = query({
     // 10. Combine data for Response
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
 
+    // Batch-fetch saving category reset transactions (avoid N+1)
+    const savingResetCategories = categories.filter(c => c.type === 'saving' && c.lastResetDate);
+    let allResetTxns: any[] = [];
+    let earliestResetDate: string | null = null;
+    if (savingResetCategories.length > 0) {
+        earliestResetDate = savingResetCategories.reduce((min, c) => !min || c.lastResetDate! < min ? c.lastResetDate! : min, null as string | null);
+        if (householdId) {
+            allResetTxns = await ctx.db.query("transactions")
+                .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", earliestResetDate!))
+                .collect();
+        } else {
+            allResetTxns = await ctx.db.query("transactions")
+                .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", earliestResetDate!))
+                .collect();
+        }
+    }
+    const savingResetDateMap = new Map(savingResetCategories.map(c => [c._id, c.lastResetDate!]));
+
     const data = await Promise.all(
         categories
             .filter(c => (c.type === 'expense' || c.type === 'saving') && c.status !== 'achieved' && c.status !== 'archived' && !c.isArchived)
@@ -192,15 +210,10 @@ export const getBudgetStatus = query({
                 
                 let accumulated = accumulatedByCategoryMap.get(category._id) || 0;
                 
-                if (category.type === 'saving' && category.lastResetDate) {
-                    const resetTxns = householdId
-                        ? await ctx.db.query("transactions")
-                            .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", category.lastResetDate!))
-                            .collect()
-                        : await ctx.db.query("transactions")
-                            .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", category.lastResetDate!))
-                            .collect();
-                    const resetSpending = calculateSpendingByCategory(resetTxns, accountsMap, categoriesMap);
+                const lastResetDate = savingResetDateMap.get(category._id);
+                if (lastResetDate && allResetTxns.length > 0) {
+                    const categoryResetTxns = allResetTxns.filter(t => t.date >= lastResetDate);
+                    const resetSpending = calculateSpendingByCategory(categoryResetTxns, accountsMap, categoriesMap);
                     accumulated = resetSpending[category._id] ?? 0;
                 }
                 
@@ -324,26 +337,36 @@ export const getBudgetAssistance = query({
     const prevSpending = calculateSpendingByCategory(prevTransactions, accountsMap, categoriesMap);
     const lastMonthSpent = prevSpending[categoryId] || 0;
 
-    // 3. Average Spending (Last 3 months) — indexed date range per month
+    // 3. Average Spending (Last 3 months) — single range query + in-memory partition
     let totalSpent3Months = 0;
     let monthsWithData = 0;
+
+    let firstM = targetMonth - 3, firstY = targetYear;
+    while (firstM < 0) { firstM += 12; firstY--; }
+    let lastM = targetMonth - 1, lastY = targetYear;
+    while (lastM < 0) { lastM += 12; lastY--; }
+
+    const { start: rangeStart } = getFiscalMonthRange(firstY, firstM, startDay);
+    const { end: rangeEnd } = getFiscalMonthRange(lastY, lastM, startDay);
+
+    let rangeTransactions;
+    if (householdId) {
+        rangeTransactions = await ctx.db.query("transactions")
+            .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", rangeStart).lte("date", rangeEnd))
+            .collect();
+    } else {
+        rangeTransactions = await ctx.db.query("transactions")
+            .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", rangeStart).lte("date", rangeEnd))
+            .collect();
+    }
+
     for (let i = 1; i <= 3; i++) {
         let m = targetMonth - i;
         let y = targetYear;
         while (m < 0) { m += 12; y--; }
 
         const { start, end } = getFiscalMonthRange(y, m, startDay);
-        let monthTx;
-        if (householdId) {
-            monthTx = await ctx.db.query("transactions")
-                .withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", start).lte("date", end))
-                .collect();
-        } else {
-            monthTx = await ctx.db.query("transactions")
-                .withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", start).lte("date", end))
-                .collect();
-        }
-
+        const monthTx = rangeTransactions.filter(t => t.date >= start && t.date <= end);
         const spending = calculateSpendingByCategory(monthTx, accountsMap, categoriesMap);
         const val = spending[categoryId] || 0;
 
@@ -427,6 +450,19 @@ export const getMonthEndProposals = query({
     const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
     const prevSpending = calculateSpendingByCategory(prevTransactions, accountsMap, categoriesMap);
 
+    // Pre-fetch current-month budgets once for O(1) lookup (avoid N+1)
+    let currentBudgets;
+    if (householdId) {
+        currentBudgets = await ctx.db.query("budgets")
+            .withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", currentYear).eq("month", currentMonth))
+            .collect();
+    } else {
+        currentBudgets = await ctx.db.query("budgets")
+            .withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", currentYear).eq("month", currentMonth))
+            .collect();
+    }
+    const currentBudgetMap = new Map(currentBudgets.map(b => [b.categoryId, b]));
+
     const proposals: { type: 'sweep' | 'rollover', categoryId: Id<"categories">, categoryName: string, amount: number }[] = [];
 
     for (const b of prevBudgets) {
@@ -448,17 +484,7 @@ export const getMonthEndProposals = query({
         }
 
         if (category?.enablePacing && sisa !== 0) {
-            let targetBudget;
-            if (householdId) {
-                targetBudget = await ctx.db.query("budgets")
-                    .withIndex("by_householdId_category_year_month", q => q.eq("householdId", householdId).eq("categoryId", b.categoryId).eq("year", currentYear).eq("month", currentMonth))
-                    .first();
-            } else {
-                targetBudget = await ctx.db.query("budgets")
-                    .withIndex("by_user_category_year_month", q => q.eq("userId", userId).eq("categoryId", b.categoryId).eq("year", currentYear).eq("month", currentMonth))
-                    .first();
-            }
-
+            const targetBudget = currentBudgetMap.get(b.categoryId);
             const targetCarryoverValue = targetBudget ? parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0') : 0;
 
             if (!targetBudget || Math.abs(targetCarryoverValue - sisa) > 0.01) {
@@ -647,25 +673,17 @@ export const moveBudgetFunds = mutation({
         // Fetch spending for validation
         const { start: startOfMonth, end: endOfMonth } = getFiscalMonthRange(year, month, startDay);
         
-        // Fetch all transactions for this household first
-        let allTransactions;
+        // Fetch transactions scoped to fiscal month via indexed date range
+        let transactions;
         if (householdId) {
-            allTransactions = await ctx.db.query("transactions")
-                .withIndex("by_householdId_date", q => q.eq("householdId", householdId))
+            transactions = await ctx.db.query("transactions")
+                .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", startOfMonth).lte("date", endOfMonth))
                 .collect();
         } else {
-            allTransactions = await ctx.db.query("transactions")
-                .withIndex("by_userId_date", q => q.eq("userId", userId))
+            transactions = await ctx.db.query("transactions")
+                .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", startOfMonth).lte("date", endOfMonth))
                 .collect();
         }
-        
-        // Filter transactions within the fiscal month using Date objects
-        const startDateObj = new Date(startOfMonth);
-        const endDateObj = new Date(endOfMonth);
-        const transactions = allTransactions.filter(t => {
-            const txDate = new Date(t.date);
-            return txDate >= startDateObj && txDate <= endDateObj;
-        });
 
         // Get Account Map for accurate spending calculation
         let allAccounts;
@@ -795,20 +813,17 @@ export const sweepBudgets = mutation({
 
     // 2. Calculate Spending using Helper
     const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
-    const startObj = new Date(startOfFiscal);
-    const endObj = new Date(endOfFiscal);
 
-    let allTransactions;
+    let monthTransactions;
     if (householdId) {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        monthTransactions = await ctx.db.query("transactions")
+            .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+            .collect();
     } else {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+        monthTransactions = await ctx.db.query("transactions")
+            .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+            .collect();
     }
-
-    const monthTransactions = allTransactions.filter(t => {
-        const tDate = new Date(t.date);
-        return tDate >= startObj && tDate <= endObj;
-    });
 
     // Accounts for helper
     let allAccounts;
@@ -1214,12 +1229,28 @@ export const getBudgetReport = query({
         categories = categories.filter(c => c._id === categoryId);
     }
 
-    // 2. Get all transactions
+    // 2. Calculate date range for the report period
+    let earliestYear = currentYear, earliestMonth = currentMonth, latestYear = currentYear, latestMonth = currentMonth;
+    for (let i = months - 1; i >= 0; i--) {
+        let m = currentMonth - i;
+        let y = currentYear;
+        while (m < 0) { m += 12; y--; }
+        while (m > 11) { m -= 12; y++; }
+        if (i === months - 1) { earliestYear = y; earliestMonth = m; }
+        if (i === 0) { latestYear = y; latestMonth = m; }
+    }
+    const { start: reportStart } = getFiscalMonthRange(earliestYear, earliestMonth, startDay);
+    const { end: reportEnd } = getFiscalMonthRange(latestYear, latestMonth, startDay);
+
     let allTransactions;
     if (householdId) {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+        allTransactions = await ctx.db.query("transactions")
+            .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", reportStart).lte("date", reportEnd))
+            .collect();
     } else {
-        allTransactions = await ctx.db.query("transactions").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+        allTransactions = await ctx.db.query("transactions")
+            .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", reportStart).lte("date", reportEnd))
+            .collect();
     }
 
     // 3. Get all accounts
