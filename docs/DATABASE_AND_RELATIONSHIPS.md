@@ -57,10 +57,13 @@ To support partial settlements (installments), we use a self-referential relatio
 - **Set Limit Action:**
     - When user edits budget (via BudgetDrawer or QuickAdjust), both `amount` and `initialAmount` are set to the new value.
     - `totalAdjustments` remains unchanged.
-- **Move Funds (Backend only — UI tab removed):**
-    - `moveBudgetFunds` mutation still exists for backward compatibility.
-    - Users now adjust limits directly per category instead of moving funds between categories.
-    - Source: `totalAdjustments -= moveAmount`. Destination: `totalAdjustments += moveAmount`.
+- **Move Funds (Standalone Drawer):**
+    - `moveBudgetFunds` mutation powers `components/MoveFundsDrawer.tsx`, accessible via "Move Funds" button in the budget page action bar.
+    - Supports transfers from Unassigned Cash or other category budgets to any category (or back to Unassigned).
+    - `toCategoryId` is optional — `undefined` returns funds to Unassigned Cash.
+    - Source budget: `amount -= moveAmount` (carryoverAmount NOT modified to avoid `getMonthEndProposals` invariant break).
+    - Destination budget: `amount += moveAmount`, `totalAdjustments += moveAmount`.
+    - Self-transfer guarded: `fromCategoryId === toCategoryId` throws error.
 - **Month-End Processing (Lazy Query):**
     - Proposal calculation extracted to `getMonthEndProposals` query (called separately, not part of `getBudgetStatus`).
     - **Formula for Remaining Funds:** `(Allocated + Carryover - Swept) - Spent`.

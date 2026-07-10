@@ -65,7 +65,7 @@
 - **Swipeable Views:** Separate sections for "Monthly Expenses" and "Savings & Goals" navigable via swipe.
 - **Move Money (Rule 3):**
     - Users can easily move funds from **Unassigned Cash** or **Other Categories** to cover overspending or assign funds.
-    - **Smart Drawer:** Budget drawer features "Set Limit" with quick-adjust preset buttons and real-time preview of remaining balance. (The "Move Funds" tab was removed; users instead adjust limits directly per category.)
+    - **Smart Drawer:** Budget drawer features "Set Limit" with quick-adjust preset buttons and real-time preview of remaining balance. **Move Funds** has its own dedicated drawer accessible via the "Move Funds" button in the budget page action bar, supporting transfers between categories and Unassigned Cash with real-time preview of remaining budgets.
 - **Real-time Tracking:** Visual progress bars synced with Dashboard.
     - **Expense Budget:** Tracks `Spent / Limit`.
     - **Savings/Goals Budget:** Tracks `Monthly Contribution / Monthly Target`. Shows a **"Monthly Goal Met"** celebration badge when the monthly saving target is reached.
