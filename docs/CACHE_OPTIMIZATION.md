@@ -129,6 +129,17 @@ const recent = await ctx.db.query("transactions")
 
 **Fix:** Changed to indexed date-range query that only fetches expense-type budgets for the current fiscal period.
 
+### 6 DB I/O optimasi budgeting (July 2026)
+
+| Fungsi | Sebelum | Sesudah |
+|--------|---------|---------|
+| **moveBudgetFunds** | `by_householdId_date` tanpa `.gte/.lte` → fetch semua transaksi | `.gte/.lte` di index — hanya 1 bulan |
+| **sweepBudgets** | `by_householdId` (no date) + JS filter → full scan | `by_householdId_date` + `.gte/.lte` |
+| **getBudgetReport** | `by_householdId` (no date) → full scan | `by_householdId_date` + range reports |
+| **getMonthEndProposals** | N sequential query per pacing category (N+1) | 1 pre-fetch + `Map.get()` O(1) |
+| **getBudgetStatus** | N parallel query per saving reset category (N+1) | 1 batch query + in-memory filter |
+| **getBudgetAssistance** | 3 sequential month queries | 1 range query + in-memory partition |
+
 ## Remaining Known Issues
 
 ### `getDashboardSummary` still has 2 full scans
