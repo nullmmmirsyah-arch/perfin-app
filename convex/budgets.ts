@@ -601,7 +601,7 @@ export const moveBudgetFunds = mutation({
   args: {
     householdId: v.optional(v.id("households")),
     fromCategoryId: v.optional(v.id("categories")), // null = Unassigned
-    toCategoryId: v.id("categories"),
+    toCategoryId: v.optional(v.id("categories")), // null = Return to Unassigned
     amount: v.string(),
     month: v.number(),
     year: v.number(),
@@ -620,6 +620,8 @@ export const moveBudgetFunds = mutation({
 
     const moveAmount = parseFloat(amount.replace(/,/g, '') || '0');
     if (moveAmount <= 0) throw new Error("Amount must be greater than 0");
+    if (!fromCategoryId && !toCategoryId) throw new Error("Specify source or destination");
+    if (fromCategoryId && toCategoryId && fromCategoryId === toCategoryId) throw new Error("Source and destination cannot be the same");
 
     // 1. Fetch Budgets
     let allBudgets;
@@ -736,27 +738,29 @@ export const moveBudgetFunds = mutation({
         // Unassigned reduces automatically when we increase a budget limit. No manual patch needed for "Unassigned" entity.
     }
 
-    // 3. Increase Destination Budget and track adjustment
-    const destBudget = allBudgets.find(b => b.categoryId === toCategoryId);
-    if (destBudget) {
-        const currentDest = parseFloat(destBudget.amount.replace(/,/g, '') || '0');
-        const currentDestAdjustments = parseFloat(destBudget.totalAdjustments?.replace(/,/g, '') || '0');
-        await ctx.db.patch(destBudget._id, { 
-            amount: (currentDest + moveAmount).toString(),
-            totalAdjustments: (currentDestAdjustments + moveAmount).toString()
-        });
-    } else {
-        // New budget created via move funds - set as initial with adjustments
-        await ctx.db.insert("budgets", {
-            userId,
-            householdId,
-            categoryId: toCategoryId,
-            amount: moveAmount.toString(),
-            year,
-            month,
-            initialAmount: "0",
-            totalAdjustments: moveAmount.toString(),
-        });
+    // 3. Increase Destination Budget and track adjustment (skip if returning to Unassigned)
+    if (toCategoryId) {
+        const destBudget = allBudgets.find(b => b.categoryId === toCategoryId);
+        if (destBudget) {
+            const currentDest = parseFloat(destBudget.amount.replace(/,/g, '') || '0');
+            const currentDestAdjustments = parseFloat(destBudget.totalAdjustments?.replace(/,/g, '') || '0');
+            await ctx.db.patch(destBudget._id, { 
+                amount: (currentDest + moveAmount).toString(),
+                totalAdjustments: (currentDestAdjustments + moveAmount).toString()
+            });
+        } else {
+            // New budget created via move funds - set as initial with adjustments
+            await ctx.db.insert("budgets", {
+                userId,
+                householdId,
+                categoryId: toCategoryId,
+                amount: moveAmount.toString(),
+                year,
+                month,
+                initialAmount: "0",
+                totalAdjustments: moveAmount.toString(),
+            });
+        }
     }
 
     await recomputeUserCache(ctx, userId, householdId);

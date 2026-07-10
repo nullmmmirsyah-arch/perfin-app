@@ -19,13 +19,14 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import BudgetDrawer from '@/components/BudgetDrawer'
+import MoveFundsDrawer from '@/components/MoveFundsDrawer'
 import { Doc, Id } from '../../convex/_generated/dataModel'
 import { cn, formatCurrency } from '@/lib/utils'
-import { addMonths, subMonths, format } from 'date-fns'
+import { addMonths, subMonths, format, differenceInCalendarDays } from 'date-fns'
 import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { BudgetListSkeleton } from '@/components/skeletons'
-import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails, getFiscalMonthRange } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails, getFiscalMonthRange, calculateFiscalDaysRemaining } from '@/lib/finance-utils'
 import BudgetCard from '@/components/BudgetCard'
 
 import {
@@ -61,6 +62,7 @@ import { MonthEndProcessDialog } from '@/components/budgets/MonthEndProcessDialo
 
 export default function BudgetsPage() {
   const [open, setOpen] = useState(false)
+  const [moveFundsOpen, setMoveFundsOpen] = useState(false)
   const [showMonthEndDialog, setShowMonthEndDialog] = useState(false)
   const [isProcessingMonthEnd, setIsProcessingMonthEnd] = useState(false)
   
@@ -205,44 +207,12 @@ export default function BudgetsPage() {
   const nextMonth = () => setSelectedDate(curr => addMonths(curr, 1))
   const prevMonth = () => setSelectedDate(curr => subMonths(curr, 1))
 
-  // Calculate Days Remaining for Safe Spend Logic
-  // This logic is purely visual for the Budget page header/context, but the cards use centralized logic.
-  // We can simplify or use helper if needed, but BudgetCard handles its own logic via props.
-  const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
-  const daysPassed = selectedDate.getDate(); // Rough approx for context if needed, but not critical.
-  
-  // Actually, let's just pass the raw data to BudgetCard which handles fiscal logic now.
-  const daysRemaining = 0; // Placeholder, BudgetCard calculates it or we pass it? 
-  // Wait, BudgetCard PROPS has 'daysRemaining'.
-  // We should use our new helper here too!
-  // But wait, helper calculates "Current Fiscal Days Remaining".
-  // If we are viewing a FUTURE month, daysRemaining is full month.
-  // If PAST, 0.
-  
-  // Let's keep it simple: pass 0 and let BudgetCard/Helper handle or refactor.
-  // Actually, BudgetCard uses `calculateFiscalDaysRemaining` if we don't pass it? No, it takes a prop.
-  // DailyOperationsCard uses the helper internaly.
-  // BudgetCard should probably calculate it internally too or accept it.
-  // In `BudgetCard.tsx` I see: `const dailySafeSpend = remaining / daysRemaining;`
-  // It uses the prop.
-  
-  // We need to calculate `daysRemaining` correctly here for the PROP.
-  // Helper `calculateFiscalDaysRemaining` assumes "Current Active Cycle".
-  // If `selectedDate` !== Current Cycle, we need logic.
-  
-  let calculatedDaysRemaining = 0;
-  if (isCurrentPeriod) {
-      // Calculate real remaining days for current cycle
-      // We can use the helper from lib, but we need to import it.
-      // Or duplicate logic briefly:
-      // Let's import it!
-      // But wait, I didn't import it at top.
-      // Let's just use 1 for now to avoid breaking, or fix import.
-      calculatedDaysRemaining = 1; // Placeholder
-  } else if (!isPastMonth) {
-      // Future
-      calculatedDaysRemaining = 30;
-  }
+  const calculatedDaysRemaining = (() => {
+    if (isPastMonth) return 0;
+    if (isCurrentPeriod) return calculateFiscalDaysRemaining(budgetStartDay);
+    const { start: fsStart, end: fsEnd } = getFiscalMonthRange(fiscalYear, fiscalMonth, budgetStartDay);
+    return differenceInCalendarDays(fsEnd, fsStart) + 1;
+  })();
 
   const savings = budgetData?.data?.filter(item => item.category.type === 'saving') || []
   const expenses = budgetData?.data?.filter(item => item.category.type === 'expense') || []
@@ -317,6 +287,15 @@ export default function BudgetsPage() {
               </Button>
            </div>
            
+           <Button
+             variant="outline"
+             size="sm"
+             onClick={() => setMoveFundsOpen(true)}
+             className="h-9 text-xs px-3"
+           >
+             Move Funds
+           </Button>
+
            {isAdmin && !isPastMonth && (
              <Popover>
                 <PopoverTrigger asChild>
@@ -391,6 +370,13 @@ export default function BudgetsPage() {
         onOpenChange={setOpen}
         defaultCategory={selectedCategory}
         currentAmount={selectedAmount}
+        year={fiscalYear}
+        month={fiscalMonth}
+      />
+
+      <MoveFundsDrawer
+        open={moveFundsOpen}
+        onOpenChange={setMoveFundsOpen}
         year={fiscalYear}
         month={fiscalMonth}
       />
