@@ -120,9 +120,12 @@ export default function BudgetsPage() {
                           fiscalYear === currentFiscalDate.getFullYear();
   const isPastMonth = new Date(fiscalYear, fiscalMonth) < new Date(currentFiscalDate.getFullYear(), currentFiscalDate.getMonth());
 
+  const monthEndProposals = useQuery(convexApi.budgets.getMonthEndProposals, {
+    householdId: householdId ?? undefined,
+  })
+
   const budgetStatus = budgetData?.data
   const unassignedCash = budgetData?.unassignedCash ?? 0
-  const monthEndProposals = budgetData?.monthEndProposals || []
   const breakdown = budgetData?.breakdown;
 
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
@@ -358,7 +361,7 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {monthEndProposals.length > 0 && !isPastMonth && (
+      {monthEndProposals && monthEndProposals.length > 0 && !isPastMonth && (
         <div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/10 text-primary flex justify-between items-center">
             <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -378,7 +381,7 @@ export default function BudgetsPage() {
       <MonthEndProcessDialog 
         open={showMonthEndDialog} 
         onOpenChange={setShowMonthEndDialog}
-        proposals={monthEndProposals}
+        proposals={monthEndProposals || []}
         onConfirm={handleSweep}
         isProcessing={isProcessingMonthEnd}
       />

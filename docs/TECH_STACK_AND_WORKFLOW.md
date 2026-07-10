@@ -123,25 +123,22 @@
 5.  **Performance Optimization:**
     - **Avoid N+1 Queries:** When fetching lists of items with related data (e.g., Transactions with Accounts/Categories), always use **Batch Fetching**.
     - **Pattern:** Collect all IDs first -> `Promise.all(ids.map(ctx.db.get))` -> Map results back. **Do NOT** await `ctx.db.get` inside a loop.
-    - **Intentional Global Fetching (`allTransactions`):** In queries like `getBudgetStatus`, fetching the entire transaction history for a user/household is **intentional**.
-        - *Reasoning:* It is required for cumulative calculations (e.g., Accumulated Savings progress) and global "Unassigned Cash" logic which relies on historical data. Since this data is already in memory for these core features, filtering it for smaller tasks (like `thisMonthIncome`) is more efficient than making multiple targeted database queries.
+    - **Date-Range Indexed Queries over Full Scans:** Prefer indexed date-range queries (`by_userId_date` / `by_householdId_date`) over full-table `.collect()` + JS filter. `getBudgetStatus` and related queries now use this pattern — fetching only the current fiscal period's transactions.
+    - **Lazy Sub-queries for Month-End:** Heavy operations like month-end proposal calculation are extracted into separate queries (`getMonthEndProposals`) rather than bundled into the main budget query.
     - **Memoization (Frontend):** Use `useMemo` for heavy client-side grouping or filtering operations (e.g., `TransactionListGrouped`), especially when dealing with large datasets on mobile devices.
-    - **Fiscal Month Filtering:**
-        - When filtering transactions within a fiscal period, use **manual JS filter with Date objects** instead of Convex query filter.
-        - **Reason:** Convex query filter with string comparison does not work correctly for date range filtering.
+    - **Date-Range Queries with Composite Index:**
+        - Filter transactions within a fiscal period using the composite `by_userId_date` / `by_householdId_date` index with `.gte/.lte`. This avoids full-table scans entirely.
+        - **Prerequisite:** The composite index must exist in `convex/schema.ts`.
         - **Pattern:**
             ```typescript
-            // ✅ CORRECT - Manual filter with Date objects
-            const allTxs = await ctx.db.query("transactions").collect();
-            const filtered = allTxs.filter(t => {
-                const txDate = new Date(t.date);
-                return txDate >= startDateObj && txDate <= endDateObj;
-            });
-            
-            // ❌ INCORRECT - Convex query filter (does not work)
+            // ✅ CORRECT — Index-filtered, only fetches needed rows
             const txs = await ctx.db.query("transactions")
-                .filter(q => q.gte(q.field("date"), startOfMonth)...)
-                .collect();
+              .withIndex("by_userId_date", q => q.eq("userId", uid).gte("date", start).lte("date", end))
+              .collect();
+            
+            // ❌ INCORRECT — Full table scan + JS filter (expensive)
+            const allTxs = await ctx.db.query("transactions").collect();
+            const filtered = allTxs.filter(t => t.date >= start && t.date <= end);
             ```
 
 6.  **Context-Specific Logic vs. Centralized Helpers:**

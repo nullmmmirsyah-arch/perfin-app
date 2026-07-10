@@ -115,6 +115,20 @@ const recent = await ctx.db.query("transactions")
   .collect();
 ```
 
+## Recent Optimizations
+
+### `getBudgetAssistance` — 4 full scans → 0 (June 2026)
+
+**Before:** Did 4 full-table `.collect()` calls — `transactions` (x2), `budgets` (x2).
+
+**Fix:** Replaced with indexed month-scoped queries and extracted month-end proposal calculation into a separate lazy query `getMonthEndProposals`. The main budget query no longer computes proposals synchronously.
+
+### `upsertBudget` — full scan → scan of expense budgets only (June 2026)
+
+**Before:** Fetched all budgets for the user to calculate default spending power for new budgets.
+
+**Fix:** Changed to indexed date-range query that only fetches expense-type budgets for the current fiscal period.
+
 ## Remaining Known Issues
 
 ### `getDashboardSummary` still has 2 full scans

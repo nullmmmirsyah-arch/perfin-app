@@ -43,27 +43,30 @@ To support partial settlements (installments), we use a self-referential relatio
 - **Relation:** A `budget` document exists for a unique combination of `categoryId`, `year`, and `month`.
 - **Fiscal Start Day:** All monthly groupings are calculated using `budgetStartDay` from the household settings. 
     - *Example:* If Start Day is 25, a transaction on Jan 26 belongs to the "February" budget period.
-- **Budget Breakdown Fields:**
-    - `initialAmount`: The initial allocation from "Set Limit" action. Updated whenever user changes budget via "Set Limit".
-    - `totalAdjustments`: Accumulated changes from "Move Funds" (can be negative).
-    - `amount`: The current/effective amount.
-- **Budget Formula:**
+- **Budget Fields:**
+    - `amount`: Current budget allocation for the period.
+    - `initialAmount`: Original allocation from "Set Limit" action. Updated when user changes budget via "Set Limit".
+    - `totalAdjustments`: Accumulated changes from "Move Funds" mutation (can be negative). Stored for audit trail.
+    - `carryoverAmount`: Debt (negative) or surplus (positive) carried from previous month (paced budgets only).
+    - `sweptAmount`: Unspent funds returned to wallet at month-end (non-pacing budgets only).
+- **Budget Formula (effective limit):**
     ```
-    Total = initialAmount + totalAdjustments + carryoverAmount
+    Effective Limit = amount + carryoverAmount
+    Remaining = Effective Limit - sweptAmount - spent
     ```
 - **Set Limit Action:**
-    - When user edits budget via "Set Limit" tab, both `amount` and `initialAmount` are updated.
+    - When user edits budget (via BudgetDrawer or QuickAdjust), both `amount` and `initialAmount` are set to the new value.
     - `totalAdjustments` remains unchanged.
-    - Example: Budget changed from 3jt to 1jt → `amount=1jt`, `initialAmount=1jt`
-- **Move Funds Logic:**
-    - Source category: `totalAdjustments -= moveAmount` (can go negative).
-    - Destination category: `totalAdjustments += moveAmount`.
-    - `initialAmount` never changes during move funds.
-- **Month-End Processing (Review & Process):**
+- **Move Funds (Backend only — UI tab removed):**
+    - `moveBudgetFunds` mutation still exists for backward compatibility.
+    - Users now adjust limits directly per category instead of moving funds between categories.
+    - Source: `totalAdjustments -= moveAmount`. Destination: `totalAdjustments += moveAmount`.
+- **Month-End Processing (Lazy Query):**
+    - Proposal calculation extracted to `getMonthEndProposals` query (called separately, not part of `getBudgetStatus`).
     - **Formula for Remaining Funds:** `(Allocated + Carryover - Swept) - Spent`.
-    - **The `categoriesMap` Rule:** To accurately calculate `Spent`, you **MUST** provide `categoriesMap` to include settlements/reimbursements in the netting logic.
-    - **Standard Categories:** Positive remaining funds are **Swept** (returned to Unassigned Cash). Negative balances are closed.
-    - **Paced Categories:** Both Surplus and Debt (negative balances) are **Rolled Over** to the next month's `carryoverAmount`.
+    - **The `categoriesMap` Rule:** MUST provide `categoriesMap` to include settlements/reimbursements in netting logic.
+    - **Standard Categories:** Positive remaining funds are **Swept**.
+    - **Paced Categories:** Surplus and Debt are **Rolled Over** via `carryoverAmount`.
 - **Swept/Carryover Fields:** 
     - `sweptAmount`: Funds already returned to the wallet (prevents double-counting).
     - `carryoverAmount`: Debt or surplus carried forward (Paced budgets only).
