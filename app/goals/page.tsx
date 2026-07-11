@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Plus, ChevronDown, ChevronRight, ShieldCheck, CalendarClock, Sparkles, CheckCircle2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import CategoryDrawer from '@/components/CategoryDrawer'
+import { GoalWizardDrawer } from '@/components/GoalWizardDrawer'
 import GoalCard from '@/components/GoalCard'
 import { Doc, Id } from '../../convex/_generated/dataModel'
 import { useHousehold } from '@/components/HouseholdProvider'
@@ -36,8 +36,8 @@ function SectionHeader({ title, icon: Icon, count, className }: { title: string,
 }
 
 export default function GoalsPage() {
-  const [openCreate, setOpenCreate] = useState(false)
-  const [categoryToEdit, setCategoryToEdit] = useState<Doc<'categories'> | undefined>(undefined)
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [goalToEdit, setGoalToEdit] = useState<Doc<'categories'> | undefined>(undefined)
   const [showCompleted, setShowCompleted] = useState(false)
   const { householdId, households } = useHousehold()
   const router = useRouter()
@@ -85,13 +85,13 @@ export default function GoalsPage() {
   }
 
   const handleEditGoal = (category: Doc<'categories'>) => {
-      setCategoryToEdit(category)
-      setOpenCreate(true)
+      setGoalToEdit(category)
+      setWizardOpen(true)
   }
 
   const handleOpenChange = (open: boolean) => {
-      setOpenCreate(open)
-      if (!open) setCategoryToEdit(undefined)
+      setWizardOpen(open)
+      if (!open) setGoalToEdit(undefined)
   }
 
   return (
@@ -101,7 +101,7 @@ export default function GoalsPage() {
           <h1 className="text-2xl font-bold">Goals</h1>
           <p className="text-muted-foreground">Track your savings targets.</p>
         </div>
-        <Button onClick={() => setOpenCreate(true)} className="gap-2 shadow-sm shrink-0">
+        <Button onClick={() => setWizardOpen(true)} className="gap-2 shadow-sm shrink-0">
             <Plus className="h-4 w-4" />
             Add Goal
         </Button>
@@ -182,11 +182,10 @@ export default function GoalsPage() {
           </>
       )}
 
-      <CategoryDrawer 
-        open={openCreate} 
-        onOpenChange={handleOpenChange} 
-        category={categoryToEdit}
-        defaultType="saving"
+      <GoalWizardDrawer 
+        open={wizardOpen} 
+        onOpenChange={handleOpenChange}
+        editGoal={goalToEdit}
       />
     </div>
   )
