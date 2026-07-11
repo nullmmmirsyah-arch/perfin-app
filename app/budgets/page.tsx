@@ -541,11 +541,11 @@ export default function BudgetsPage() {
                 </button>
             </div>
 
-            <Carousel setApi={setApi} className="w-full">
-                <CarouselContent>
+            <Carousel setApi={setApi} className="w-full overflow-hidden">
+                <CarouselContent className="-ml-0">
                     {/* SLIDE 1: EXPENSES */}
-                    <CarouselItem className="basis-full pl-4">
-                        <div className="h-full pr-4 space-y-4">
+                    <CarouselItem className="basis-full pl-0">
+                        <div className="h-full space-y-4">
                             {/* Expenses Summary Card */}
                             <div className="bg-card border rounded-xl p-5 shadow-sm overflow-hidden relative">
                                 {/* Decorative Background Pattern (Optional subtle touch) */}
@@ -638,8 +638,8 @@ export default function BudgetsPage() {
                     </CarouselItem>
 
                     {/* SLIDE 2: SAVINGS */}
-                    <CarouselItem className="basis-full pl-4">
-                        <div className="h-full pr-4 space-y-4">
+                    <CarouselItem className="basis-full pl-0">
+                        <div className="h-full space-y-4">
                             {/* Savings Summary Card (Monthly Focus) */}
                             <div className="bg-card border rounded-xl p-4 shadow-sm">
                                 <div className="flex justify-between items-end mb-2">
