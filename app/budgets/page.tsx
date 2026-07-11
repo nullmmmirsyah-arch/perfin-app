@@ -238,7 +238,7 @@ export default function BudgetsPage() {
   }, { totalTarget: 0, totalSaved: 0 });
 
   return (
-    <div className="pb-24 p-4 md:p-8">
+    <div className="pb-24 p-4 md:p-8 overflow-hidden">
       {/* Mobile Header Layout */}
       <div className="md:hidden mb-4 space-y-3">
         {/* Row 1: Title */}
