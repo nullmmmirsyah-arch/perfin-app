@@ -48,12 +48,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-import {
-  Carousel,
-  type CarouselApi,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel"
 import { useRouter } from "next/navigation"
 
 import { MonthEndProcessDialog } from '@/components/budgets/MonthEndProcessDialog'
@@ -73,8 +67,7 @@ export default function BudgetsPage() {
   
   const router = useRouter()
   
-  // Carousel State
-  const [api, setApi] = useState<CarouselApi>()
+  // Tab State
   const [activeSection, setActiveSection] = useState<'expenses' | 'savings'>('expenses')
 
   // State for deletion confirmation
@@ -144,27 +137,6 @@ export default function BudgetsPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeHousehold])
-
-  useEffect(() => {
-    if (!api) return
-
-    // Restore active section on mount (e.g. after data refresh)
-    const targetIndex = activeSection === 'savings' ? 1 : 0
-    if (api.selectedScrollSnap() !== targetIndex) {
-      api.scrollTo(targetIndex, true)
-    }
-
-    api.on("select", () => {
-        setActiveSection(api.selectedScrollSnap() === 0 ? 'expenses' : 'savings')
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api])
-
-  const scrollToSection = (section: 'expenses' | 'savings') => {
-      if (api) {
-          api.scrollTo(section === 'expenses' ? 0 : 1)
-      }
-  }
 
   const handleEdit = (category: Doc<'categories'>, amount?: string) => {
     setSelectedCategory(category)
@@ -510,7 +482,7 @@ export default function BudgetsPage() {
             {/* Section Switcher / Header */}
             <div className="flex gap-4 border-b">
                 <button
-                    onClick={() => scrollToSection('expenses')}
+                    onClick={() => setActiveSection('expenses')}
                     className={cn(
                         "pb-2 px-1 text-sm font-medium transition-colors flex items-center gap-2",
                         activeSection === 'expenses' 
@@ -525,7 +497,7 @@ export default function BudgetsPage() {
                     </span>
                 </button>
                 <button
-                    onClick={() => scrollToSection('savings')}
+                    onClick={() => setActiveSection('savings')}
                     className={cn(
                         "pb-2 px-1 text-sm font-medium transition-colors flex items-center gap-2",
                         activeSection === 'savings' 
@@ -541,162 +513,150 @@ export default function BudgetsPage() {
                 </button>
             </div>
 
-            <Carousel setApi={setApi} className="w-full overflow-hidden">
-                <CarouselContent className="-ml-0">
-                    {/* SLIDE 1: EXPENSES */}
-                    <CarouselItem className="basis-full pl-0">
-                        <div className="h-full space-y-4">
-                            {/* Expenses Summary Card */}
-                            <div className="bg-card border rounded-xl p-5 shadow-sm overflow-hidden relative">
-                                {/* Decorative Background Pattern (Optional subtle touch) */}
-                                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                                    <Wallet className="h-24 w-24 rotate-12" />
-                                </div>
-
-                                <div className="space-y-4 relative z-10">
-                                    {/* Main Display */}
-                                    <div>
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1.5">Monthly Budget Left</p>
-                                        <div className="flex items-baseline gap-2">
-                                            <span className={cn(
-                                                "text-4xl font-black tracking-tighter",
-                                                (budgetSummary?.totalRemaining ?? 0) < 0 ? "text-destructive" : "text-foreground"
-                                            )}>
-                                                {formatCurrency(budgetSummary?.totalRemaining ?? 0)}
-                                            </span>
-                                            <span className="text-sm text-muted-foreground font-medium">remaining</span>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Stats Grid */}
-                                    <div className="flex flex-wrap gap-2">
-                                        <div className="flex-1 min-w-[120px] bg-muted/40 px-3 py-2 rounded-lg border border-muted/50">
-                                            <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-tight mb-0.5">New Planned</p>
-                                            <p className="text-sm font-bold tracking-tight">{formatCurrency(budgetSummary?.totalAssigned ?? 0)}</p>
-                                        </div>
-                                        
-                                        {(budgetSummary?.totalCarryover ?? 0) !== 0 && (
-                                            <div className={cn(
-                                                "flex-1 min-w-[120px] px-3 py-2 rounded-lg border",
-                                                (budgetSummary?.totalCarryover ?? 0) > 0 
-                                                    ? "bg-success/5 border-success/20 text-success" 
-                                                    : "bg-destructive/5 border-destructive/20 text-destructive"
-                                            )}>
-                                                <p className="text-[9px] font-bold uppercase tracking-tight mb-0.5 opacity-80">Adjustments</p>
-                                                <p className="text-sm font-bold tracking-tight">
-                                                    {(budgetSummary?.totalCarryover ?? 0) > 0 ? '+' : ''}{formatCurrency(budgetSummary?.totalCarryover ?? 0)}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Progress Section */}
-                                    <div className="space-y-2 pt-1">
-                                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
-                                            <span className="text-muted-foreground">Spending Progress</span>
-                                            <span className="text-foreground">{formatCurrency(budgetSummary?.totalSpent ?? 0)} / {formatCurrency(budgetSummary?.totalEffective ?? 0)}</span>
-                                        </div>
-                                        <Progress 
-                                            value={(budgetSummary?.totalEffective ?? 0) > 0 ? ((budgetSummary?.totalSpent ?? 0) / (budgetSummary?.totalEffective ?? 0)) * 100 : 0} 
-                                            className="h-2.5 bg-muted"
-                                        />
-                                        {(budgetSummary?.totalSwept ?? 0) > 0 && (
-                                            <div className="flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground italic">
-                                                <Info className="h-3 w-3" />
-                                                <span>{formatCurrency(budgetSummary?.totalSwept ?? 0)} swept back to wallet</span>
-                                            </div>
-                                        )}
-                                    </div>
+            {/* Expenses Section */}
+            {activeSection === 'expenses' && (
+                <div className="space-y-4">
+                    {/* Expenses Summary Card */}
+                    <div className="bg-card border rounded-xl p-5 shadow-sm overflow-hidden relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                            <Wallet className="h-24 w-24 rotate-12" />
+                        </div>
+                        <div className="space-y-4 relative z-10">
+                            <div>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1.5">Monthly Budget Left</p>
+                                <div className="flex items-baseline gap-2">
+                                    <span className={cn(
+                                        "text-4xl font-black tracking-tighter",
+                                        (budgetSummary?.totalRemaining ?? 0) < 0 ? "text-destructive" : "text-foreground"
+                                    )}>
+                                        {formatCurrency(budgetSummary?.totalRemaining ?? 0)}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground font-medium">remaining</span>
                                 </div>
                             </div>
-
-                            {expenses.length === 0 ? (
-                                <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
-                                    <div className="space-y-2">
-                                        <Wallet className="h-8 w-8 text-muted-foreground mx-auto" />
-                                        <p className="text-muted-foreground">No expense categories found.</p>
-                                    </div>
+                            <div className="flex flex-wrap gap-2">
+                                <div className="flex-1 min-w-[120px] bg-muted/40 px-3 py-2 rounded-lg border border-muted/50">
+                                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-tight mb-0.5">New Planned</p>
+                                    <p className="text-sm font-bold tracking-tight">{formatCurrency(budgetSummary?.totalAssigned ?? 0)}</p>
                                 </div>
-                            ) : (
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4 overflow-hidden">
-                                    {expenses.map(item => (
-                                        <BudgetCard 
-                                            key={item.category._id}
-                                            item={item}
-                                            daysRemaining={calculatedDaysRemaining} // Pass calculated value
-                                            isPastMonth={isPastMonth}
-                                            selectedDate={selectedDate}
-                                            budgetStartDay={budgetStartDay}
-                                            isAdmin={isAdmin}
-                                            onEdit={handleEdit}
-                                            onDelete={(id, name) => setBudgetToDelete({ id, name })}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </CarouselItem>
-
-                    {/* SLIDE 2: SAVINGS */}
-                    <CarouselItem className="basis-full pl-0">
-                        <div className="h-full space-y-4">
-                            {/* Savings Summary Card (Monthly Focus) */}
-                            <div className="bg-card border rounded-xl p-4 shadow-sm">
-                                <div className="flex justify-between items-end mb-2">
-                                    <div>
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Monthly Saving Progress</p>
-                                        <div className="flex items-baseline gap-2 mt-1">
-                                            <span className="text-3xl font-black text-success tracking-tight">
-                                                {formatCurrency(savingsAggregate.totalSaved)}
-                                            </span>
-                                            <span className="text-sm text-muted-foreground font-medium">saved</span>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Monthly Target</p>
-                                        <p className="text-sm font-bold text-foreground">
-                                            {savingsAggregate.totalTarget > 0 
-                                                ? formatCurrency(savingsAggregate.totalTarget)
-                                                : "No target set"
-                                            }
+                                {(budgetSummary?.totalCarryover ?? 0) !== 0 && (
+                                    <div className={cn(
+                                        "flex-1 min-w-[120px] px-3 py-2 rounded-lg border",
+                                        (budgetSummary?.totalCarryover ?? 0) > 0 
+                                            ? "bg-success/5 border-success/20 text-success" 
+                                            : "bg-destructive/5 border-destructive/20 text-destructive"
+                                    )}>
+                                        <p className="text-[9px] font-bold uppercase tracking-tight mb-0.5 opacity-80">Adjustments</p>
+                                        <p className="text-sm font-bold tracking-tight">
+                                            {(budgetSummary?.totalCarryover ?? 0) > 0 ? '+' : ''}{formatCurrency(budgetSummary?.totalCarryover ?? 0)}
                                         </p>
                                     </div>
+                                )}
+                            </div>
+                            <div className="space-y-2 pt-1">
+                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                                    <span className="text-muted-foreground">Spending Progress</span>
+                                    <span className="text-foreground">{formatCurrency(budgetSummary?.totalSpent ?? 0)} / {formatCurrency(budgetSummary?.totalEffective ?? 0)}</span>
                                 </div>
                                 <Progress 
-                                    value={savingsAggregate.totalTarget > 0 ? (savingsAggregate.totalSaved / savingsAggregate.totalTarget) * 100 : (savingsAggregate.totalSaved > 0 ? 100 : 0)} 
-                                    className="h-2 bg-muted [&>div]:bg-success"
+                                    value={(budgetSummary?.totalEffective ?? 0) > 0 ? ((budgetSummary?.totalSpent ?? 0) / (budgetSummary?.totalEffective ?? 0)) * 100 : 0} 
+                                    className="h-2.5 bg-muted"
                                 />
-                            </div>
-
-                            {savings.length === 0 ? (
-                                <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
-                                    <div className="space-y-2">
-                                        <Target className="h-8 w-8 text-muted-foreground mx-auto" />
-                                        <p className="text-muted-foreground">No savings goals set.</p>
+                                {(budgetSummary?.totalSwept ?? 0) > 0 && (
+                                    <div className="flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground italic">
+                                        <Info className="h-3 w-3" />
+                                        <span>{formatCurrency(budgetSummary?.totalSwept ?? 0)} swept back to wallet</span>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4 overflow-hidden">
-                                    {savings.map(item => (
-                                        <BudgetCard 
-                                            key={item.category._id}
-                                            item={item}
-                                            daysRemaining={calculatedDaysRemaining}
-                                            isPastMonth={isPastMonth}
-                                            selectedDate={selectedDate}
-                                            budgetStartDay={budgetStartDay}
-                                            isAdmin={isAdmin}
-                                            onEdit={handleEdit}
-                                            onDelete={(id, name) => setBudgetToDelete({ id, name })}
-                                            onClickGoal={(id) => router.push(`/goals/${id}`)}
-                                        />
-                                    ))}
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
-                    </CarouselItem>
-                </CarouselContent>
-            </Carousel>
+                    </div>
+
+                    {expenses.length === 0 ? (
+                        <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
+                            <div className="space-y-2">
+                                <Wallet className="h-8 w-8 text-muted-foreground mx-auto" />
+                                <p className="text-muted-foreground">No expense categories found.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4">
+                            {expenses.map(item => (
+                                <BudgetCard 
+                                    key={item.category._id}
+                                    item={item}
+                                    daysRemaining={calculatedDaysRemaining}
+                                    isPastMonth={isPastMonth}
+                                    selectedDate={selectedDate}
+                                    budgetStartDay={budgetStartDay}
+                                    isAdmin={isAdmin}
+                                    onEdit={handleEdit}
+                                    onDelete={(id, name) => setBudgetToDelete({ id, name })}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Savings Section */}
+            {activeSection === 'savings' && (
+                <div className="space-y-4">
+                    {/* Savings Summary Card */}
+                    <div className="bg-card border rounded-xl p-4 shadow-sm">
+                        <div className="flex justify-between items-end mb-2">
+                            <div>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Monthly Saving Progress</p>
+                                <div className="flex items-baseline gap-2 mt-1">
+                                    <span className="text-3xl font-black text-success tracking-tight">
+                                        {formatCurrency(savingsAggregate.totalSaved)}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground font-medium">saved</span>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Monthly Target</p>
+                                <p className="text-sm font-bold text-foreground">
+                                    {savingsAggregate.totalTarget > 0 
+                                        ? formatCurrency(savingsAggregate.totalTarget)
+                                        : "No target set"
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        <Progress 
+                            value={savingsAggregate.totalTarget > 0 ? (savingsAggregate.totalSaved / savingsAggregate.totalTarget) * 100 : (savingsAggregate.totalSaved > 0 ? 100 : 0)} 
+                            className="h-2 bg-muted [&>div]:bg-success"
+                        />
+                    </div>
+
+                    {savings.length === 0 ? (
+                        <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
+                            <div className="space-y-2">
+                                <Target className="h-8 w-8 text-muted-foreground mx-auto" />
+                                <p className="text-muted-foreground">No savings goals set.</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4">
+                            {savings.map(item => (
+                                <BudgetCard 
+                                    key={item.category._id}
+                                    item={item}
+                                    daysRemaining={calculatedDaysRemaining}
+                                    isPastMonth={isPastMonth}
+                                    selectedDate={selectedDate}
+                                    budgetStartDay={budgetStartDay}
+                                    isAdmin={isAdmin}
+                                    onEdit={handleEdit}
+                                    onDelete={(id, name) => setBudgetToDelete({ id, name })}
+                                    onClickGoal={(id) => router.push(`/goals/${id}`)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
           </>
         )}
       </div>
