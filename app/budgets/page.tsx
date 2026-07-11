@@ -239,7 +239,111 @@ export default function BudgetsPage() {
 
   return (
     <div className="pb-24 p-4 md:p-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+      {/* Mobile Header Layout */}
+      <div className="md:hidden mb-4 space-y-3">
+        {/* Row 1: Title */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">Budgets</h1>
+          {!isCurrentPeriod && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSelectedDate(getCurrentFiscalDate())}
+              className="h-8 text-xs px-2"
+            >
+              Jump to Current
+            </Button>
+          )}
+        </div>
+
+        {/* Row 2: Month Navigator + Unassigned */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center border rounded-md bg-card">
+            <Button variant="ghost" size="icon" onClick={prevMonth} className="h-9 w-9">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex flex-col items-center justify-center px-1">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-medium">{format(selectedDate, 'MMM yyyy')}</span>
+                {isCurrentPeriod && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Current Active Period" />
+                )}
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-[9px] text-muted-foreground cursor-help border-b border-dotted border-muted-foreground/50 leading-none pb-0.5">
+                      {formattedPeriod}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>This is your budget cycle.<br/>Change it in Household Settings.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Button variant="ghost" size="icon" onClick={nextMonth} className="h-9 w-9">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {isAdmin && !isPastMonth && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <div className={cn(
+                  "px-3 py-2 rounded-md border font-medium text-xs flex items-center gap-1.5 cursor-help whitespace-nowrap",
+                  unassignedCash < 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/5 text-primary border-primary/10"
+                )}>
+                  <span className="text-[10px] text-muted-foreground">Unassigned:</span>
+                  <span className="font-bold">{unassignedCash < 0 ? '-' : ''}{Math.abs(unassignedCash).toLocaleString()}</span>
+                  <Info className="h-3 w-3 opacity-50" />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm border-b pb-2">Cash Allocation Breakdown</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Past Surplus (Carry Over)</span>
+                      <span className="font-medium text-success">+{breakdown?.pastSurplus.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">This Month&apos;s Income</span>
+                      <span className="font-medium text-success">+{breakdown?.thisMonthIncome.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">This Month&apos;s Budgeted</span>
+                      <span className="font-medium text-destructive">-{breakdown?.thisMonthBudgeted.toLocaleString()}</span>
+                    </div>
+                    <div className="border-t pt-1.5 flex justify-between text-sm font-bold">
+                      <span>Unassigned Total</span>
+                      <span className={unassignedCash < 0 ? "text-destructive" : "text-primary"}>
+                        {unassignedCash.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">
+                    *Calculated as Total Global Income minus Total Global Budget.
+                  </p>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+
+        {/* Row 3: Move Funds Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setMoveFundsOpen(true)}
+          className="w-full h-9 text-xs"
+        >
+          Move Funds
+        </Button>
+      </div>
+
+      {/* Desktop Header Layout */}
+      <div className="hidden md:flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold">Budgets</h1>
           <p className="text-muted-foreground">Manage your monthly spending limits by category.</p>
@@ -251,7 +355,7 @@ export default function BudgetsPage() {
                  variant="outline" 
                  size="sm" 
                  onClick={() => setSelectedDate(getCurrentFiscalDate())}
-                 className="h-9 text-xs px-2 hidden md:flex"
+                 className="h-9 text-xs px-2"
                >
                  Jump to Current
                </Button>
@@ -298,45 +402,45 @@ export default function BudgetsPage() {
 
            {isAdmin && !isPastMonth && (
              <Popover>
-                <PopoverTrigger asChild>
-                  <div className={cn(
-                      "px-4 py-2 rounded-md border font-medium text-sm flex items-center gap-2 cursor-help",
-                      unassignedCash < 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/5 text-primary border-primary/10"
-                  )}>
-                      Unassigned: {unassignedCash.toLocaleString()}
-                      <Info className="h-3.5 w-3.5 opacity-50" />
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm border-b pb-2">Cash Allocation Breakdown</h4>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Past Surplus (Carry Over)</span>
-                        <span className="font-medium text-success">+{breakdown?.pastSurplus.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">This Month&apos;s Income</span>
-                        <span className="font-medium text-success">+{breakdown?.thisMonthIncome.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">This Month&apos;s Budgeted</span>
-                        <span className="font-medium text-destructive">-{breakdown?.thisMonthBudgeted.toLocaleString()}</span>
-                      </div>
-                      <div className="border-t pt-1.5 flex justify-between text-sm font-bold">
-                        <span>Unassigned Total</span>
-                        <span className={unassignedCash < 0 ? "text-destructive" : "text-primary"}>
-                          {unassignedCash.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground italic">
-                      *Calculated as Total Global Income minus Total Global Budget.
-                    </p>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
+               <PopoverTrigger asChild>
+                 <div className={cn(
+                     "px-4 py-2 rounded-md border font-medium text-sm flex items-center gap-2 cursor-help",
+                     unassignedCash < 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/5 text-primary border-primary/10"
+                 )}>
+                     Unassigned: {unassignedCash.toLocaleString()}
+                     <Info className="h-3.5 w-3.5 opacity-50" />
+                 </div>
+               </PopoverTrigger>
+               <PopoverContent className="w-80">
+                 <div className="space-y-3">
+                   <h4 className="font-semibold text-sm border-b pb-2">Cash Allocation Breakdown</h4>
+                   <div className="space-y-1.5">
+                     <div className="flex justify-between text-xs">
+                       <span className="text-muted-foreground">Past Surplus (Carry Over)</span>
+                       <span className="font-medium text-success">+{breakdown?.pastSurplus.toLocaleString()}</span>
+                     </div>
+                     <div className="flex justify-between text-xs">
+                       <span className="text-muted-foreground">This Month&apos;s Income</span>
+                       <span className="font-medium text-success">+{breakdown?.thisMonthIncome.toLocaleString()}</span>
+                     </div>
+                     <div className="flex justify-between text-xs">
+                       <span className="text-muted-foreground">This Month&apos;s Budgeted</span>
+                       <span className="font-medium text-destructive">-{breakdown?.thisMonthBudgeted.toLocaleString()}</span>
+                     </div>
+                     <div className="border-t pt-1.5 flex justify-between text-sm font-bold">
+                       <span>Unassigned Total</span>
+                       <span className={unassignedCash < 0 ? "text-destructive" : "text-primary"}>
+                         {unassignedCash.toLocaleString()}
+                       </span>
+                     </div>
+                   </div>
+                   <p className="text-[10px] text-muted-foreground italic">
+                     *Calculated as Total Global Income minus Total Global Budget.
+                   </p>
+                 </div>
+               </PopoverContent>
+             </Popover>
+           )}
         </div>
       </div>
 
