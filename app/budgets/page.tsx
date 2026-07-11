@@ -238,7 +238,7 @@ export default function BudgetsPage() {
   }, { totalTarget: 0, totalSaved: 0 });
 
   return (
-    <div className="pb-24 p-4 md:p-8 overflow-hidden">
+    <div className="pb-24 p-4 md:p-8 overflow-x-hidden">
       {/* Mobile Header Layout */}
       <div className="md:hidden mb-4 space-y-3">
         {/* Row 1: Title */}
@@ -502,7 +502,7 @@ export default function BudgetsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-hidden">
         {budgetStatus === undefined ? (
           <BudgetListSkeleton />
         ) : (
@@ -618,7 +618,7 @@ export default function BudgetsPage() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4">
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4 overflow-hidden">
                                     {expenses.map(item => (
                                         <BudgetCard 
                                             key={item.category._id}
@@ -676,7 +676,7 @@ export default function BudgetsPage() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4">
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4 overflow-hidden">
                                     {savings.map(item => (
                                         <BudgetCard 
                                             key={item.category._id}
