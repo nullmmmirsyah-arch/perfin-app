@@ -46,3 +46,26 @@ Format:
 - `docs/TECH_STACK_AND_WORKFLOW.md` — replaced "Intentional Global Fetching" dan "Fiscal Month Filtering" dengan date-range indexed query pattern
 - `docs/PRODUCT_OVERVIEW.md` — update Smart Drawer description (no more Move Funds tab)
 
+## 2026-07-11
+
+### Added
+- `hooks/useGoalWizard.ts` — wizard state management hook (step navigation, field updates, validation, dirty-state tracking)
+- `components/GoalWizardDrawer.tsx` — main 4-step wizard drawer container with confetti celebration, sound effect, and discard dialog
+- `components/GoalWizardStepIndicator.tsx` — step progress UI with dots, step counter, back/close buttons
+- `components/GoalWizardSteps/GoalTypeStep.tsx` — Step 1: 3 visual goal type cards (Investment, Bill, Purchase) with auto-advance on select
+- `components/GoalWizardSteps/GoalNameTargetStep.tsx` — Step 2: goal name + target amount inputs with currency formatting
+- `components/GoalWizardSteps/GoalTimelineStep.tsx` — Step 3: target date + monthly contribution with live projection calculator
+- `components/GoalWizardSteps/GoalReviewStep.tsx` — Step 4: review summary card before creation
+- `canvas-confetti` dependency — confetti animation for goal creation celebration
+- `lib/utils.ts` — `formatNumberInput()` helper for numeric input fields
+
+### Changed
+- **`app/goals/page.tsx`:** replaced `CategoryDrawer` with `GoalWizardDrawer` for goal creation flow
+- **`components/GoalWizardStepIndicator.tsx`:** removed dead `stepTitle` prop (hardcoded array used internally)
+- **`components/GoalWizardSteps/GoalNameTargetStep.tsx`:** use shared `formatNumberInput` from `@/lib/utils`
+- **`components/GoalWizardSteps/GoalTimelineStep.tsx`:** use shared `formatNumberInput` from `@/lib/utils`, improved feedback card visibility with larger padding, border, and animation
+
+### Docs
+- `docs/PRODUCT_OVERVIEW.md` — added Goal Creation Wizard description
+- `docs/PRODUCT_GUIDELINES.md` — added Wizard Pattern section
+

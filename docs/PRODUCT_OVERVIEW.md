@@ -30,6 +30,14 @@
 
 ### 3. Categories & Goals
 - **Types:** Expense, Income, Saving (Goal).
+- **Goal Creation Wizard:** A 4-step drawer-based wizard for creating goals:
+    - **Step 1 - Goal Type:** Visual cards for Investment (Wealth), Bill (Sinking Fund), or Purchase (Wishlist). Auto-advances on selection.
+    - **Step 2 - Name & Target:** Goal name and target amount with currency formatting.
+    - **Step 3 - Timeline & Contribution:** Optional target date and monthly contribution. Live calculator shows projected completion date and suggests contribution amounts.
+    - **Step 4 - Review:** Summary card with all details before creation.
+    - **Celebration:** Confetti animation and success sound on creation. Auto-closes after 2 seconds.
+    - **Edit Mode:** Same wizard supports editing existing goals with pre-filled data.
+    - **Unsaved Changes:** Dirty-state tracking with discard confirmation dialog.
 - **Smart Goals Structure:**
   - **🛡️ Wealth (Investment):** Long-term accumulation (e.g., Emergency Fund, Gold, Stocks).
     - *Achievement Flow:** Increase Target (Growth).

@@ -51,14 +51,26 @@ This document outlines the design philosophy and user experience patterns used i
         - **Rule:** Always set time to **12:00 PM (Noon)** local time, regardless of whether it is "Today" or a manual selection.
         - This prevents UTC conversion shifts (e.g., 00:00 WIB -> 17:00 UTC previous day) from causing data to appear in the wrong budget period.
 
-### 3. Feedback System
+### 3. Wizard Pattern (Multi-Step Forms)
+- **Drawer-Based Wizards:** Use `Drawer` (vaul) for multi-step forms, not full-screen modals. Consistent with existing drawer patterns.
+- **Step Indicator:** Show step progress with dots and step counter at the top. Include back/close buttons.
+- **State Management:** Use a custom hook (e.g., `useGoalWizard`) to manage wizard state, validation, and dirty-state tracking.
+- **Auto-Advance:** For selection steps (like choosing goal type), auto-advance to next step after a short delay for smooth UX.
+- **Live Feedback:** Show real-time calculations as users input data (e.g., projected completion date based on contribution).
+- **Review Step:** Always include a final review step before submission so users can verify all details.
+- **Celebration:** Use confetti animation and sound effects on successful creation to make the experience rewarding.
+- **Unsaved Changes:** Track dirty state and show AlertDialog confirmation when user tries to close with unsaved changes.
+- **Back Button Handling:** Use `window.history.pushState` + `popstate` to handle hardware/gesture back button in drawers.
+- **Double-Click Prevention:** Use `useRef` lock + `isProcessing` state to prevent duplicate submissions.
+
+### 4. Feedback System
 - **Toasts:** Use `sonner` for all success/error feedback.
 - **Skeletons:** Always show Skeleton loaders (`components/skeletons.tsx`) while data is fetching. Never show a blank screen.
 - **Empty States:** Provide clear "No data" states with a Call to Action (e.g., "No accounts found. Create one?").
 - **Over-Budget Warnings:** Use Red/Destructive colors immediately when a budget is exceeded (Negative Remaining).
 - **Positive Reinforcement:** Use Green colors and "Checklist" badges (e.g., "Monthly Goal Met! 🎉") when users hit their saving targets for the period.
 
-### 4. Categorization & Grouping
+### 5. Categorization & Grouping
 - **Separation of Concerns:**
   - **Accounts Page:** Separated into "Spending & Cash" vs "Savings & Assets".
   - **Budgets Page:** Separated into "Monthly Expenses" (Limits) vs "Savings & Goals" (Targets) via Carousel.
@@ -69,14 +81,14 @@ This document outlines the design philosophy and user experience patterns used i
   - **Categories Page:** Separated into "Goals", "Expenses", "Income", and "Archived".
 - **Closed Items:** Always hide archived/closed items inside a `Collapsible` section or filter them out by default.
 
-### 5. Goal Achievement UX
+### 6. Goal Achievement UX
 - **Passive Trigger:** Don't force the user to check progress. Send a **Notification** (Bell Icon).
 - **Dynamic Wizard:** When clicking the notification, launch a **Context-Aware Wizard**:
     - **Investment:** Celebrates milestone. Offers to **Increase Target** to keep growing wealth.
     - **Bill (Sinking Fund):** Prompts to **Pay Bill** (Disburse), then asks for **Next Due Date** to reset the cycle without closing the account.
     - **Purchase:** Prompts to **Spend Funds** and **Archive** the goal.
 
-### 6. Actionable Insights
+### 7. Actionable Insights
 - **Safe Daily Spend:** Provide actionable daily limits (e.g., "~Rp 50k/day") instead of just static remaining budgets.
 - **Monthly Saving Performance:** In Goal Details, display a **Visual Bar Chart** (list view) showing contribution history per month vs the required monthly target.
 - **Smart Budget Pace Indicators:**
@@ -114,7 +126,7 @@ This document outlines the design philosophy and user experience patterns used i
         | Mar 26 | 500.000 |   +50.000  |  +25.000  |575.000|450.000| 125.000 |
     - **Chart View:** Stacked bar chart showing Initial + Adjustment + Carryover, with Spent as line overlay.
 
-### 7. Category Detail Page
+### 8. Category Detail Page
 - **Performance Trend:** A 12-month bar chart visualizing **Effective Budget** (Planned + Carryover) vs. Actual Spending. 
 - **Monthly History:** A detailed list showing Budget (Effective), Spent, Carryover, and Swept amounts for each fiscal month.
 - **Grouped & Actionable Transactions:** A list of recent transactions grouped by date with **daily totals**. Users can directly Edit or Delete transactions from this view.
