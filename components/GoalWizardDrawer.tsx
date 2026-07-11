@@ -298,6 +298,9 @@ export function GoalWizardDrawer({ open, onOpenChange, editGoal }: GoalWizardDra
   return (
     <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerContent className="max-h-[96dvh]">
+        <DrawerHeader className="sr-only">
+          <DrawerTitle>Create Goal</DrawerTitle>
+        </DrawerHeader>
         <GoalWizardStepIndicator
           currentStep={wizard.state.currentStep}
           totalSteps={wizard.totalSteps}
