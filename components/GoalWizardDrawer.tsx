@@ -6,6 +6,8 @@ import { useHousehold } from '@/components/HouseholdProvider';
 import {
   Drawer,
   DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import {
@@ -275,12 +277,14 @@ export function GoalWizardDrawer({ open, onOpenChange, editGoal }: GoalWizardDra
     return (
       <Drawer open={open} onOpenChange={() => {}}>
         <DrawerContent className="max-h-[96dvh]">
+          <DrawerHeader>
+            <DrawerTitle>Goal Created!</DrawerTitle>
+          </DrawerHeader>
           <div className="flex flex-col items-center justify-center py-16 px-4 space-y-6">
             <div className="h-20 w-20 rounded-full bg-success/10 flex items-center justify-center animate-bounce">
               <PartyPopper className="h-10 w-10 text-success" />
             </div>
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">Goal Created!</h2>
               <p className="text-muted-foreground">
                 You&apos;re on your way to <span className="font-semibold text-foreground">{successGoalName}</span>!
               </p>
