@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatNumberInput } from '@/lib/utils';
 
 interface GoalNameTargetStepProps {
   name: string;
@@ -7,11 +8,6 @@ interface GoalNameTargetStepProps {
   onNameChange: (value: string) => void;
   onTargetAmountChange: (value: string) => void;
 }
-
-const formatNumber = (value: string) => {
-  const cleanValue = value.replace(/[^\d]/g, '');
-  return new Intl.NumberFormat('en-US').format(parseInt(cleanValue) || 0);
-};
 
 export function GoalNameTargetStep({
   name,
@@ -50,7 +46,7 @@ export function GoalNameTargetStep({
             className="pl-10"
             value={targetAmount}
             onChange={(e) => {
-              const formatted = formatNumber(e.target.value);
+              const formatted = formatNumberInput(e.target.value);
               onTargetAmountChange(formatted);
             }}
           />

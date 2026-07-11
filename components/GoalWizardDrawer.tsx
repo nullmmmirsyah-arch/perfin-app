@@ -304,11 +304,6 @@ export function GoalWizardDrawer({ open, onOpenChange, editGoal }: GoalWizardDra
         <GoalWizardStepIndicator
           currentStep={wizard.state.currentStep}
           totalSteps={wizard.totalSteps}
-          stepTitle={
-            ['Choose Goal Type', 'Name & Target', 'Timeline & Contribution', 'Review & Create'][
-              wizard.state.currentStep - 1
-            ]
-          }
           onBack={wizard.prevStep}
           onClose={() => handleOpenChange(false)}
           showBack={wizard.state.currentStep > 1}

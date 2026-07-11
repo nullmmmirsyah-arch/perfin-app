@@ -44,6 +44,15 @@ interface TransactionMinimal {
   [key: string]: unknown;
 }
 
+/**
+ * Strips non-digit characters and formats a number string with thousand separators.
+ * Useful for numeric input fields.
+ */
+export function formatNumberInput(value: string): string {
+  const cleanValue = value.replace(/[^\d]/g, '');
+  return new Intl.NumberFormat('en-US').format(parseInt(cleanValue) || 0);
+}
+
 export function groupTransactionsByDate<T extends TransactionMinimal>(transactions: T[]) {
   if (!transactions) return {};
 

@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useGoalCalculator } from '@/hooks/useGoalCalculator';
 import { AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatNumberInput } from '@/lib/utils';
 import { format } from 'date-fns';
 
 interface GoalTimelineStepProps {
@@ -13,11 +13,6 @@ interface GoalTimelineStepProps {
   onTargetDateChange: (date: Date | undefined) => void;
   onMonthlyContributionChange: (value: string) => void;
 }
-
-const formatNumber = (value: string) => {
-  const cleanValue = value.replace(/[^\d]/g, '');
-  return new Intl.NumberFormat('en-US').format(parseInt(cleanValue) || 0);
-};
 
 export function GoalTimelineStep({
   targetAmount,
@@ -62,7 +57,7 @@ export function GoalTimelineStep({
             className="pl-10"
             value={monthlyContribution}
             onChange={(e) => {
-              const formatted = formatNumber(e.target.value);
+              const formatted = formatNumberInput(e.target.value);
               onMonthlyContributionChange(formatted);
             }}
           />

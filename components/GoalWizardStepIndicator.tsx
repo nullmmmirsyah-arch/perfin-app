@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 interface GoalWizardStepIndicatorProps {
   currentStep: number;
   totalSteps: number;
-  stepTitle: string;
   onBack: () => void;
   onClose: () => void;
   showBack?: boolean;
