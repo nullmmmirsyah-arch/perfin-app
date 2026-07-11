@@ -71,21 +71,29 @@ export function GoalTimelineStep({
 
       {feedback && (
         <div className={cn(
-          "p-3 rounded-lg text-sm flex items-start gap-2",
+          "p-4 rounded-xl text-sm flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2",
           feedback.status === 'early'
-            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+            ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
             : feedback.status === 'suggestion' || feedback.status === 'info'
-              ? "bg-primary/5 text-primary border border-primary/10"
-              : "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
         )}>
-          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <div className="space-y-2">
-            <p className="font-medium">{feedback.message}</p>
+          <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
+          <div className="space-y-3 flex-1">
+            <p className="font-medium leading-relaxed">{feedback.message}</p>
+            {feedback.requiredContrib && feedback.status !== 'info' && (
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold">
+                  Rp {new Intl.NumberFormat().format(Math.ceil(feedback.requiredContrib))}
+                </span>
+                <span className="text-xs opacity-70">/month</span>
+              </div>
+            )}
             {feedback.projectedDate && (
               <button
                 type="button"
                 onClick={() => onTargetDateChange(feedback.projectedDate)}
-                className="text-xs underline font-semibold"
+                className="inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-2 hover:opacity-80"
               >
                 Set date to {format(feedback.projectedDate, 'MMMM yyyy')}
               </button>
