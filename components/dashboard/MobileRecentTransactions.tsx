@@ -24,7 +24,7 @@ function getShortDateLabel(dateStr: string) {
   const date = new Date(dateStr)
   if (isToday(date)) return 'Hari ini'
   if (isYesterday(date)) return 'Kemarin'
-  return format(date, 'd MMM')
+  return format(date, 'd MMM yyyy')
 }
 
 function getDotColor(type: string) {
@@ -173,13 +173,11 @@ export function MobileRecentTransactions({ transactions, onEdit, onDelete, isPri
                                 </Badge>
                               )}
                               <span className="text-sm font-medium truncate">
-                                {isSplit ? getSplitDescription(tx) : (tx.description || tx.categoryName || 'No description')}
+                                {tx.merchant?.name || (isSplit ? getSplitDescription(tx) : (tx.description || tx.categoryName || 'No description'))}
                               </span>
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
                               <span>{tx.categoryName || tx.fromAccountName}</span>
-                              <span className="mx-1 text-[10px] opacity-30">•</span>
-                              <span>{getShortDateLabel(tx.date)}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">

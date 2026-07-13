@@ -86,7 +86,7 @@ export function TransactionItem({
             ) : (
               <div>
                 <p className="font-semibold text-sm">
-                  {transaction.isSplit ? 'Split transaction' : (transaction.description || 'No description')}
+                  {transaction.merchant?.name || (transaction.isSplit ? 'Split transaction' : (transaction.description || 'No description'))}
                 </p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                   <span className="font-medium text-muted-foreground/80">{transaction.fromAccountName}</span>
