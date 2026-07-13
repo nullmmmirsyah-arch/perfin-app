@@ -31,6 +31,7 @@ type ExportDialogProps = {
         accountId?: string[];
         categoryId?: string[];
         labelId?: string[];
+        merchantId?: string[];
         search?: string;
         dateRange: DateRange | undefined;
     }
@@ -53,6 +54,7 @@ export function ExportTransactionDialog({ currentFilters }: ExportDialogProps) {
             accountId: currentFilters.accountId,
             categoryId: currentFilters.categoryId,
             labelId: currentFilters.labelId,
+            merchantId: currentFilters.merchantId,
             search: currentFilters.search,
             dateRange: currentFilters.dateRange ? {
                 start: currentFilters.dateRange.from?.toISOString(),

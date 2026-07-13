@@ -25,6 +25,7 @@ type TransactionFiltersProps = {
     accountId: string[] | undefined
     categoryId: string[] | undefined
     labelId: string[] | undefined
+    merchantId: string[] | undefined
     dateRange: DateRange | undefined
   }
   onFilterChange: (filters: TransactionFiltersProps['filters']) => void
@@ -40,6 +41,7 @@ export default function TransactionFilters({
   const accounts = useQuery(api.accounts.get, { householdId: householdId ?? undefined })
   const categories = useQuery(api.categories.get, { householdId: householdId ?? undefined });
   const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
+  const merchants = useQuery(api.merchants.get, { householdId: householdId ?? undefined });
   const [open, setOpen] = useState(false);
 
   const handleDateChange = (dateRange: DateRange | undefined) => {
@@ -49,7 +51,9 @@ export default function TransactionFilters({
   const activeFiltersCount = (filters.type?.length || 0) + 
                              (filters.accountId?.length || 0) + 
                              (filters.categoryId?.length || 0) + 
-                             (filters.labelId?.length || 0);
+                             (filters.labelId?.length || 0) +
+                             (filters.merchantId?.length || 0) +
+                             (filters.dateRange?.from ? 1 : 0);
 
   const typeOptions: Option[] = [
     { label: 'Income', value: 'income' },
@@ -60,6 +64,9 @@ export default function TransactionFilters({
   const accountOptions: Option[] = accounts?.map(a => ({ label: a.name, value: a._id })) || [];
   const categoryOptions: Option[] = categories?.map(c => ({ label: c.name, value: c._id })) || [];
   const labelOptions: Option[] = labels?.map(l => ({ label: l.name, value: l._id })) || [];
+  const merchantOptions: Option[] = merchants?.map(m => ({ label: m.name, value: m._id })) || [];
+
+  const resetAll = () => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, merchantId: undefined, dateRange: filters.dateRange });
 
   return (
     <div className="space-y-4">
@@ -94,7 +101,7 @@ export default function TransactionFilters({
                     variant="ghost" 
                     size="sm" 
                     className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, dateRange: filters.dateRange })}
+                    onClick={resetAll}
                   >
                     Reset
                   </Button>
@@ -141,15 +148,28 @@ export default function TransactionFilters({
                     placeholder="All Labels"
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Merchant</Label>
+                  <MultiSelect
+                    options={merchantOptions}
+                    selected={filters.merchantId || []}
+                    onChange={(val) => onFilterChange({ ...filters, merchantId: val.length > 0 ? val : undefined })}
+                    placeholder="All Merchants"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date Range</Label>
+                  <DateRangePicker
+                    date={filters.dateRange}
+                    setDate={handleDateChange}
+                  />
+                </div>
               </div>
             </div>
           </PopoverContent>
         </Popover>
-
-        <DateRangePicker
-          date={filters.dateRange}
-          setDate={handleDateChange}
-        />
         
         {extraAction}
       </div>
@@ -181,11 +201,24 @@ export default function TransactionFilters({
               <button onClick={() => onFilterChange({ ...filters, labelId: filters.labelId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
           ))}
+          {filters.merchantId?.map(id => (
+            <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
+              Merchant: {merchantOptions.find(o => o.value === id)?.label || id}
+              <button onClick={() => onFilterChange({ ...filters, merchantId: filters.merchantId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+            </Badge>
+          ))}
+          {filters.dateRange?.from && (
+            <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
+              Date: {filters.dateRange.from.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+              {filters.dateRange.to ? ` – ${filters.dateRange.to.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}` : ''}
+              <button onClick={() => onFilterChange({ ...filters, dateRange: undefined })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+            </Badge>
+          )}
           <Button 
             variant="ghost" 
             size="sm" 
             className="h-6 text-xs text-muted-foreground hover:text-destructive"
-            onClick={() => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, dateRange: filters.dateRange })}
+            onClick={resetAll}
           >
             Clear all
           </Button>

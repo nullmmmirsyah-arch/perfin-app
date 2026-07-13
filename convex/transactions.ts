@@ -275,6 +275,7 @@ export const get = query({
     accountId: v.optional(v.array(v.string())),
     categoryId: v.optional(v.array(v.string())),
     labelId: v.optional(v.array(v.string())),
+    merchantId: v.optional(v.array(v.string())),
     dateRange: v.optional(v.object({
       start: v.optional(v.string()),
       end: v.optional(v.string()),
@@ -282,7 +283,7 @@ export const get = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const { householdId, type, accountId, categoryId, labelId, dateRange, paginationOpts } = args;
+    const { householdId, type, accountId, categoryId, labelId, merchantId, dateRange, paginationOpts } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -332,6 +333,12 @@ export const get = query({
            q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
            q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
         )
+      );
+    }
+
+    if (merchantId && merchantId.length > 0) {
+      query = query.filter((q) =>
+        q.or(...merchantId.map(m => q.eq(q.field("merchantId"), m)))
       );
     }
     
@@ -464,6 +471,7 @@ export const exportTransactions = query({
     accountId: v.optional(v.array(v.string())),
     categoryId: v.optional(v.array(v.string())),
     labelId: v.optional(v.array(v.string())),
+    merchantId: v.optional(v.array(v.string())),
     dateRange: v.optional(v.object({
       start: v.optional(v.string()),
       end: v.optional(v.string()),
@@ -471,7 +479,7 @@ export const exportTransactions = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { householdId, type, accountId, categoryId, labelId, dateRange, search } = args;
+    const { householdId, type, accountId, categoryId, labelId, merchantId, dateRange, search } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -510,6 +518,12 @@ export const exportTransactions = query({
            q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
            q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
         )
+      );
+    }
+
+    if (merchantId && merchantId.length > 0) {
+      queryBuilder = queryBuilder.filter((q) =>
+        q.or(...merchantId.map(m => q.eq(q.field("merchantId"), m)))
       );
     }
 
@@ -639,13 +653,14 @@ export const searchTransactions = query({
     accountId: v.optional(v.array(v.string())),
     categoryId: v.optional(v.array(v.string())),
     labelId: v.optional(v.array(v.string())),
+    merchantId: v.optional(v.array(v.string())),
     dateRange: v.optional(v.object({
       start: v.optional(v.string()),
       end: v.optional(v.string()),
     })),
   },
   handler: async (ctx, args) => {
-    const { householdId, search, type, accountId, categoryId, labelId, dateRange } = args;
+    const { householdId, search, type, accountId, categoryId, labelId, merchantId, dateRange } = args;
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -686,6 +701,12 @@ export const searchTransactions = query({
            q.or(...accountId.map(a => q.eq(q.field("accountId"), a))),
            q.or(...accountId.map(a => q.eq(q.field("toAccountId"), a)))
         )
+      );
+    }
+
+    if (merchantId && merchantId.length > 0) {
+      queryBuilder = queryBuilder.filter((q) =>
+        q.or(...merchantId.map(m => q.eq(q.field("merchantId"), m)))
       );
     }
 

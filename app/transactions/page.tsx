@@ -53,6 +53,7 @@ export default function TransactionsPage() {
     accountId: string[] | undefined
     categoryId: string[] | undefined
     labelId: string[] | undefined
+    merchantId: string[] | undefined
     dateRange: DateRange | undefined
   }>(() => {
       // Lazy init to use correct start day if available immediately, 
@@ -62,6 +63,7 @@ export default function TransactionsPage() {
         accountId: undefined,
         categoryId: undefined,
         labelId: undefined,
+        merchantId: undefined,
         dateRange: {
           from: startOfMonth(new Date()),
           to: endOfMonth(new Date()),
@@ -92,6 +94,7 @@ export default function TransactionsPage() {
       accountId: filters.accountId,
       categoryId: filters.categoryId,
       labelId: filters.labelId,
+      merchantId: filters.merchantId,
       dateRange: filters.dateRange
         ? {
             start: filters.dateRange.from?.toISOString(),
@@ -115,6 +118,7 @@ export default function TransactionsPage() {
       accountId: filters.accountId,
       categoryId: filters.categoryId,
       labelId: filters.labelId,
+      merchantId: filters.merchantId,
       dateRange: filters.dateRange
         ? {
             start: filters.dateRange.from?.toISOString(),
