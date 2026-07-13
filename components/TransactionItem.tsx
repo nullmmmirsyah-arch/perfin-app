@@ -128,6 +128,21 @@ export function TransactionItem({
                 </Badge>
               </div>
             )}
+            {transaction.merchant && (
+              <div className="flex justify-end mt-1">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
+                >
+                  {transaction.merchant.icon.startsWith('http') ? (
+                    <img src={transaction.merchant.icon} alt="" className="w-3 h-3 mr-1" />
+                  ) : (
+                    <span className="mr-1">{transaction.merchant.icon}</span>
+                  )}
+                  {transaction.merchant.name}
+                </Badge>
+              </div>
+            )}
           </div>
           {(onEdit || onDelete) && (
             <DropdownMenu>

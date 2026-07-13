@@ -68,6 +68,23 @@
 - **Visuals:** Labels have names and custom colors.
 - **Splits:** Can be applied to individual splits within a split transaction.
 
+### 5. Merchant & Payee Tracking
+- **Purpose:** Track spending patterns by merchant/payee for better financial insights.
+- **Scope:** Household-only (shared between members).
+- **Icon System:** 3 icon types supported:
+  - **Emoji:** Native emoji character (e.g., ☕, 🛒).
+  - **Letter Avatar:** First letter of merchant name, rendered as colored circle (auto-created).
+  - **Brand Icon:** Iconify brand logos (e.g., Starbucks, Amazon) via API search.
+- **Quick Entry:** Searchable `MerchantCombobox` in transaction form with inline "Create [name]" option.
+  - Creating a merchant auto-uses first letter as icon (no drawer opens).
+  - Icon can be customized later via the merchant drawer.
+- **Transaction Integration:** Merchant field positioned after Amount, before Account in transaction forms.
+- **Merchant Management:** Dedicated `/merchants` page with:
+  - Search and filter merchants.
+  - Create, edit, and delete merchants.
+  - Delete guard: Cannot delete merchants referenced by transactions.
+- **Visual Display:** Transaction items and merchant pages render all 3 icon types correctly.
+
 ### 5. Budgeting (Zero-Based Budgeting)
 - **Monthly Budgets:** Set limits per category per month.
 - **Swipeable Views:** Separate sections for "Monthly Expenses" and "Savings & Goals" navigable via swipe.

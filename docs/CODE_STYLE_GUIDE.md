@@ -149,6 +149,16 @@ Certain UI patterns are standardized to ensure consistency.
 
 7.  **Performance & Queries:**
     - **Batch Fetching:** Never use `await ctx.db.get()` inside a `map` or loop when processing a list. Use `Promise.all` to fetch all related documents in parallel (Batch Pattern).
+    - **Indexed Queries:** Always use `.withIndex()` for lookups on indexed fields (e.g., `by_merchantId`, `by_householdId`). Never use `.filter()` without an index on large tables.
+    - **Delete Guards:** When deleting a parent entity, use an indexed query to check for child references before deletion (e.g., check transactions before deleting a merchant).
+
+8.  **Merchant Patterns:**
+    - **Icon Types:** Merchants support 3 icon types stored as `v.string()`:
+      - Emoji: Native character (e.g., `☕`).
+      - Letter Avatar: First letter of name (e.g., `S` for Starbucks).
+      - Brand Icon: Full Iconify SVG URL (e.g., `https://api.iconify.design/simple-icons/starbucks.svg`).
+    - **Create Flow:** Use `MerchantCombobox` for inline creation (first-letter icon auto-assigned). Use `MerchantDrawer` for full customization.
+    - **Delete Guard:** Always check `by_merchantId` index before deleting a merchant to prevent breaking transaction references.
 
 ## Frontend Logic
 

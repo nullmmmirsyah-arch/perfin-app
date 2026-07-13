@@ -2,6 +2,16 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  merchants: defineTable({
+    userId: v.string(),
+    householdId: v.id("households"), // Required - merchants are household-only
+    name: v.string(),
+    icon: v.string(), // Emoji or icon identifier
+  })
+    .index("by_householdId", ["householdId"])
+    .index("by_userId", ["userId"])
+    .index("by_householdId_name", ["householdId", "name"]),
+  
   households: defineTable({
     name: v.string(),
     ownerId: v.string(),
@@ -70,6 +80,7 @@ export default defineSchema({
       v.literal("settled")
     )),
     parentTransactionId: v.optional(v.id("transactions")), // Link to the original debt
+    merchantId: v.optional(v.id("merchants")),
   })
     .index("by_userId", ["userId"])
     .index("by_userId_date", ["userId", "date"])
@@ -85,7 +96,9 @@ export default defineSchema({
     .index("by_receivables_status", ["householdId", "isReimbursable", "reimbursementStatus"])
     .index("by_userId_reimbursable_status", ["userId", "isReimbursable", "reimbursementStatus"])
     // Index for cascading deletes and calculations
-    .index("by_parentTransactionId", ["parentTransactionId"]),
+    .index("by_parentTransactionId", ["parentTransactionId"])
+    // Index for merchant lookups
+    .index("by_merchantId", ["merchantId"]),
   accounts: defineTable({
     userId: v.string(),
     householdId: v.optional(v.id("households")),

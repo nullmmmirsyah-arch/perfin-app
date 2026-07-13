@@ -88,7 +88,23 @@ This document outlines the design philosophy and user experience patterns used i
     - **Bill (Sinking Fund):** Prompts to **Pay Bill** (Disburse), then asks for **Next Due Date** to reset the cycle without closing the account.
     - **Purchase:** Prompts to **Spend Funds** and **Archive** the goal.
 
-### 7. Actionable Insights
+### 7. Merchant & Payee UX
+- **Searchable Combobox:** Use `MerchantCombobox` in transaction forms for quick merchant selection.
+  - **Auto-Create:** Type a new name and select "Create [name]" to instantly create a merchant with first-letter icon.
+  - **No Drawer for Quick Create:** Creating from combobox bypasses the drawer — uses first letter as icon automatically.
+  - **Icon Customization:** Users can edit merchants later via the merchant drawer to change icon (emoji, brand logo).
+- **Icon Picker Tabs:** `MerchantIconPicker` uses tabs:
+  - **Emojis Tab:** Grid of common finance/business emojis.
+  - **Brand Icons Tab:** Searchable Iconify API integration for brand logos (e.g., Starbucks, Amazon).
+- **Transaction Form Position:** Merchant field is positioned **after Amount, before Account** in both mobile and desktop forms.
+- **Visual Consistency:** All merchant displays (combobox, transaction items, merchant page) render the same 3 icon types:
+  - **URL icons:** Rendered as `<img>` with fallback.
+  - **Letter avatars:** Colored circles with first letter.
+  - **Emojis:** Rendered as text.
+- **Delete Guard:** UI prevents deletion of merchants that are referenced by transactions (shows error).
+- **Haptic Feedback:** `navigator.vibrate(10)` on merchant create/edit/delete operations.
+
+### 8. Actionable Insights
 - **Safe Daily Spend:** Provide actionable daily limits (e.g., "~Rp 50k/day") instead of just static remaining budgets.
 - **Monthly Saving Performance:** In Goal Details, display a **Visual Bar Chart** (list view) showing contribution history per month vs the required monthly target.
 - **Smart Budget Pace Indicators:**

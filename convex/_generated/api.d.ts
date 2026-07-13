@@ -22,6 +22,7 @@ import type * as lib_constants from "../lib/constants.js";
 import type * as lib_finance from "../lib/finance.js";
 import type * as lib_recomputeCache from "../lib/recomputeCache.js";
 import type * as lib_transactions from "../lib/transactions.js";
+import type * as merchants from "../merchants.js";
 import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as push from "../push.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   "lib/finance": typeof lib_finance;
   "lib/recomputeCache": typeof lib_recomputeCache;
   "lib/transactions": typeof lib_transactions;
+  merchants: typeof merchants;
   migrations: typeof migrations;
   notifications: typeof notifications;
   push: typeof push;

@@ -212,7 +212,9 @@ export default function TransactionsPage() {
             <TransactionFilters 
                 filters={filters} 
                 onFilterChange={setFilters} 
-                extraAction={<ExportTransactionDialog currentFilters={filters} />}
+                extraAction={
+                    <ExportTransactionDialog currentFilters={filters} />
+                }
             />
         </div>
 

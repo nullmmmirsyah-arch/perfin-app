@@ -386,12 +386,14 @@ export const get = query({
     const accountIds = new Set<Id<"accounts">>();
     const categoryIds = new Set<Id<"categories">>();
     const labelIds = new Set<Id<"labels">>();
+    const merchantIds = new Set<Id<"merchants">>();
 
     pageResults.forEach(t => {
       accountIds.add(t.accountId);
       if (t.toAccountId) accountIds.add(t.toAccountId);
       if (t.categoryId) categoryIds.add(t.categoryId);
       if (t.labelId) labelIds.add(t.labelId);
+      if (t.merchantId) merchantIds.add(t.merchantId);
       
       t.splits?.forEach(s => {
         categoryIds.add(s.categoryId);
@@ -400,21 +402,24 @@ export const get = query({
     });
 
     // Parallel fetch all unique related documents
-    const [accounts, categories, labels] = await Promise.all([
+    const [accounts, categories, labels, merchants] = await Promise.all([
       Promise.all(Array.from(accountIds).map(id => ctx.db.get(id))),
       Promise.all(Array.from(categoryIds).map(id => ctx.db.get(id))),
       Promise.all(Array.from(labelIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(merchantIds).map(id => ctx.db.get(id))),
     ]);
 
     const accountMap = new Map(accounts.filter(Boolean).map(a => [a!._id, a!]));
     const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
     const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
+    const merchantMap = new Map(merchants.filter(Boolean).map(m => [m!._id, m!]));
 
     const pageWithDetails = pageResults.map((transaction) => {
       const fromAccount = accountMap.get(transaction.accountId);
       const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
       const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
       const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
+      const merchant = transaction.merchantId ? merchantMap.get(transaction.merchantId) : null;
 
       const splitsWithDetails = transaction.splits?.map((split) => {
         const splitCategory = categoryMap.get(split.categoryId);
@@ -439,6 +444,7 @@ export const get = query({
         categoryName: category?.name,
         hideAmount,
         label: label || null,
+        merchant: merchant || null,
         splits: splitsWithDetails,
       };
     });
@@ -701,27 +707,31 @@ export const searchTransactions = query({
     const accountIds = new Set<Id<"accounts">>();
     const categoryIds = new Set<Id<"categories">>();
     const labelIds = new Set<Id<"labels">>();
+    const merchantIds = new Set<Id<"merchants">>();
 
     results.forEach(t => {
       accountIds.add(t.accountId);
       if (t.toAccountId) accountIds.add(t.toAccountId);
       if (t.categoryId) categoryIds.add(t.categoryId);
       if (t.labelId) labelIds.add(t.labelId);
+      if (t.merchantId) merchantIds.add(t.merchantId);
       t.splits?.forEach(s => {
         categoryIds.add(s.categoryId);
         if (s.labelId) labelIds.add(s.labelId);
       });
     });
 
-    const [accounts, categories, labels] = await Promise.all([
+    const [accounts, categories, labels, merchants] = await Promise.all([
       Promise.all(Array.from(accountIds).map(id => ctx.db.get(id))),
       Promise.all(Array.from(categoryIds).map(id => ctx.db.get(id))),
       Promise.all(Array.from(labelIds).map(id => ctx.db.get(id))),
+      Promise.all(Array.from(merchantIds).map(id => ctx.db.get(id))),
     ]);
 
     const accountMap = new Map(accounts.filter(Boolean).map(a => [a!._id, a!]));
     const categoryMap = new Map(categories.filter(Boolean).map(c => [c!._id, c!]));
     const labelMap = new Map(labels.filter(Boolean).map(l => [l!._id, l!]));
+    const merchantMap = new Map(merchants.filter(Boolean).map(m => [m!._id, m!]));
 
     const searchLower = search.toLowerCase();
 
@@ -737,6 +747,9 @@ export const searchTransactions = query({
 
       const lblName = t.labelId ? labelMap.get(t.labelId)?.name : undefined;
       if (lblName?.toLowerCase().includes(searchLower)) return true;
+
+      const merchantName = t.merchantId ? merchantMap.get(t.merchantId)?.name : undefined;
+      if (merchantName?.toLowerCase().includes(searchLower)) return true;
 
       if (t.toAccountId) {
         const toAccName = accountMap.get(t.toAccountId)?.name;
@@ -769,6 +782,7 @@ export const searchTransactions = query({
       const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
       const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
       const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
+      const merchant = transaction.merchantId ? merchantMap.get(transaction.merchantId) : null;
 
       const splitsWithDetails = transaction.splits?.map((split) => {
         const splitCategory = categoryMap.get(split.categoryId);
@@ -792,6 +806,7 @@ export const searchTransactions = query({
         categoryName: category?.name,
         hideAmount,
         label: label || null,
+        merchant: merchant || null,
         splits: splitsWithDetails,
       };
     });
@@ -830,6 +845,7 @@ export const create = mutation({
       v.literal("forgiven")
     )),
     parentTransactionId: v.optional(v.id("transactions")),
+    merchantId: v.optional(v.id("merchants")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -1145,6 +1161,7 @@ export const update = mutation({
       v.literal("settled"),
       v.literal("forgiven")
     )),
+    merchantId: v.optional(v.id("merchants")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

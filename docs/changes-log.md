@@ -69,3 +69,40 @@ Format:
 - `docs/PRODUCT_OVERVIEW.md` — added Goal Creation Wizard description
 - `docs/PRODUCT_GUIDELINES.md` — added Wizard Pattern section
 
+## 2026-07-13
+
+### Added
+- `convex/schema.ts` — `merchants` table (household-only, name + icon) + `merchantId` index on transactions
+- `convex/merchants.ts` — CRUD API: get, create, update, deleteMerchant (with transaction usage guard)
+- `components/MerchantDrawer.tsx` — create/edit merchant drawer with icon picker (Emojis + Brand Icons via Iconify API), first-letter avatar fallback, back-button + dirty-form-guard patterns
+- `components/MerchantCombobox.tsx` — searchable merchant selector with auto-create (first-letter icon on creation)
+- `components/MerchantIconPicker.tsx` — tabbed icon picker: Emojis tab + Brand Icons tab (Iconify API search)
+- `app/merchants/page.tsx` — merchant management page with search, create, edit, delete (with transaction usage guard)
+- Merchant field in `TransactionDrawer` — positioned after Amount, before Account (both mobile and desktop)
+- Merchant field in `TransactionFormFields` — added `merchants` prop for mobile transaction form
+- `navigator.vibrate(10)` haptic feedback on merchant operations (create/edit/delete)
+
+### Changed
+- **`components/TransactionDrawer.tsx`:** merchant selector uses `MerchantCombobox` with inline create option (no separate drawer)
+- **`components/TransactionItem.tsx`:** renders 3 icon types: URL icons as `<img>`, letter avatars as colored circles, emojis as text
+- **`app/merchants/page.tsx`:** renders all 3 icon types correctly, removed bulk assign feature
+- **`convex/merchants.ts` — `deleteMerchant`:** uses indexed query (`by_merchantId`) instead of full table scan
+- **`convex/schema.ts`:** added `by_merchantId` index on transactions table
+
+### Removed
+- `components/BulkAssignMerchantDialog.tsx` — bulk assign merchant feature removed
+- `components/MobileMerchantDrawer.tsx` — replaced by `MerchantCombobox`
+- `bulkAssignMerchant` mutation from `convex/transactions.ts`
+
+### Fixed
+- `components/MerchantDrawer.tsx` — missing `Id` import, added `navigator.vibrate(10)` on submit
+- `components/TransactionDrawer.tsx` — merchant field position corrected (after Amount, before Account)
+- `components/MerchantDrawer.tsx` — added back-button handling (`window.history.pushState` + `popstate`) and dirty-state AlertDialog
+- `convex/merchants.ts` — `deleteMerchant` now uses indexed query instead of `.filter()` full table scan
+
+### Docs
+- `docs/DATABASE_AND_RELATIONSHIPS.md` — added Merchants entity, merchantId index on transactions
+- `docs/PRODUCT_OVERVIEW.md` — added Merchant & Payee Tracking feature section
+- `docs/PRODUCT_GUIDELINES.md` — added Merchant UX patterns (combobox, icon picker, auto-create)
+- `docs/CODE_STYLE_GUIDE.md` — updated backend examples with merchant patterns
+

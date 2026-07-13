@@ -24,6 +24,19 @@ The `transactions` table is the source of truth for all balances.
 - **Split Logic:** A single transaction can have many `splits`. Each split has its own `categoryId` and `amount`.
 - **Search Optimization:** Uses `searchCategoryIds` and `searchLabelIds` (arrays) to index both the main category and all split categories for fast filtering.
 
+### 4. Merchants (Payee Tracking)
+The `merchants` table tracks spending patterns by payee/merchant.
+- **Scope:** Household-only (shared between members, not personal).
+- **Fields:** `name`, `icon` (emoji, letter avatar, or Iconify brand icon URL), `householdId`, `userId`.
+- **Indexes:** `by_householdId`, `by_userId`, `by_householdId_name`.
+- **Relationship:** Transactions reference `merchantId` (optional) via `v.id("merchants")`.
+- **Index on Transactions:** `by_merchantId` index for efficient lookups in queries and delete guards.
+- **Icon Types:**
+  - **Emoji:** Native emoji character (e.g., ☕, 🛒).
+  - **Letter Avatar:** First letter of merchant name, rendered as colored circle.
+  - **Brand Icon:** Full Iconify SVG URL (e.g., `https://api.iconify.design/simple-icons/starbucks.svg`).
+- **Delete Guard:** Cannot delete a merchant that is referenced by any transaction.
+
 ## Advanced Relationships
 
 ### 4. Receivables (Parent-Child Transactions)

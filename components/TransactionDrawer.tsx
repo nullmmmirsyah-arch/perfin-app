@@ -61,6 +61,7 @@ import {
   FileText, 
   ArrowRight,
   Tag,
+  Store,
   Loader2
 } from 'lucide-react';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
@@ -71,6 +72,7 @@ import { SplitEditorDrawer } from './SplitEditorDrawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
+import MerchantCombobox from './MerchantCombobox';
 import { MobileAmountInput } from './mobile-amount-input';
 import { MobileDatePicker } from '@/components/ui/mobile-date-picker';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
@@ -80,6 +82,7 @@ type TransactionWithDetails = Doc<'transactions'> & {
   toAccountName?: string;
   categoryName?: string;
   label?: Doc<'labels'> | null;
+  merchant?: Doc<'merchants'> | null;
   splits?: Array<{
     categoryId: string;
     amount: string;
@@ -125,6 +128,7 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
     labelId: z.string().optional(),
   })).optional(),
   labelId: z.string().optional(),
+  merchantId: z.string().optional(),
   assetDetails: z.object({
     quantity: z.string().optional(),
     unitPrice: z.number().optional(),
@@ -541,6 +545,7 @@ const TransactionForm = ({
   }, [transactionType, budgetStatus, allCategories, initialData?.categoryId]);
 
   const labels = useQuery(api.labels.get, { householdId: householdId ?? undefined });
+  const merchants = useQuery(api.merchants.get, { householdId: householdId ?? undefined });
 
   // Reset form when opening/closing or changing transaction
   useEffect(() => {
@@ -566,6 +571,7 @@ const TransactionForm = ({
             labelId: s.labelId || undefined,
           })) || [{ categoryId: '', amount: '', description: '', labelId: '' }],
           labelId: transaction.labelId || undefined,
+          merchantId: transaction.merchantId || undefined,
           assetDetails: transaction.assetDetails ? {
             quantity: transaction.assetDetails.quantity,
             unitPrice: transaction.assetDetails.unitPrice,
@@ -587,6 +593,7 @@ const TransactionForm = ({
           isSplit: initialData?.isSplit || false,
           splits: initialData?.splits || [{ categoryId: '', amount: '', description: '', labelId: '' }],
           labelId: initialData?.labelId || undefined,
+          merchantId: initialData?.merchantId || undefined,
           assetDetails: initialData?.assetDetails || { quantity: '', unitPrice: undefined },
           isReimbursable: initialData?.isReimbursable || false,
           owedBy: initialData?.owedBy || '',
@@ -649,6 +656,7 @@ const TransactionForm = ({
               isSplit: data.isSplit,
               splits: finalSplits,
               labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
+              merchantId: (data.merchantId && data.merchantId !== 'none') ? data.merchantId as Id<'merchants'> : undefined,
               assetDetails,
               // Receivables
               isReimbursable: data.isReimbursable,
@@ -669,6 +677,7 @@ const TransactionForm = ({
               isSplit: data.isSplit,
               splits: finalSplits,
               labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
+              merchantId: (data.merchantId && data.merchantId !== 'none') ? data.merchantId as Id<'merchants'> : undefined,
               assetDetails,
               // Receivables
               isReimbursable: data.isReimbursable,
@@ -749,6 +758,7 @@ const TransactionForm = ({
                     categories={categories || []} 
                     accounts={cashAccounts} 
                     labels={labels || []} 
+                    merchants={merchants || []}
                     onSplitToggle={handleSplitToggle}
                     splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
                     onEditSplit={() => setSplitDrawerOpen(true)}
@@ -764,6 +774,7 @@ const TransactionForm = ({
                     categories={categories || []} 
                     accounts={cashAccounts} 
                     labels={labels || []} 
+                    merchants={merchants || []}
                     onSplitToggle={handleSplitToggle}
                     splitSummary={isSplit ? { count: splitCount, total: allocated } : undefined}
                     onEditSplit={() => setSplitDrawerOpen(true)}
@@ -849,12 +860,13 @@ const TransactionForm = ({
 }
 
 const TransactionFormFields = ({ 
-    form, categories, accounts, labels, onSplitToggle, splitSummary, onEditSplit, isMobile, open, isEditMode, isSettlement 
+    form, categories, accounts, labels, merchants, onSplitToggle, splitSummary, onEditSplit, isMobile, open, isEditMode, isSettlement 
 }: { 
     form: UseFormReturn<TransactionFormValues>, 
     categories: CategoryOption[], 
     accounts: Doc<'accounts'>[], 
     labels: Doc<'labels'>[],
+    merchants?: Doc<'merchants'>[],
     onSplitToggle?: (checked: boolean) => void,
     splitSummary?: { count: number, total: number },
     onEditSplit?: () => void,
@@ -874,6 +886,7 @@ const TransactionFormFields = ({
   const accountId = useWatch({ control: form.control, name: 'accountId' });
   const categoryId = useWatch({ control: form.control, name: 'categoryId' });
   const labelId = useWatch({ control: form.control, name: 'labelId' });
+  const merchantId = useWatch({ control: form.control, name: 'merchantId' });
   
   const [amountSheetOpen, setAmountSheetOpen] = useState(false);
 
@@ -882,6 +895,7 @@ const TransactionFormFields = ({
   const selectedAccount = accounts.find(a => a._id === accountId);
   const selectedCategory = categories.find(c => c._id === categoryId);
   const selectedLabel = labels?.find(l => l._id === labelId);
+  const selectedMerchant = merchants?.find(m => m._id === merchantId);
 
   const amountValue = parseAmount(amount);
   const balanceValue = parseAmount(selectedAccount?.balance);
@@ -971,6 +985,36 @@ const TransactionFormFields = ({
               </FormItem>
             )}
           />
+
+          {/* MERCHANT FIELD - After Amount, Before Account */}
+          {!isSplit && (
+            <FormField
+              control={form.control}
+              name="merchantId"
+              render={({ field }) => (
+                <FormItem>
+                  {!isMobile && <FormLabel>Merchant</FormLabel>}
+                  <FormControl>
+                    <MerchantCombobox
+                      value={field.value}
+                      onSelect={(id) => field.onChange(id || '')}
+                      merchants={merchants || []}
+                      trigger={isMobile ? (
+                        <button type="button" className="w-full text-left outline-none">
+                          <MobileInputCard 
+                            label="Merchant" 
+                            icon={Store} 
+                            valueDisplay={selectedMerchant ? `${selectedMerchant.icon} ${selectedMerchant.name}` : undefined}
+                          />
+                        </button>
+                      ) : undefined}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {/* CARD INPUTS FOR MOBILE */}
           {isMobile ? (
