@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Trash2, Edit, ChevronDown } from 'lucide-react'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { MoreHorizontal, Trash2, Edit, ChevronDown, GitBranch } from 'lucide-react'
 import { TransactionWithDetails } from './transactions/types'
 
 export function TransactionItem({ 
@@ -98,8 +99,16 @@ export function TransactionItem({
                     )
                   )}
                   <p className="font-semibold text-sm">
-                    {transaction.merchant?.name || (transaction.isSplit ? 'Split transaction' : (transaction.description || 'No description'))}
+                    {transaction.merchant?.name || (transaction.description || 'No description')}
                   </p>
+                  {transaction.isSplit && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <GitBranch className="h-3 w-3 text-muted-foreground shrink-0" />
+                      </TooltipTrigger>
+                      <TooltipContent>Transaksi ini di-split</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                   <span className="font-medium text-muted-foreground/80">{transaction.fromAccountName}</span>

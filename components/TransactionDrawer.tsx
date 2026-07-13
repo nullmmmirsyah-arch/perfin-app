@@ -987,34 +987,32 @@ const TransactionFormFields = ({
           />
 
           {/* MERCHANT FIELD - After Amount, Before Account */}
-          {!isSplit && (
-            <FormField
-              control={form.control}
-              name="merchantId"
-              render={({ field }) => (
-                <FormItem>
-                  {!isMobile && <FormLabel>Merchant</FormLabel>}
-                  <FormControl>
-                    <MerchantCombobox
-                      value={field.value}
-                      onSelect={(id) => field.onChange(id || '')}
-                      merchants={merchants || []}
-                      trigger={isMobile ? (
-                        <button type="button" className="w-full text-left outline-none">
-                          <MobileInputCard 
-                            label="Merchant" 
-                            icon={Store} 
-                            valueDisplay={selectedMerchant ? `${selectedMerchant.icon} ${selectedMerchant.name}` : undefined}
-                          />
-                        </button>
-                      ) : undefined}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          <FormField
+            control={form.control}
+            name="merchantId"
+            render={({ field }) => (
+              <FormItem>
+                {!isMobile && <FormLabel>Merchant</FormLabel>}
+                <FormControl>
+                  <MerchantCombobox
+                    value={field.value}
+                    onSelect={(id) => field.onChange(id || '')}
+                    merchants={merchants || []}
+                    trigger={isMobile ? (
+                      <button type="button" className="w-full text-left outline-none">
+                        <MobileInputCard 
+                          label="Merchant" 
+                          icon={Store} 
+                          valueDisplay={selectedMerchant ? `${selectedMerchant.icon} ${selectedMerchant.name}` : undefined}
+                        />
+                      </button>
+                    ) : undefined}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {/* CARD INPUTS FOR MOBILE */}
           {isMobile ? (

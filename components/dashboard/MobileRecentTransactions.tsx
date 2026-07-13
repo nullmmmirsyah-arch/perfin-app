@@ -3,11 +3,11 @@
 import { useState, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { cn, formatCurrency, parseAmount } from '@/lib/utils'
 import { isToday, isYesterday, format } from 'date-fns'
 import { TransactionWithDetails } from '@/components/transactions/types'
-import { ArrowRight, ChevronDown, Edit, Trash2 } from 'lucide-react'
+import { ArrowRight, ChevronDown, Edit, Trash2, GitBranch } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
@@ -49,17 +49,6 @@ function getAmountPrefix(type: string) {
     case 'income': return '+'
     default: return ''
   }
-}
-
-function getSplitDescription(tx: TransactionWithDetails): string {
-  if (tx.description) return tx.description
-  const splits = tx.splits
-  if (splits && splits.length > 0) {
-    const names = splits.map(s => s.description || s.categoryName || 'Item').filter(Boolean)
-    if (names.length <= 2) return names.join(', ')
-    return `${names.slice(0, 2).join(', ')} +${names.length - 2} lainnya`
-  }
-  return 'Split transaction'
 }
 
 export function MobileRecentTransactions({ transactions, onEdit, onDelete, isPrivacyMode }: Props) {
@@ -149,7 +138,6 @@ export function MobileRecentTransactions({ transactions, onEdit, onDelete, isPri
                     const dotColor = getDotColor(tx.type)
                     const amountColor = getAmountColor(tx.type)
                     const prefix = getAmountPrefix(tx.type)
-                    const splitCount = tx.splits?.length ?? 0
 
                     return (
                       <div
@@ -179,14 +167,17 @@ export function MobileRecentTransactions({ transactions, onEdit, onDelete, isPri
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
-                              {isSplit && (
-                                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-normal shrink-0">
-                                  Split {splitCount}
-                                </Badge>
-                              )}
                               <span className="text-sm font-medium truncate">
-                                {tx.merchant?.name || (isSplit ? getSplitDescription(tx) : (tx.description || tx.categoryName || 'No description'))}
+                                {tx.merchant?.name || (tx.description || tx.categoryName || 'No description')}
                               </span>
+                              {isSplit && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <GitBranch className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Transaksi ini di-split</TooltipContent>
+                                </Tooltip>
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
                               <span>{tx.categoryName || tx.fromAccountName}</span>
