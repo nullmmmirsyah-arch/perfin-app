@@ -85,9 +85,22 @@ export function TransactionItem({
               </>
             ) : (
               <div>
-                <p className="font-semibold text-sm">
-                  {transaction.merchant?.name || (transaction.isSplit ? 'Split transaction' : (transaction.description || 'No description'))}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  {transaction.merchant && (
+                    transaction.merchant.icon.startsWith('http') ? (
+                      <img src={transaction.merchant.icon} alt="" className="w-4 h-4 rounded-full shrink-0 object-cover" />
+                    ) : transaction.merchant.icon.length === 1 && transaction.merchant.icon.match(/[a-zA-Z0-9]/) ? (
+                      <div className="w-4 h-4 rounded-full shrink-0 bg-primary/10 flex items-center justify-center text-[8px] font-bold text-primary">
+                        {transaction.merchant.icon}
+                      </div>
+                    ) : (
+                      <span className="shrink-0 text-sm">{transaction.merchant.icon}</span>
+                    )
+                  )}
+                  <p className="font-semibold text-sm">
+                    {transaction.merchant?.name || (transaction.isSplit ? 'Split transaction' : (transaction.description || 'No description'))}
+                  </p>
+                </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                   <span className="font-medium text-muted-foreground/80">{transaction.fromAccountName}</span>
                   {transaction.categoryName && (
@@ -121,25 +134,10 @@ export function TransactionItem({
                   className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
                   style={transaction.label.color ? { 
                       color: transaction.label.color,
-                      backgroundColor: `${transaction.label.color}15` // 10% opacity hex
+                      backgroundColor: `${transaction.label.color}15`
                   } : undefined}
                 >
                   #{transaction.label.name}
-                </Badge>
-              </div>
-            )}
-            {transaction.merchant && (
-              <div className="flex justify-end mt-1">
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
-                >
-                  {transaction.merchant.icon.startsWith('http') ? (
-                    <img src={transaction.merchant.icon} alt="" className="w-3 h-3 mr-1" />
-                  ) : (
-                    <span className="mr-1">{transaction.merchant.icon}</span>
-                  )}
-                  {transaction.merchant.name}
                 </Badge>
               </div>
             )}
