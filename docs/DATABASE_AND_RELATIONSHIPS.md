@@ -99,3 +99,4 @@ To support partial settlements (installments), we use a self-referential relatio
 ## Query Guidelines
 - **NEVER** calculate `spent` amounts manually in a query. Use `calculateSpendingByCategory` from `convex/lib/finance.ts`.
 - **NEVER** ignore the `categoriesMap` when analyzing flows, or settlements will be misclassified as regular income.
+- **Merchant Filtering:** Use `merchantId` parameter (array of IDs) in `transactions.get`, `transactions.searchTransactions`, and `transactions.exportTransactions` queries. Filtered server-side via `.filter()` for performance.

@@ -106,3 +106,27 @@ Format:
 - `docs/PRODUCT_GUIDELINES.md` — added Merchant UX patterns (combobox, icon picker, auto-create)
 - `docs/CODE_STYLE_GUIDE.md` — updated backend examples with merchant patterns
 
+## 2026-07-13 (2)
+
+### Added
+- Merchant filter in Transactions page filter popover (`TransactionFilters.tsx`)
+- `merchantId` parameter in `convex/transactions.ts` queries: `get`, `searchTransactions`, `exportTransactions` (server-side `.filter()`)
+- Date badge in active filter badges (shows when date range is set)
+- Tooltip on split indicator (`GitBranch` icon) in `TransactionItem.tsx` and `MobileRecentTransactions.tsx` — "Transaksi ini di-split"
+
+### Changed
+- **`components/TransactionFilters.tsx`:** Merchant MultiSelect added to filter popover; DateRangePicker moved inside the filter popover (was standalone); `resetAll` now preserves date range
+- **`components/TransactionItem.tsx`:** Split indicator wrapped with Radix `Tooltip` for cursor and touch; merchant badge removed, merchant icon shown inline next to merchant name
+- **`components/dashboard/MobileRecentTransactions.tsx`:** Merchant icon replaces colored dot; GitBranch split indicator with tooltip; full date group headers ("Hari ini"/"Kemarin"/"DD MMM YYYY"); removed unused `getSplitDescription` function
+- **`components/TransactionDrawer.tsx`:** Merchant field enabled for split transactions (removed `{!isSplit}` guard)
+- **`components/transactions/ExportTransactionDialog.tsx`:** Export now respects merchant filter
+
+### Fixed
+- `components/TransactionFilters.tsx` — Reset/Clear all now preserves date range (was accidentally clearing it)
+- `convex/transactions.ts` — `exportTransactions` query now accepts `merchantId` parameter
+
+### Docs
+- `docs/PRODUCT_OVERVIEW.md` — updated Filtering section with merchant filter; updated Export section
+- `docs/PRODUCT_GUIDELINES.md` — updated Merchant UX section with split tooltip and filter details
+- `docs/DATABASE_AND_RELATIONSHIPS.md` — added merchantId to query guidelines
+

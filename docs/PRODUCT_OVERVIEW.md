@@ -12,7 +12,7 @@
 - **Split Transactions:** Ability to split a single transaction into multiple categories.
     - **Unified UI:** Accessed directly through the **Category Selector**. Selecting "Split Transaction" activates the dedicated drawer.
     - **Context-Aware Fields:** When Split mode is active, global fields (Category, Label, Description) are hidden to prevent redundancy, replaced by a "Split Summary Card" that shows item count and total allocated funds.
-- **Filtering:** Powerful **Multi-Select Filtering** allows users to combine multiple Accounts, Categories, or Types simultaneously. Supports Date Range filtering.
+- **Filtering:** Powerful **Multi-Select Filtering** allows users to combine multiple Accounts, Categories, Types, and Merchants simultaneously. All filters are consolidated inside a single filter popover, including **Date Range**.
 
 ### 2. Accounts (Funds Storage)
 - **Types:**
@@ -160,7 +160,7 @@
 
 ### 11. Export Transactions
 - **Format:** CSV (Comma Separated Values).
-- **Scope:** Respects current active filters (Date Range, Type, Account, Category, Label).
+- **Scope:** Respects current active filters (Date Range, Type, Account, Category, Label, Merchant).
 - **Split Handling:** Uses **"Exploded Rows"** logic.
     - A split transaction is not exported as a single summarized row.
     - Instead, it is broken down into multiple rows, each representing a specific split item with its own category and amount.
