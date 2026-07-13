@@ -432,12 +432,14 @@ export const getDashboardSummary = query({
     const txAccountIds = new Set<Id<"accounts">>();
     const txCategoryIds = new Set<Id<"categories">>();
     const txLabelIds = new Set<Id<"labels">>();
+    const txMerchantIds = new Set<Id<"merchants">>();
 
     sortedTransactions.forEach(t => {
         txAccountIds.add(t.accountId);
         if (t.toAccountId) txAccountIds.add(t.toAccountId);
         if (t.categoryId) txCategoryIds.add(t.categoryId);
         if (t.labelId) txLabelIds.add(t.labelId);
+        if (t.merchantId) txMerchantIds.add(t.merchantId);
 
         t.splits?.forEach(s => {
             txCategoryIds.add(s.categoryId);
@@ -445,21 +447,24 @@ export const getDashboardSummary = query({
         });
     });
 
-    const [txAccounts, txCategories, txLabels] = await Promise.all([
+    const [txAccounts, txCategories, txLabels, txMerchants] = await Promise.all([
         Promise.all(Array.from(txAccountIds).map(id => ctx.db.get(id))),
         Promise.all(Array.from(txCategoryIds).map(id => ctx.db.get(id))),
         Promise.all(Array.from(txLabelIds).map(id => ctx.db.get(id))),
+        Promise.all(Array.from(txMerchantIds).map(id => ctx.db.get(id))),
     ]);
 
     const txAccountMap = new Map(txAccounts.filter(Boolean).map(a => [a!._id, a!]));
     const txCategoryMap = new Map(txCategories.filter(Boolean).map(c => [c!._id, c!]));
     const txLabelMap = new Map(txLabels.filter(Boolean).map(l => [l!._id, l!]));
+    const txMerchantMap = new Map(txMerchants.filter(Boolean).map(m => [m!._id, m!]));
 
     const recentTransactions = sortedTransactions.map((t) => {
             const fromAccount = txAccountMap.get(t.accountId);
             const toAccount = t.toAccountId ? txAccountMap.get(t.toAccountId) : null;
             const category = t.categoryId ? txCategoryMap.get(t.categoryId) : null;
             const label = t.labelId ? txLabelMap.get(t.labelId) : null;
+            const merchant = t.merchantId ? txMerchantMap.get(t.merchantId) : null;
 
             const splitsWithDetails = t.splits?.map((split) => {
                     const splitCategory = txCategoryMap.get(split.categoryId);
@@ -483,6 +488,7 @@ export const getDashboardSummary = query({
                 categoryName: category?.name,
                 hideAmount,
                 label,
+                merchant: merchant || null,
                 splits: splitsWithDetails,
             };
     });

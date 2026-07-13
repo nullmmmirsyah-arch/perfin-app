@@ -164,7 +164,19 @@ export function MobileRecentTransactions({ transactions, onEdit, onDelete, isPri
                           className="flex items-center gap-3 px-2 py-2.5 cursor-pointer select-none"
                           onClick={() => toggleExpand(tx._id)}
                         >
-                          <div className={cn('w-2.5 h-2.5 rounded-full shrink-0', dotColor)} />
+                          {tx.merchant ? (
+                            tx.merchant.icon.startsWith('http') ? (
+                              <img src={tx.merchant.icon} alt="" className="w-6 h-6 rounded-full shrink-0 object-cover" />
+                            ) : tx.merchant.icon.length === 1 && tx.merchant.icon.match(/[a-zA-Z0-9]/) ? (
+                              <div className="w-6 h-6 rounded-full shrink-0 bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                {tx.merchant.icon}
+                              </div>
+                            ) : (
+                              <span className="w-6 h-6 shrink-0 flex items-center justify-center text-base">{tx.merchant.icon}</span>
+                            )
+                          ) : (
+                            <div className={cn('w-2.5 h-2.5 rounded-full shrink-0', dotColor)} />
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               {isSplit && (
