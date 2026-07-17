@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Doc } from '../convex/_generated/dataModel';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -42,6 +42,7 @@ const MerchantCombobox = ({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredMerchants = useMemo(() => {
     if (!search.trim()) return merchants;
@@ -55,6 +56,7 @@ const MerchantCombobox = ({
 
   const handleSelect = useCallback((merchantId: string | undefined) => {
     onSelect(merchantId);
+    searchInputRef.current?.blur();
     setOpen(false);
     setSearch('');
   }, [onSelect]);
@@ -73,6 +75,7 @@ const MerchantCombobox = ({
         icon: firstLetter,
       });
       onSelect(newId as string);
+      searchInputRef.current?.blur();
       setOpen(false);
       setSearch('');
       toast.success(`Merchant "${search.trim()}" created`);
@@ -89,6 +92,7 @@ const MerchantCombobox = ({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
+          ref={searchInputRef}
           placeholder="Search merchants..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}

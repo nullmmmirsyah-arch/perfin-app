@@ -212,7 +212,8 @@
     @apply bg-background text-foreground overflow-x-hidden;
     letter-spacing: var(--tracking-normal);
     overscroll-behavior-y: none; /* Prevent browser pull-to-refresh and bounce */
-    height: 100dvh; /* Dynamic viewport height for mobile browsers */
+    min-height: 100dvh;
+    min-height: -webkit-fill-available; /* iOS Safari fallback */
   }
 }
 
