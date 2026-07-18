@@ -63,34 +63,50 @@ export const MobileAmountInput = ({
   const rawValue = value.replace(/,/g, '');
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pasteInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text?.trim()) {
-        toast.info('Nothing to paste');
-        return;
-      }
-      const result = parseClipboardAmount(text.trim());
-      if (!result) {
-        toast.error('Invalid amount');
-        return;
-      }
-      onChange(result.value);
-      if (navigator.vibrate) navigator.vibrate(10);
-      if (result.capped) {
-        toast.warning('Amount capped at maximum');
-      } else {
-        toast.success('Amount pasted');
-      }
-    } catch {
-      toast.error('Clipboard access denied');
+  const applyPaste = (text: string) => {
+    if (!text?.trim()) {
+      toast.info('Nothing to paste');
+      return;
     }
+    const result = parseClipboardAmount(text.trim());
+    if (!result) {
+      toast.error('Invalid amount');
+      return;
+    }
+    onChange(result.value);
+    if (navigator.vibrate) navigator.vibrate(10);
+    if (result.capped) {
+      toast.warning('Amount capped at maximum');
+    } else {
+      toast.success('Amount pasted');
+    }
+  };
+
+  const handlePasteEvent = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text');
+    applyPaste(text);
+    pasteInputRef.current?.blur();
   };
 
   const handlePointerDown = () => {
     longPressTimer.current = setTimeout(() => {
-      handlePaste();
+      pasteInputRef.current?.focus();
+      navigator.clipboard?.readText?.()
+        .then((text) => {
+          if (text) {
+            applyPaste(text);
+          } else {
+            toast.info('Nothing to paste');
+          }
+          pasteInputRef.current?.blur();
+        })
+        .catch(() => {
+          toast.info('Tap paste from toolbar');
+          pasteInputRef.current?.focus();
+        });
     }, 500);
   };
 
@@ -158,6 +174,14 @@ export const MobileAmountInput = ({
           <DrawerTitle>Enter Amount</DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
+          <input
+            ref={pasteInputRef}
+            type="text"
+            className="sr-only"
+            onPaste={handlePasteEvent}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
             <div
