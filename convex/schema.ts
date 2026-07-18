@@ -152,7 +152,7 @@ export default defineSchema({
     userId: v.string(),
     householdId: v.optional(v.id("households")),
     name: v.string(),
-    icon: v.string(),
+    icon: v.optional(v.string()), // Optional until migration adds icon to all labels
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
