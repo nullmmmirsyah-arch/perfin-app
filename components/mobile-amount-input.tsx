@@ -105,6 +105,13 @@ export const MobileAmountInput = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!open && longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, [open]);
+
   const handleKey = (key: string) => {
     if (key === '⌫') {
       const newRaw = rawValue.slice(0, -1);
@@ -153,12 +160,13 @@ export const MobileAmountInput = ({
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
             <div
               className={cn(
-                "font-bold text-foreground text-center transition-all leading-tight cursor-pointer select-none",
+                "font-bold text-foreground text-center transition-all leading-tight cursor-pointer select-none active:scale-[0.98]",
                 displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
               )}
               onPointerDown={handlePointerDown}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
+              onContextMenu={(e) => e.preventDefault()}
             >
               {displayAmount || '0'}
             </div>
