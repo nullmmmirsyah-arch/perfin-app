@@ -135,7 +135,7 @@ export const MobileAmountInput = ({
               inputMode="none"
               value={displayAmount || '0'}
               className={cn(
-                "font-bold text-foreground text-center transition-all leading-tight bg-muted/50 border border-border/50 rounded-xl px-4 py-2 outline-none w-full caret-primary",
+                "font-bold text-foreground text-center transition-all leading-tight bg-muted/50 border border-border/50 rounded-xl px-4 py-2 outline-none max-w-[280px] w-full caret-primary",
                 displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
               )}
               onPaste={handlePasteEvent}
