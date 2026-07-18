@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -60,28 +61,39 @@ export const MobileAmountInput = ({
   isOverspent,
 }: MobileAmountInputProps) => {
   const rawValue = value.replace(/,/g, '');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text?.trim()) {
-        toast.info('Nothing to paste');
-        return;
-      }
-      const result = parseClipboardAmount(text.trim());
-      if (!result) {
-        toast.error('Invalid amount');
-        return;
-      }
-      onChange(result.value);
-      if (navigator.vibrate) navigator.vibrate(10);
-      if (result.capped) {
-        toast.warning('Amount capped at maximum');
-      } else {
-        toast.success('Amount pasted');
-      }
-    } catch {
-      toast.error('Clipboard access denied');
+  const applyPaste = (text: string) => {
+    if (!text?.trim()) {
+      toast.info('Nothing to paste');
+      return;
+    }
+    const result = parseClipboardAmount(text.trim());
+    if (!result) {
+      toast.error('Invalid amount');
+      return;
+    }
+    onChange(result.value);
+    if (navigator.vibrate) navigator.vibrate(10);
+    if (result.capped) {
+      toast.warning('Amount capped at maximum');
+    } else {
+      toast.success('Amount pasted');
+    }
+  };
+
+  const handlePasteEvent = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text');
+    applyPaste(text);
+    textareaRef.current?.blur();
+  };
+
+  const handlePasteTap = () => {
+    const ta = textareaRef.current;
+    if (ta) {
+      ta.value = '';
+      ta.focus();
     }
   };
 
@@ -129,6 +141,13 @@ export const MobileAmountInput = ({
           <DrawerTitle>Enter Amount</DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
+          <textarea
+            ref={textareaRef}
+            className="sr-only"
+            onPaste={handlePasteEvent}
+            aria-hidden="true"
+            readOnly
+          />
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
             <div className={cn(
@@ -139,7 +158,7 @@ export const MobileAmountInput = ({
             </div>
             <button
               type="button"
-              onClick={handlePaste}
+              onClick={handlePasteTap}
               className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
             >
               <ClipboardPaste className="h-3 w-3" />
