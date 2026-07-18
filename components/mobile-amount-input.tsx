@@ -163,7 +163,6 @@ export const MobileAmountInput = ({
               placeholder="Tap here then paste"
               className="flex-1 h-9 px-3 text-xs rounded-lg border border-border bg-muted/50 text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
               onPaste={handlePasteEvent}
-              readOnly
             />
             <button
               type="button"
