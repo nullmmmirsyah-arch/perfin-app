@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -11,7 +10,31 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { MoreHorizontal, Trash2, Edit, ChevronDown, GitBranch } from 'lucide-react'
+import {
+  MoreHorizontal, Trash2, Edit, ChevronDown, GitBranch, Tag,
+  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
+  Car, Bus, Plane, Train, Bike, Ship, Fuel,
+  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
+  Activity, Pill, Stethoscope, Dumbbell, Moon,
+  Users, User, Baby, PawPrint,
+  Clock, MapPin, Phone, Music, Camera, Umbrella,
+  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
+  TrendingUp, DollarSign, BarChart3, Folder, FileText, Hash,
+} from 'lucide-react'
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
+  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
+  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
+  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
+  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
+  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
+  Globe, Bookmark, Shield, Folder, FileText, Hash,
+}
 import { TransactionWithDetails } from './transactions/types'
 
 export function TransactionItem({ 
@@ -136,20 +159,19 @@ export function TransactionItem({
               {transaction.type === 'expense' ? '-' : transaction.type === 'income' ? '+' : '' }
               {displayAmount}
             </p>
-            {transaction.label && (
-              <div className="flex justify-end mt-1">
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
-                  style={transaction.label.color ? { 
-                      color: transaction.label.color,
-                      backgroundColor: `${transaction.label.color}15`
-                  } : undefined}
+            {transaction.labels?.map((label) => {
+              const LabelIcon = ICON_MAP[label.icon] || Tag;
+              return (
+                <span
+                  key={label._id}
+                  className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-md"
+                  title={label.name}
                 >
-                  #{transaction.label.name}
-                </Badge>
-              </div>
-            )}
+                  <LabelIcon className="h-3 w-3" />
+                  <span className="hidden sm:inline">{label.name}</span>
+                </span>
+              );
+            })}
           </div>
           {(onEdit || onDelete) && (
             <DropdownMenu>
@@ -211,20 +233,18 @@ export function TransactionItem({
                     </div>
                     <div className="text-right">
                       <span className="font-semibold">{shouldMask ? '••••' : split.amount}</span>
-                      {split.labelName && (
-                        <div className="flex justify-end mt-1">
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] py-0 h-4 border-0 bg-muted/50 text-muted-foreground font-normal hover:bg-muted"
-                            style={split.labelColor ? { 
-                                color: split.labelColor,
-                                backgroundColor: `${split.labelColor}15`
-                            } : undefined}
+                      {split.labelIcons?.map((iconName, i) => {
+                        const SplitIcon = ICON_MAP[iconName] || Tag;
+                        return (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
                           >
-                            #{split.labelName}
-                          </Badge>
-                        </div>
-                      )}
+                            <SplitIcon className="h-3 w-3" />
+                            {split.labelNames?.[i]}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 );
