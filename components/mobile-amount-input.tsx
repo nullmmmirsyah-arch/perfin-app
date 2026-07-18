@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -8,7 +7,7 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ClipboardPaste } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MobileAmountInputProps {
@@ -62,43 +61,27 @@ export const MobileAmountInput = ({
 }: MobileAmountInputProps) => {
   const rawValue = value.replace(/,/g, '');
 
-  const pasteInputRef = useRef<HTMLInputElement>(null);
-  const pointerStartTime = useRef(0);
-
-  const applyPaste = (text: string) => {
-    if (!text?.trim()) {
-      toast.info('Nothing to paste');
-      return;
-    }
-    const result = parseClipboardAmount(text.trim());
-    if (!result) {
-      toast.error('Invalid amount');
-      return;
-    }
-    onChange(result.value);
-    if (navigator.vibrate) navigator.vibrate(10);
-    if (result.capped) {
-      toast.warning('Amount capped at maximum');
-    } else {
-      toast.success('Amount pasted');
-    }
-  };
-
-  const handlePasteEvent = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text');
-    applyPaste(text);
-    pasteInputRef.current?.blur();
-  };
-
-  const handlePointerDown = () => {
-    pointerStartTime.current = performance.now();
-  };
-
-  const handlePointerUp = () => {
-    const elapsed = performance.now() - pointerStartTime.current;
-    if (elapsed >= 500) {
-      pasteInputRef.current?.focus();
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text?.trim()) {
+        toast.info('Nothing to paste');
+        return;
+      }
+      const result = parseClipboardAmount(text.trim());
+      if (!result) {
+        toast.error('Invalid amount');
+        return;
+      }
+      onChange(result.value);
+      if (navigator.vibrate) navigator.vibrate(10);
+      if (result.capped) {
+        toast.warning('Amount capped at maximum');
+      } else {
+        toast.success('Amount pasted');
+      }
+    } catch {
+      toast.error('Clipboard access denied');
     }
   };
 
@@ -146,33 +129,22 @@ export const MobileAmountInput = ({
           <DrawerTitle>Enter Amount</DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
-          <input
-            ref={pasteInputRef}
-            type="text"
-            className="absolute w-px h-px opacity-0 p-0 -z-10"
-            onPaste={handlePasteEvent}
-            aria-hidden="true"
-          />
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
-            <div
-              className={cn(
-                "font-bold text-foreground text-center transition-all leading-tight cursor-pointer select-none active:scale-[0.98]",
-                displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
-              )}
-              onPointerDown={handlePointerDown}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              onContextMenu={(e) => e.preventDefault()}
-            >
+            <div className={cn(
+              "font-bold text-foreground text-center transition-all leading-tight",
+              displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
+            )}>
               {displayAmount || '0'}
             </div>
-            {!rawValue && (
-              <span className="text-[10px] text-muted-foreground/60 mt-1 motion-safe:animate-pulse">
-                Long press to paste
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={handlePaste}
+              className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              <ClipboardPaste className="h-3 w-3" />
+              Paste
+            </button>
             {isOverspent && (
               <div className="flex items-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
                 <AlertCircle className="h-3 w-3" /> Insufficient Balance
