@@ -8,7 +8,7 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
-import { AlertCircle, ClipboardPaste } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MobileAmountInputProps {
@@ -64,37 +64,24 @@ export const MobileAmountInput = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const applyPaste = (text: string) => {
-    if (!text?.trim()) {
-      toast.info('Nothing to paste');
-      return;
-    }
+    if (!text?.trim()) return;
     const result = parseClipboardAmount(text.trim());
-    if (!result) {
-      toast.error('Invalid amount');
-      return;
-    }
+    if (!result) return;
     onChange(result.value);
     if (navigator.vibrate) navigator.vibrate(10);
     if (result.capped) {
       toast.warning('Amount capped at maximum');
-    } else {
-      toast.success('Amount pasted');
     }
   };
 
   const handlePasteEvent = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const text = e.clipboardData.getData('text');
-    applyPaste(text);
-    inputRef.current?.blur();
+    applyPaste(e.clipboardData.getData('text'));
   };
 
-  const handlePasteTap = () => {
-    const el = inputRef.current;
-    if (el) {
-      el.value = '';
-      el.focus();
-    }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
   };
 
   const handleKey = (key: string) => {
@@ -142,36 +129,24 @@ export const MobileAmountInput = ({
         <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
-            <div className={cn(
-              "font-bold text-foreground text-center transition-all leading-tight",
-              displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
-            )}>
-              {displayAmount || '0'}
-            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="none"
+              value={displayAmount || '0'}
+              className={cn(
+                "font-bold text-foreground text-center transition-all leading-tight bg-transparent border-none outline-none w-full caret-primary",
+                displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
+              )}
+              onPaste={handlePasteEvent}
+              onKeyDown={handleKeyDown}
+              onFocus={(e) => e.target.select()}
+            />
             {isOverspent && (
               <div className="flex items-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
                 <AlertCircle className="h-3 w-3" /> Insufficient Balance
               </div>
             )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              inputMode="none"
-              placeholder="Tap here then paste"
-              className="flex-1 h-9 px-3 text-xs rounded-lg border border-border bg-muted/50 text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
-              onPaste={handlePasteEvent}
-            />
-            <button
-              type="button"
-              onClick={handlePasteTap}
-              className="h-9 px-3 flex items-center gap-1.5 text-xs font-medium rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors active:scale-[0.97] select-none"
-            >
-              <ClipboardPaste className="h-3.5 w-3.5" />
-              Paste
-            </button>
           </div>
 
           <div className="flex flex-col gap-2">
