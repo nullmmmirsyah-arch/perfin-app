@@ -849,9 +849,9 @@ export const create = mutation({
       categoryId: v.id("categories"),
       amount: v.string(),
       description: v.optional(v.string()),
-      labelId: v.optional(v.id("labels")),
+      labelIds: v.optional(v.array(v.id("labels"))),
     }))),
-    labelId: v.optional(v.id("labels")),
+    labelIds: v.optional(v.array(v.id("labels"))),
     assetDetails: v.optional(v.object({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
@@ -1062,6 +1062,11 @@ export const create = mutation({
     const { searchCategoryIds, searchLabelIds } = generateSearchTags({
         ...insertArgs,
         categoryId: finalCategoryId as string | undefined,
+        labelIds: args.labelIds?.map(String),
+        splits: args.splits?.map(s => ({
+          ...s,
+          labelIds: s.labelIds?.map(String),
+        })),
     });
 
     const transaction = await ctx.db.insert("transactions", {
