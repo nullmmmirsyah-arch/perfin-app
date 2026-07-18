@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -8,6 +9,7 @@ import {
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MobileAmountInputProps {
   open: boolean;
@@ -23,6 +25,22 @@ const formatNumber = (value: string | undefined) => {
   const parsed = parseFloat(value.replace(/,/g, ''));
   if (isNaN(parsed)) return '';
   return new Intl.NumberFormat('en-US').format(parsed);
+};
+
+const MAX_AMOUNT = 99_999_999_999;
+
+const parseClipboardAmount = (text: string): string | null => {
+  const cleaned = text.replace(/[^\d.]/g, '');
+  if (!cleaned) return null;
+  const num = parseFloat(cleaned);
+  if (isNaN(num) || num < 0) return null;
+  if (num > MAX_AMOUNT) return formatNumber(String(MAX_AMOUNT));
+  const hasDecimal = cleaned.includes('.');
+  if (hasDecimal) {
+    const [intPart, decPart] = cleaned.split('.');
+    return formatNumber(intPart) + '.' + decPart.slice(0, 2);
+  }
+  return formatNumber(cleaned);
 };
 
 const numpadRows = [
@@ -41,6 +59,50 @@ export const MobileAmountInput = ({
   isOverspent,
 }: MobileAmountInputProps) => {
   const rawValue = value.replace(/,/g, '');
+
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text?.trim()) {
+        toast.info('Nothing to paste');
+        return;
+      }
+      const formatted = parseClipboardAmount(text.trim());
+      if (!formatted) {
+        toast.error('Invalid amount');
+        return;
+      }
+      onChange(formatted);
+      if (navigator.vibrate) navigator.vibrate(10);
+      toast.success('Amount pasted');
+    } catch {
+      toast.error('Clipboard access denied');
+    }
+  };
+
+  const handlePointerDown = () => {
+    didLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      handlePaste();
+    }, 500);
+  };
+
+  const handlePointerUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    };
+  }, []);
 
   const handleKey = (key: string) => {
     if (key === '⌫') {
@@ -88,12 +150,22 @@ export const MobileAmountInput = ({
         <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
-            <div className={cn(
-              "font-bold text-foreground text-center transition-all leading-tight",
-              displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
-            )}>
+            <div
+              className={cn(
+                "font-bold text-foreground text-center transition-all leading-tight cursor-pointer select-none",
+                displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
+              )}
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+            >
               {displayAmount || '0'}
             </div>
+            {!rawValue && (
+              <span className="text-[10px] text-muted-foreground/60 mt-1 animate-pulse">
+                Long press to paste
+              </span>
+            )}
             {isOverspent && (
               <div className="flex items-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
                 <AlertCircle className="h-3 w-3" /> Insufficient Balance
