@@ -1171,9 +1171,9 @@ export const update = mutation({
       categoryId: v.id("categories"),
       amount: v.string(),
       description: v.optional(v.string()),
-      labelId: v.optional(v.id("labels")),
+      labelIds: v.optional(v.array(v.id("labels"))),
     }))),
-    labelId: v.optional(v.id("labels")),
+    labelIds: v.optional(v.array(v.id("labels"))),
     assetDetails: v.optional(v.object({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
@@ -1443,6 +1443,11 @@ export const update = mutation({
     const { searchCategoryIds, searchLabelIds } = generateSearchTags({
         ...newTx,
         categoryId: finalCategoryId as string | undefined,
+        labelIds: newTx.labelIds?.map(String),
+        splits: newTx.splits?.map(s => ({
+          ...s,
+          labelIds: s.labelIds?.map(String),
+        })),
     });
 
     const newReimbursementStatus = args.isReimbursable === true 
