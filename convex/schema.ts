@@ -54,8 +54,10 @@ export default defineSchema({
       amount: v.string(),
       description: v.optional(v.string()),
       labelIds: v.optional(v.array(v.id("labels"))),
+      labelId: v.optional(v.id("labels")), // Legacy field — remove after migration
     }))),
     labelIds: v.optional(v.array(v.id("labels"))),
+    labelId: v.optional(v.id("labels")), // Legacy field — remove after migration
     assetDetails: v.optional(v.object({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
@@ -153,6 +155,7 @@ export default defineSchema({
     householdId: v.optional(v.id("households")),
     name: v.string(),
     icon: v.optional(v.string()), // Optional until migration adds icon to all labels
+    color: v.optional(v.string()), // Legacy field — remove after migration
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
