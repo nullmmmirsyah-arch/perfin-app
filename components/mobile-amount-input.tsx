@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import {
   Drawer,
   DrawerContent,
@@ -62,8 +62,8 @@ export const MobileAmountInput = ({
 }: MobileAmountInputProps) => {
   const rawValue = value.replace(/,/g, '');
 
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pasteInputRef = useRef<HTMLInputElement>(null);
+  const pointerStartTime = useRef(0);
 
   const applyPaste = (text: string) => {
     if (!text?.trim()) {
@@ -92,43 +92,15 @@ export const MobileAmountInput = ({
   };
 
   const handlePointerDown = () => {
-    longPressTimer.current = setTimeout(() => {
-      pasteInputRef.current?.focus();
-      navigator.clipboard?.readText?.()
-        .then((text) => {
-          if (text) {
-            applyPaste(text);
-          } else {
-            toast.info('Nothing to paste');
-          }
-          pasteInputRef.current?.blur();
-        })
-        .catch(() => {
-          toast.info('Tap paste from toolbar');
-          pasteInputRef.current?.focus();
-        });
-    }, 500);
+    pointerStartTime.current = performance.now();
   };
 
   const handlePointerUp = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    const elapsed = performance.now() - pointerStartTime.current;
+    if (elapsed >= 500) {
+      pasteInputRef.current?.focus();
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!open && longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }, [open]);
 
   const handleKey = (key: string) => {
     if (key === '⌫') {
@@ -177,10 +149,9 @@ export const MobileAmountInput = ({
           <input
             ref={pasteInputRef}
             type="text"
-            className="sr-only"
+            className="absolute w-px h-px opacity-0 p-0 -z-10"
             onPaste={handlePasteEvent}
             aria-hidden="true"
-            tabIndex={-1}
           />
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
