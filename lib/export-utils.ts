@@ -5,7 +5,7 @@ type ExportTransaction = {
   account: string;
   toAccount: string;
   category: string;
-  label: string;
+  labels: string[];
   description: string;
   isSplit?: boolean;
   assetQuantity?: string;
@@ -24,7 +24,7 @@ export function convertTransactionsToCSV(transactions: ExportTransaction[]): str
     "Account",
     "To Account",
     "Category",
-    "Label",
+    "Labels",
     "Description",
     "Asset Quantity"
   ];
@@ -49,7 +49,7 @@ export function convertTransactionsToCSV(transactions: ExportTransaction[]): str
         escape(t.account),
         escape(t.toAccount),
         escape(t.category),
-        escape(t.label),
+        escape(t.labels?.join(', ') || ""),
         escape(t.description),
         escape(t.assetQuantity || "")
     ].join(",");

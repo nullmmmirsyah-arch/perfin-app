@@ -65,7 +65,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
       if (isFiltered && t.isSplit && t.splits) {
         // Sum only matching splits
         amount = t.splits.reduce((acc, split) => {
-          const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelId && highlightLabelId.includes(String(split.labelId)));
+          const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelIds?.some(id => highlightLabelId.includes(String(id))));
           const categoryMatch = !highlightCategoryId || highlightCategoryId.length === 0 || (split.categoryId && highlightCategoryId.includes(String(split.categoryId)));
           
           if (labelMatch && categoryMatch) {

@@ -63,16 +63,16 @@ export function TransactionAnalytics({ transactions, filters }: Props) {
 
     expenses.forEach(t => {
       // Logic to check if a specific item matches current filters
-      const matchesFilter = (catId?: string, labId?: string) => {
+      const matchesFilter = (catId?: string, labIds?: string[]) => {
           const catMatch = !filters?.categoryId || filters.categoryId.length === 0 || (catId && filters.categoryId.includes(catId));
-          const labMatch = !filters?.labelId || filters.labelId.length === 0 || (labId && filters.labelId.includes(labId));
+          const labMatch = !filters?.labelId || filters.labelId.length === 0 || (labIds?.some(id => filters.labelId!.includes(id)));
           return catMatch && labMatch;
       };
 
       if (t.isSplit && t.splits) {
          t.splits.forEach(split => {
             // STRICT FILTER CHECK inside split
-            if (matchesFilter(split.categoryId, split.labelId)) {
+            if (matchesFilter(split.categoryId, split.labelIds)) {
                 const splitAmount = parseFloat(split.amount.replace(/,/g, '') || '0')
                 const catName = split.categoryName || "Uncategorized"
                 categoryMap.set(catName, (categoryMap.get(catName) || 0) + splitAmount)
@@ -81,7 +81,7 @@ export function TransactionAnalytics({ transactions, filters }: Props) {
          })
       } else {
         // Main transaction check
-        if (matchesFilter(t.categoryId, t.labelId)) {
+        if (matchesFilter(t.categoryId, t.labelIds)) {
             const amount = parseFloat(t.amount.replace(/,/g, '') || '0')
             const catName = t.categoryName || "Uncategorized"
             categoryMap.set(catName, (categoryMap.get(catName) || 0) + amount)

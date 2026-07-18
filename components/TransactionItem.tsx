@@ -61,7 +61,7 @@ export function TransactionItem({
   
   if (isFiltered && transaction.isSplit && transaction.splits) {
     const filteredSum = transaction.splits.reduce((acc, split) => {
-      const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelId && highlightLabelId.includes(String(split.labelId)));
+      const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelIds?.some(id => highlightLabelId.includes(String(id))));
       const categoryMatch = !highlightCategoryId || highlightCategoryId.length === 0 || (split.categoryId && highlightCategoryId.includes(String(split.categoryId)));
       
       if (labelMatch && categoryMatch) {
@@ -219,7 +219,7 @@ export function TransactionItem({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Breakdown</p>
               {transaction.splits?.map((split, index) => {
                 // Determine opacity based on highlight filters
-                const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelId && highlightLabelId.includes(String(split.labelId)));
+      const labelMatch = !highlightLabelId || highlightLabelId.length === 0 || (split.labelIds?.some(id => highlightLabelId.includes(String(id))));
                 const categoryMatch = !highlightCategoryId || highlightCategoryId.length === 0 || (split.categoryId && highlightCategoryId.includes(String(split.categoryId)));
                 const isMatch = labelMatch && categoryMatch;
                 

@@ -38,7 +38,7 @@ export const backfillSearchTags = mutation({
       // Generate tags using the central helper
       const { searchCategoryIds, searchLabelIds } = generateSearchTags({
         categoryId: tx.categoryId,
-        labelId: tx.labelId,
+        labelIds: tx.labelIds,
         isSplit: tx.isSplit,
         splits: tx.splits,
       });
@@ -218,18 +218,22 @@ export const migrateLabelsToIconAndMultiLabel = mutation({
 
     for (const tx of transactions) {
       const patch: Record<string, unknown> = {};
+      const legacyTx = tx as Record<string, unknown>;
 
       // Root labelId → labelIds
-      if (tx.labelId) {
-        patch.labelIds = [tx.labelId];
+      if (legacyTx.labelId && !legacyTx.labelIds) {
+        patch.labelIds = [legacyTx.labelId];
       }
 
       // Splits labelId → labelIds
       if (tx.splits && tx.splits.length > 0) {
-        patch.splits = tx.splits.map((s) => ({
-          ...s,
-          labelIds: s.labelId ? [s.labelId] : [],
-        }));
+        patch.splits = tx.splits.map((s) => {
+          const legacySplit = s as Record<string, unknown>;
+          return {
+            ...s,
+            labelIds: legacySplit.labelId && !legacySplit.labelIds ? [legacySplit.labelId] : (s.labelIds || []),
+          };
+        });
       }
 
       if (Object.keys(patch).length > 0) {

@@ -86,7 +86,7 @@ export default function TransactionFilters({
 
   const accountOptions: Option[] = accounts?.map(a => ({ label: a.name, value: a._id })) || [];
   const categoryOptions: Option[] = categories?.map(c => ({ label: c.name, value: c._id })) || [];
-  const labelOptions: Option[] = labels?.map(l => ({ label: l.name, value: l._id, icon: ICON_MAP[l.icon] || Tag })) || [];
+  const labelOptions: Option[] = labels?.map(l => ({ label: l.name, value: l._id, icon: (ICON_MAP[l.icon] || Tag) as React.ComponentType<{ className?: string }> })) || [];
   const merchantOptions: Option[] = merchants?.map(m => ({ label: m.name, value: m._id })) || [];
 
   const resetAll = () => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, merchantId: undefined, dateRange: filters.dateRange });
