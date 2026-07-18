@@ -140,6 +140,7 @@ export const MobileAmountInput = ({
               )}
               onPaste={handlePasteEvent}
               onKeyDown={handleKeyDown}
+              onChange={() => {}}
               onFocus={(e) => e.target.select()}
             />
             {isOverspent && (
