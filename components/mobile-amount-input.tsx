@@ -61,7 +61,7 @@ export const MobileAmountInput = ({
   isOverspent,
 }: MobileAmountInputProps) => {
   const rawValue = value.replace(/,/g, '');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const applyPaste = (text: string) => {
     if (!text?.trim()) {
@@ -82,18 +82,18 @@ export const MobileAmountInput = ({
     }
   };
 
-  const handlePasteEvent = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePasteEvent = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const text = e.clipboardData.getData('text');
     applyPaste(text);
-    textareaRef.current?.blur();
+    inputRef.current?.blur();
   };
 
   const handlePasteTap = () => {
-    const ta = textareaRef.current;
-    if (ta) {
-      ta.value = '';
-      ta.focus();
+    const el = inputRef.current;
+    if (el) {
+      el.value = '';
+      el.focus();
     }
   };
 
@@ -114,7 +114,6 @@ export const MobileAmountInput = ({
       if (navigator.vibrate) navigator.vibrate(10);
       return;
     }
-    // Digit key
     onChange(formatNumber(rawValue + key));
     if (navigator.vibrate) navigator.vibrate(10);
   };
@@ -141,13 +140,6 @@ export const MobileAmountInput = ({
           <DrawerTitle>Enter Amount</DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
-          <textarea
-            ref={textareaRef}
-            className="sr-only"
-            onPaste={handlePasteEvent}
-            aria-hidden="true"
-            readOnly
-          />
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
             <div className={cn(
@@ -156,19 +148,31 @@ export const MobileAmountInput = ({
             )}>
               {displayAmount || '0'}
             </div>
-            <button
-              type="button"
-              onClick={handlePasteTap}
-              className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-            >
-              <ClipboardPaste className="h-3 w-3" />
-              Paste
-            </button>
             {isOverspent && (
               <div className="flex items-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
                 <AlertCircle className="h-3 w-3" /> Insufficient Balance
               </div>
             )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="none"
+              placeholder="Tap here then paste"
+              className="flex-1 h-9 px-3 text-xs rounded-lg border border-border bg-muted/50 text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
+              onPaste={handlePasteEvent}
+              readOnly
+            />
+            <button
+              type="button"
+              onClick={handlePasteTap}
+              className="h-9 px-3 flex items-center gap-1.5 text-xs font-medium rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors active:scale-[0.97] select-none"
+            >
+              <ClipboardPaste className="h-3.5 w-3.5" />
+              Paste
+            </button>
           </div>
 
           <div className="flex flex-col gap-2">
