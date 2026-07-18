@@ -62,8 +62,30 @@ import {
   ArrowRight,
   Tag,
   Store,
-  Loader2
+  Loader2,
+  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
+  Car, Bus, Plane, Train, Bike, Ship, Fuel,
+  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
+  Activity, Pill, Stethoscope, Dumbbell, Moon,
+  Users, User, Baby, PawPrint,
+  Clock, MapPin, Phone, Music, Camera, Umbrella,
+  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
+  TrendingUp, DollarSign, BarChart3, Folder, Hash,
 } from 'lucide-react';
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
+  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
+  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
+  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
+  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
+  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
+  Globe, Bookmark, Shield, Folder, FileText, Hash,
+};
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { Doc, Id } from '../convex/_generated/dataModel';
 import { toast } from 'sonner';
@@ -87,7 +109,7 @@ type TransactionWithDetails = Doc<'transactions'> & {
     categoryId: string;
     amount: string;
     description?: string;
-    labelId?: string;
+    labelIds?: string[];
     categoryName?: string;
   }>;
 };
@@ -125,9 +147,9 @@ const createTransactionFormSchema = (accounts: Doc<'accounts'>[]) => z.object({
     categoryId: z.string().optional(),
     amount: z.string().optional(),
     description: z.string().optional(),
-    labelId: z.string().optional(),
+    labelIds: z.array(z.string()).optional(),
   })).optional(),
-  labelId: z.string().optional(),
+  labelIds: z.array(z.string()).optional(),
   merchantId: z.string().optional(),
   assetDetails: z.object({
     quantity: z.string().optional(),
@@ -568,9 +590,9 @@ const TransactionForm = ({
             categoryId: s.categoryId,
             amount: s.amount,
             description: s.description || '',
-            labelId: s.labelId || undefined,
-          })) || [{ categoryId: '', amount: '', description: '', labelId: '' }],
-          labelId: transaction.labelId || undefined,
+            labelIds: s.labelIds || [],
+          })) || [{ categoryId: '', amount: '', description: '', labelIds: [] }],
+          labelIds: transaction.labelIds || [],
           merchantId: transaction.merchantId || undefined,
           assetDetails: transaction.assetDetails ? {
             quantity: transaction.assetDetails.quantity,
@@ -591,8 +613,8 @@ const TransactionForm = ({
           accountId: initialData?.accountId || '',
           categoryId: initialData?.categoryId || undefined,
           isSplit: initialData?.isSplit || false,
-          splits: initialData?.splits || [{ categoryId: '', amount: '', description: '', labelId: '' }],
-          labelId: initialData?.labelId || undefined,
+          splits: initialData?.splits || [{ categoryId: '', amount: '', description: '', labelIds: [] }],
+          labelIds: initialData?.labelIds || [],
           merchantId: initialData?.merchantId || undefined,
           assetDetails: initialData?.assetDetails || { quantity: '', unitPrice: undefined },
           isReimbursable: initialData?.isReimbursable || false,
@@ -635,7 +657,7 @@ const TransactionForm = ({
           categoryId: s.categoryId as Id<'categories'>,
           amount: s.amount || '0',
           description: s.description,
-          labelId: (s.labelId && s.labelId !== 'none' && s.labelId !== "") ? s.labelId as Id<'labels'> : undefined,
+          labelIds: (s.labelIds || []).filter(Boolean) as Id<'labels'>[],
         }))
       : undefined;
 
@@ -655,7 +677,7 @@ const TransactionForm = ({
               toAccountId: data.toAccountId as Id<'accounts'> | undefined,
               isSplit: data.isSplit,
               splits: finalSplits,
-              labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
+              labelIds: (data.labelIds || []).filter(Boolean) as Id<'labels'>[],
               merchantId: (data.merchantId && data.merchantId !== 'none') ? data.merchantId as Id<'merchants'> : undefined,
               assetDetails,
               // Receivables
@@ -676,7 +698,7 @@ const TransactionForm = ({
               toAccountId: data.toAccountId as Id<'accounts'> | undefined,
               isSplit: data.isSplit,
               splits: finalSplits,
-              labelId: (data.labelId && data.labelId !== 'none') ? data.labelId as Id<'labels'> : undefined,
+              labelIds: (data.labelIds || []).filter(Boolean) as Id<'labels'>[],
               merchantId: (data.merchantId && data.merchantId !== 'none') ? data.merchantId as Id<'merchants'> : undefined,
               assetDetails,
               // Receivables
@@ -885,7 +907,7 @@ const TransactionFormFields = ({
   const amount = useWatch({ control: form.control, name: 'amount' });
   const accountId = useWatch({ control: form.control, name: 'accountId' });
   const categoryId = useWatch({ control: form.control, name: 'categoryId' });
-  const labelId = useWatch({ control: form.control, name: 'labelId' });
+  const labelIds = useWatch({ control: form.control, name: 'labelIds' });
   const merchantId = useWatch({ control: form.control, name: 'merchantId' });
   
   const [amountSheetOpen, setAmountSheetOpen] = useState(false);
@@ -894,7 +916,7 @@ const TransactionFormFields = ({
 
   const selectedAccount = accounts.find(a => a._id === accountId);
   const selectedCategory = categories.find(c => c._id === categoryId);
-  const selectedLabel = labels?.find(l => l._id === labelId);
+  const selectedLabels = labels?.filter(l => (labelIds || []).includes(l._id)) || [];
   const selectedMerchant = merchants?.find(m => m._id === merchantId);
 
   const amountValue = parseAmount(amount);
@@ -1162,16 +1184,26 @@ const TransactionFormFields = ({
                     {!isSplit && (
                         <FormField
                             control={form.control}
-                            name="labelId"
+                            name="labelIds"
                             render={({ field }) => (
                                 <FormItem>
                                     <FormControl>
                                         <MobileSelectionDrawer
-                                            title="Select Label"
-                                            value={field.value}
-                                            onSelect={field.onChange}
+                                            title="Select Labels"
+                                            value=""
+                                            onSelect={(val) => {
+                                                if (val === 'none') {
+                                                  field.onChange([]);
+                                                } else {
+                                                  const current = field.value || [];
+                                                  const next = current.includes(val)
+                                                    ? current.filter((id: string) => id !== val)
+                                                    : [...current, val];
+                                                  field.onChange(next);
+                                                }
+                                            }}
                                             options={[
-                                                { value: 'none', label: 'None' },
+                                                { value: 'none', label: 'None (clear all)' },
                                                 ...(labels?.map(lbl => ({
                                                     value: lbl._id,
                                                     label: lbl.name
@@ -1179,7 +1211,15 @@ const TransactionFormFields = ({
                                             ]}
                                             trigger={
                                                 <button type="button" className="w-full text-left outline-none">
-                                                    <MobileInputCard label="Label" icon={Tag} valueDisplay={selectedLabel?.name || "None"} />
+                                                    <MobileInputCard
+                                                      label="Labels"
+                                                      icon={Tag}
+                                                      valueDisplay={
+                                                        selectedLabels.length > 0
+                                                          ? selectedLabels.map(l => l.name).join(', ')
+                                                          : 'None'
+                                                      }
+                                                    />
                                                 </button>
                                             }
                                         />
@@ -1480,21 +1520,51 @@ const TransactionFormFields = ({
                     />
                     <FormField
                         control={form.control}
-                        name="labelId"
+                        name="labelIds"
                         render={({ field }) => (
                         <FormItem>
-                                        <FormLabel>Label</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value} key={field.value}>                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder="Select a label (optional)" />
+                            <FormLabel>Labels</FormLabel>
+                            <div className="flex flex-wrap gap-1.5 min-h-[36px]">
+                              {(field.value || []).map((id: string) => {
+                                const lbl = labels?.find(l => l._id === id);
+                                if (!lbl) return null;
+                                const LabelIcon = ICON_MAP[lbl.icon] || Tag;
+                                return (
+                                  <span
+                                    key={id}
+                                    className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
+                                  >
+                                    <LabelIcon className="h-3 w-3" />
+                                    {lbl.name}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        field.onChange((field.value || []).filter((v: string) => v !== id));
+                                      }}
+                                      className="ml-0.5 hover:text-destructive"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                );
+                              })}
+                              <Select
+                                onValueChange={(val) => {
+                                  if (val && val !== 'none') {
+                                    field.onChange([...(field.value || []), val]);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-7 w-auto px-2 text-xs">
+                                  <SelectValue placeholder="+ Add" />
                                 </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {labels?.map(label => (
-                                <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                            </Select>
+                                <SelectContent>
+                                  {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
+                                    <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <FormMessage />
                         </FormItem>
                         )}
