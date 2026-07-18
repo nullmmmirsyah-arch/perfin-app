@@ -29,18 +29,18 @@ const formatNumber = (value: string | undefined) => {
 
 const MAX_AMOUNT = 99_999_999_999;
 
-const parseClipboardAmount = (text: string): string | null => {
+const parseClipboardAmount = (text: string): { value: string; capped: boolean } | null => {
   const cleaned = text.replace(/[^\d.]/g, '');
   if (!cleaned) return null;
   const num = parseFloat(cleaned);
   if (isNaN(num) || num < 0) return null;
-  if (num > MAX_AMOUNT) return formatNumber(String(MAX_AMOUNT));
+  if (num > MAX_AMOUNT) return { value: formatNumber(String(MAX_AMOUNT)), capped: true };
   const hasDecimal = cleaned.includes('.');
   if (hasDecimal) {
     const [intPart, decPart] = cleaned.split('.');
-    return formatNumber(intPart) + '.' + decPart.slice(0, 2);
+    return { value: formatNumber(intPart) + '.' + decPart.slice(0, 2), capped: false };
   }
-  return formatNumber(cleaned);
+  return { value: formatNumber(cleaned), capped: false };
 };
 
 const numpadRows = [
@@ -61,7 +61,6 @@ export const MobileAmountInput = ({
   const rawValue = value.replace(/,/g, '');
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didLongPress = useRef(false);
 
   const handlePaste = async () => {
     try {
@@ -70,23 +69,25 @@ export const MobileAmountInput = ({
         toast.info('Nothing to paste');
         return;
       }
-      const formatted = parseClipboardAmount(text.trim());
-      if (!formatted) {
+      const result = parseClipboardAmount(text.trim());
+      if (!result) {
         toast.error('Invalid amount');
         return;
       }
-      onChange(formatted);
+      onChange(result.value);
       if (navigator.vibrate) navigator.vibrate(10);
-      toast.success('Amount pasted');
+      if (result.capped) {
+        toast.warning('Amount capped at maximum');
+      } else {
+        toast.success('Amount pasted');
+      }
     } catch {
       toast.error('Clipboard access denied');
     }
   };
 
   const handlePointerDown = () => {
-    didLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
-      didLongPress.current = true;
       handlePaste();
     }, 500);
   };
