@@ -485,8 +485,8 @@ const TransactionForm = ({
       description: '',
       accountId: '',
       isSplit: false,
-      splits: [{ categoryId: '', amount: '', description: '', labelId: '' }],
-      labelId: undefined,
+      splits: [{ categoryId: '', amount: '', description: '', labelIds: [] }],
+      labelIds: [],
       assetDetails: { quantity: '', unitPrice: undefined },
     }
   });
@@ -732,7 +732,7 @@ const TransactionForm = ({
           const currentSplits = form.getValues('splits');
           if (!currentSplits || currentSplits.length === 0) {
              // Use replace to ensure UI updates immediately
-             replace([{ categoryId: '', amount: '', description: '', labelId: '' }]);
+             replace([{ categoryId: '', amount: '', description: '', labelIds: [] }]);
           }
       } else {
           // Clear splits when toggled off
@@ -1945,22 +1945,52 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                 />
                 <FormField
                     control={form.control}
-                    name="labelId"
+                    name="labelIds"
                     render={({ field }) => (
                     <FormItem>
-                                <FormLabel>Label</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} key={field.value}>                            <FormControl>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Select a label (optional)" />
-                        </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                        {labels?.map(label => (
-                        <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                    <FormMessage />
+                        <FormLabel>Labels</FormLabel>
+                        <div className="flex flex-wrap gap-1.5 min-h-[36px]">
+                          {(field.value || []).map((id: string) => {
+                            const lbl = labels?.find(l => l._id === id);
+                            if (!lbl) return null;
+                            const LabelIcon = ICON_MAP[lbl.icon] || Tag;
+                            return (
+                              <span
+                                key={id}
+                                className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
+                              >
+                                <LabelIcon className="h-3 w-3" />
+                                {lbl.name}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    field.onChange((field.value || []).filter((v: string) => v !== id));
+                                  }}
+                                  className="ml-0.5 hover:text-destructive"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            );
+                          })}
+                          <Select
+                            onValueChange={(val) => {
+                              if (val && val !== 'none') {
+                                field.onChange([...(field.value || []), val]);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="h-7 w-auto px-2 text-xs">
+                              <SelectValue placeholder="+ Add" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
+                                <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <FormMessage />
                     </FormItem>
                     )}
                 />
