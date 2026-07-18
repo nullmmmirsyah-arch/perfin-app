@@ -236,7 +236,7 @@ export const getExpensesTrend = query({
       let amountToAdd = 0;
       if (t.isSplit && t.splits) {
         amountToAdd = t.splits.reduce((sAcc, s) => {
-          const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelId && labelId.includes(s.labelId));
+          const splitMatchesLabel = !labelId || labelId.length === 0 || (s.labelIds?.some(id => labelId.includes(String(id))));
           const splitMatchesCat = !categoryId || categoryId.length === 0 || categoryId.includes(s.categoryId);
           if (splitMatchesLabel && splitMatchesCat) {
             return sAcc + parseFloat(s.amount.replace(/,/g, '') || '0');
@@ -399,12 +399,12 @@ export const get = query({
       accountIds.add(t.accountId);
       if (t.toAccountId) accountIds.add(t.toAccountId);
       if (t.categoryId) categoryIds.add(t.categoryId);
-      if (t.labelId) labelIds.add(t.labelId);
+      if (t.labelIds) t.labelIds.forEach(id => labelIds.add(id));
       if (t.merchantId) merchantIds.add(t.merchantId);
       
       t.splits?.forEach(s => {
         categoryIds.add(s.categoryId);
-        if (s.labelId) labelIds.add(s.labelId);
+        if (s.labelIds) s.labelIds.forEach(id => labelIds.add(id));
       });
     });
 
@@ -424,19 +424,23 @@ export const get = query({
     const pageWithDetails = pageResults.map((transaction) => {
       const fromAccount = accountMap.get(transaction.accountId);
       const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
-      const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
+      const labels = transaction.labelIds
+        ? transaction.labelIds.map(id => labelMap.get(id)).filter(Boolean)
+        : [];
       const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
       const merchant = transaction.merchantId ? merchantMap.get(transaction.merchantId) : null;
 
       const splitsWithDetails = transaction.splits?.map((split) => {
         const splitCategory = categoryMap.get(split.categoryId);
-        const splitLabel = split.labelId ? labelMap.get(split.labelId) : null;
+        const splitLabels = split.labelIds
+          ? split.labelIds.map(id => labelMap.get(id)).filter(Boolean)
+          : [];
 
         return {
           ...split,
           categoryName: splitCategory?.name,
-          labelName: splitLabel?.name,
-          labelColor: splitLabel?.color,
+          labelNames: splitLabels.map(l => l!.name),
+          labelIcons: splitLabels.map(l => l!.icon),
         };
       });
 
@@ -450,7 +454,7 @@ export const get = query({
         toAccountName: toAccount?.name,
         categoryName: category?.name,
         hideAmount,
-        label: label || null,
+        labels: labels,
         merchant: merchant || null,
         splits: splitsWithDetails,
       };
@@ -571,11 +575,11 @@ export const exportTransactions = query({
       accountIds.add(t.accountId);
       if (t.toAccountId) accountIds.add(t.toAccountId);
       if (t.categoryId) categoryIds.add(t.categoryId);
-      if (t.labelId) labelIds.add(t.labelId);
+      if (t.labelIds) t.labelIds.forEach(id => labelIds.add(id));
       
       t.splits?.forEach(s => {
         categoryIds.add(s.categoryId);
-        if (s.labelId) labelIds.add(s.labelId);
+        if (s.labelIds) s.labelIds.forEach(id => labelIds.add(id));
       });
     });
 
@@ -610,7 +614,9 @@ export const exportTransactions = query({
              // EXPLODE: Create a row for each split item
              return t.splits.map(split => {
                  const splitCategory = categoryMap.get(split.categoryId);
-                 const splitLabel = split.labelId ? labelMap.get(split.labelId) : null;
+                 const splitLabels = split.labelIds
+                   ? split.labelIds.map(id => labelMap.get(id)).filter(Boolean)
+                   : [];
                  
                  // If the split has no description, use the main transaction's description
                  // or format it nicely like "Main Desc (Item Desc)"
@@ -623,7 +629,7 @@ export const exportTransactions = query({
                      ...baseRow,
                      amount: split.amount, // Use split amount!
                      category: splitCategory?.name || "Unknown",
-                     label: splitLabel?.name || "",
+                     labels: splitLabels.map(l => l!.name),
                      description: rowDesc,
                      hideAmount: splitCategory?.hideAmount ?? false,
                  };
@@ -631,13 +637,15 @@ export const exportTransactions = query({
         } else {
              // NORMAL: Return single row
              const category = t.categoryId ? categoryMap.get(t.categoryId) : null;
-             const label = t.labelId ? labelMap.get(t.labelId) : null;
+             const labels = t.labelIds
+               ? t.labelIds.map(id => labelMap.get(id)).filter(Boolean)
+               : [];
 
              return [{
                  ...baseRow,
                  amount: t.amount,
                  category: category?.name || "",
-                 label: label?.name || "",
+                 labels: labels.map(l => l!.name),
                  hideAmount: category?.hideAmount ?? false,
              }];
         }
@@ -734,11 +742,11 @@ export const searchTransactions = query({
       accountIds.add(t.accountId);
       if (t.toAccountId) accountIds.add(t.toAccountId);
       if (t.categoryId) categoryIds.add(t.categoryId);
-      if (t.labelId) labelIds.add(t.labelId);
+      if (t.labelIds) t.labelIds.forEach(id => labelIds.add(id));
       if (t.merchantId) merchantIds.add(t.merchantId);
       t.splits?.forEach(s => {
         categoryIds.add(s.categoryId);
-        if (s.labelId) labelIds.add(s.labelId);
+        if (s.labelIds) s.labelIds.forEach(id => labelIds.add(id));
       });
     });
 
@@ -766,8 +774,10 @@ export const searchTransactions = query({
       const accName = accountMap.get(t.accountId)?.name;
       if (accName?.toLowerCase().includes(searchLower)) return true;
 
-      const lblName = t.labelId ? labelMap.get(t.labelId)?.name : undefined;
-      if (lblName?.toLowerCase().includes(searchLower)) return true;
+      const lblName = t.labelIds
+        ? t.labelIds.map(id => labelMap.get(id)?.name).filter(Boolean)
+        : [];
+      if (lblName.some(n => n?.toLowerCase().includes(searchLower))) return true;
 
       const merchantName = t.merchantId ? merchantMap.get(t.merchantId)?.name : undefined;
       if (merchantName?.toLowerCase().includes(searchLower)) return true;
@@ -782,9 +792,11 @@ export const searchTransactions = query({
           if (split.description?.toLowerCase().includes(searchLower)) return true;
           const splitCatName = categoryMap.get(split.categoryId)?.name;
           if (splitCatName?.toLowerCase().includes(searchLower)) return true;
-          if (split.labelId) {
-            const splitLblName = labelMap.get(split.labelId)?.name;
-            if (splitLblName?.toLowerCase().includes(searchLower)) return true;
+          if (split.labelIds) {
+            const splitLblNames = split.labelIds
+              .map(id => labelMap.get(id)?.name)
+              .filter(Boolean);
+            if (splitLblNames.some(n => n?.toLowerCase().includes(searchLower))) return true;
           }
         }
       }
@@ -801,18 +813,22 @@ export const searchTransactions = query({
     return results.map((transaction) => {
       const fromAccount = accountMap.get(transaction.accountId);
       const toAccount = transaction.toAccountId ? accountMap.get(transaction.toAccountId) : null;
-      const label = transaction.labelId ? labelMap.get(transaction.labelId) : null;
+      const labels = transaction.labelIds
+        ? transaction.labelIds.map(id => labelMap.get(id)).filter(Boolean)
+        : [];
       const category = transaction.categoryId ? categoryMap.get(transaction.categoryId) : null;
       const merchant = transaction.merchantId ? merchantMap.get(transaction.merchantId) : null;
 
       const splitsWithDetails = transaction.splits?.map((split) => {
         const splitCategory = categoryMap.get(split.categoryId);
-        const splitLabel = split.labelId ? labelMap.get(split.labelId) : null;
+        const splitLabels = split.labelIds
+          ? split.labelIds.map(id => labelMap.get(id)).filter(Boolean)
+          : [];
         return {
           ...split,
           categoryName: splitCategory?.name,
-          labelName: splitLabel?.name,
-          labelColor: splitLabel?.color,
+          labelNames: splitLabels.map(l => l!.name),
+          labelIcons: splitLabels.map(l => l!.icon),
         };
       });
 
@@ -826,7 +842,7 @@ export const searchTransactions = query({
         toAccountName: toAccount?.name,
         categoryName: category?.name,
         hideAmount,
-        label: label || null,
+        labels: labels,
         merchant: merchant || null,
         splits: splitsWithDetails,
       };

@@ -297,11 +297,11 @@ export const getCategoryDetails = query({
         txAccountIds.add(t.accountId);
         if (t.toAccountId) txAccountIds.add(t.toAccountId);
         if (t.categoryId) txCategoryIds.add(t.categoryId);
-        if (t.labelId) txLabelIds.add(t.labelId);
+        if (t.labelIds) t.labelIds.forEach(id => txLabelIds.add(id));
         if (t.merchantId) txMerchantIds.add(t.merchantId);
         t.splits?.forEach(s => {
             txCategoryIds.add(s.categoryId);
-            if (s.labelId) txLabelIds.add(s.labelId);
+            if (s.labelIds) s.labelIds.forEach(id => txLabelIds.add(id));
         });
     });
 
@@ -323,7 +323,9 @@ export const getCategoryDetails = query({
             const fromAccount = txAccountMap.get(t.accountId);
             const toAccount = t.toAccountId ? txAccountMap.get(t.toAccountId) : null;
             const category = t.categoryId ? txCategoryMap.get(t.categoryId) : null;
-            const label = t.labelId ? txLabelMap.get(t.labelId) : null;
+            const labels = t.labelIds
+              ? t.labelIds.map(id => txLabelMap.get(id)).filter(Boolean)
+              : [];
             const merchant = t.merchantId ? txMerchantMap.get(t.merchantId) : null;
 
             let displayAmount = t.amount;
@@ -341,12 +343,14 @@ export const getCategoryDetails = query({
 
             const splitsWithDetails = t.splits?.map((split) => {
                     const splitCategory = txCategoryMap.get(split.categoryId);
-                    const splitLabel = split.labelId ? txLabelMap.get(split.labelId) : null;
+                    const splitLabels = split.labelIds
+                      ? split.labelIds.map(id => txLabelMap.get(id)).filter(Boolean)
+                      : [];
                     return {
                         ...split,
                         categoryName: splitCategory?.name,
-                        labelName: splitLabel?.name,
-                        labelColor: splitLabel?.color,
+                        labelNames: splitLabels.map(l => l!.name),
+                        labelIcons: splitLabels.map(l => l!.icon),
                     };
                 });
 
@@ -358,7 +362,7 @@ export const getCategoryDetails = query({
                 toAccountName: toAccount?.name,
                 categoryName: category?.name,
                 hideAmount: categoryHideAmount,
-                label,
+                labels,
                 merchant: merchant || null,
                 splits: splitsWithDetails,
             };
