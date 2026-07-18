@@ -184,3 +184,95 @@ export const backfillBudgetFields = mutation({
     };
   },
 });
+
+/**
+ * Migration: Labels color→icon + single→multi-label
+ *
+ * 1. Labels: remove `color`, add `icon: "Tag"` (default)
+ * 2. Transactions: labelId → labelIds (array)
+ * 3. Splits: labelId → labelIds (array)
+ * 4. Recompute searchLabelIds
+ *
+ * Run ONCE from Convex Dashboard after deploying new schema.
+ */
+export const migrateLabelsToIconAndMultiLabel = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // --- Migrate Labels: color → icon ---
+    const labels = await ctx.db.query("labels").collect();
+    let labelsUpdated = 0;
+    for (const label of labels) {
+      const patch: Record<string, unknown> = {};
+      if ("color" in label) {
+        patch.icon = "Tag";
+      }
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(label._id, patch);
+        labelsUpdated++;
+      }
+    }
+
+    // --- Migrate Transactions: labelId → labelIds ---
+    const transactions = await ctx.db.query("transactions").collect();
+    let txUpdated = 0;
+
+    for (const tx of transactions) {
+      const patch: Record<string, unknown> = {};
+
+      // Root labelId → labelIds
+      if (tx.labelId) {
+        patch.labelIds = [tx.labelId];
+      }
+
+      // Splits labelId → labelIds
+      if (tx.splits && tx.splits.length > 0) {
+        patch.splits = tx.splits.map((s) => ({
+          ...s,
+          labelIds: s.labelId ? [s.labelId] : [],
+        }));
+      }
+
+      if (Object.keys(patch).length > 0) {
+        await ctx.db.patch(tx._id, patch);
+        txUpdated++;
+      }
+    }
+
+    // --- Recompute searchLabelIds for all transactions ---
+    const allTx = await ctx.db.query("transactions").collect();
+    let searchUpdated = 0;
+
+    for (const tx of allTx) {
+      const labelIdsSet = new Set<string>();
+
+      if (tx.labelIds && Array.isArray(tx.labelIds)) {
+        tx.labelIds.forEach((id) => labelIdsSet.add(String(id)));
+      }
+
+      if (tx.splits && tx.splits.length > 0) {
+        for (const split of tx.splits) {
+          if (split.labelIds && Array.isArray(split.labelIds)) {
+            split.labelIds.forEach((id) => labelIdsSet.add(String(id)));
+          }
+        }
+      }
+
+      const newSearchLabelIds = Array.from(labelIdsSet);
+      const currentSearch = tx.searchLabelIds || [];
+
+      if (
+        JSON.stringify(newSearchLabelIds.sort()) !==
+        JSON.stringify(currentSearch.sort())
+      ) {
+        await ctx.db.patch(tx._id, { searchLabelIds: newSearchLabelIds });
+        searchUpdated++;
+      }
+    }
+
+    return {
+      labelsUpdated,
+      transactionsUpdated: txUpdated,
+      searchLabelIdsRecomputed: searchUpdated,
+    };
+  },
+});
