@@ -37,7 +37,9 @@ const parseClipboardAmount = (text: string): { value: string; capped: boolean } 
   if (num > MAX_AMOUNT) return { value: formatNumber(String(MAX_AMOUNT)), capped: true };
   const hasDecimal = cleaned.includes('.');
   if (hasDecimal) {
-    const [intPart, decPart] = cleaned.split('.');
+    const dotIndex = cleaned.indexOf('.');
+    const intPart = cleaned.slice(0, dotIndex);
+    const decPart = cleaned.slice(dotIndex + 1);
     return { value: formatNumber(intPart) + '.' + decPart.slice(0, 2), capped: false };
   }
   return { value: formatNumber(cleaned), capped: false };
@@ -166,12 +168,13 @@ export const MobileAmountInput = ({
               onPointerDown={handlePointerDown}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
+              onPointerCancel={handlePointerUp}
               onContextMenu={(e) => e.preventDefault()}
             >
               {displayAmount || '0'}
             </div>
             {!rawValue && (
-              <span className="text-[10px] text-muted-foreground/60 mt-1 animate-pulse">
+              <span className="text-[10px] text-muted-foreground/60 mt-1 motion-safe:animate-pulse">
                 Long press to paste
               </span>
             )}
