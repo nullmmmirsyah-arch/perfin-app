@@ -30,7 +30,31 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { PlusCircle, Trash2, ArrowLeft, LayoutGrid, Tag, FileText } from 'lucide-react';
+import {
+  PlusCircle, Trash2, ArrowLeft, LayoutGrid, Tag, FileText,
+  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
+  Car, Bus, Plane, Train, Bike, Ship, Fuel,
+  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
+  Activity, Pill, Stethoscope, Dumbbell, Moon,
+  Users, User, Baby, PawPrint,
+  Clock, MapPin, Phone, Music, Camera, Umbrella,
+  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
+  TrendingUp, DollarSign, BarChart3, Folder, Hash,
+} from 'lucide-react';
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
+  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
+  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
+  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
+  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
+  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
+  Globe, Bookmark, Shield, Folder, FileText, Hash,
+};
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
@@ -266,33 +290,51 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                             {/* Label Input */}
                             <FormField
                                 control={form.control}
-                                name={`splits.${index}.labelId`}
-                                render={({ field }) => {
-                                     const selectedLabel = labels?.find(l => l._id === field.value);
-                                     return (
-                                        <FormItem>
-                                            <FormControl>
-                                                <MobileSelectionDrawer
-                                                    title="Select Label"
-                                                    value={field.value}
-                                                    onSelect={field.onChange}
-                                                    options={[
-                                                        { value: 'none', label: 'None' },
-                                                        ...(labels?.map(lbl => ({
-                                                            value: lbl._id,
-                                                            label: lbl.name
-                                                        })) || [])
-                                                    ]}
-                                                    trigger={
-                                                        <button type="button" className="w-full text-left outline-none">
-                                                            <MobileInputCard label="Label" icon={Tag} valueDisplay={selectedLabel?.name || "None"} />
-                                                        </button>
+                                name={`splits.${index}.labelIds`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                            <MobileSelectionDrawer
+                                                title="Select Labels"
+                                                value=""
+                                                onSelect={(val) => {
+                                                    if (val === 'none') {
+                                                        field.onChange([]);
+                                                    } else {
+                                                        const current = field.value || [];
+                                                        const next = current.includes(val)
+                                                            ? current.filter((id: string) => id !== val)
+                                                            : [...current, val];
+                                                        field.onChange(next);
                                                     }
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                     );
-                                }}
+                                                }}
+                                                options={[
+                                                    { value: 'none', label: 'None (clear all)' },
+                                                    ...(labels?.map(lbl => ({
+                                                        value: lbl._id,
+                                                        label: lbl.name
+                                                    })) || [])
+                                                ]}
+                                                trigger={
+                                                    <button type="button" className="w-full text-left outline-none">
+                                                        <MobileInputCard
+                                                            label="Labels"
+                                                            icon={Tag}
+                                                            valueDisplay={
+                                                                (field.value || []).length > 0
+                                                                    ? (field.value || [])
+                                                                        .map((id: string) => labels?.find(l => l._id === id)?.name || '')
+                                                                        .filter(Boolean)
+                                                                        .join(', ')
+                                                                    : 'None'
+                                                            }
+                                                        />
+                                                    </button>
+                                                }
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
                             />
 
                             {/* Note Input */}
@@ -393,21 +435,50 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                 />
                                     <FormField
                                     control={form.control}
-                                    name={`splits.${index}.labelId`}
+                                    name={`splits.${index}.labelIds`}
                                     render={({ field }) => (
                                         <FormItem>
-                                            <Select onValueChange={field.onChange} value={field.value} key={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger className="h-9">
-                                                        <SelectValue placeholder="Label (opt)" />
+                                            <div className="flex flex-wrap gap-1.5 min-h-[36px]">
+                                                {(field.value || []).map((id: string) => {
+                                                    const lbl = labels?.find(l => l._id === id);
+                                                    if (!lbl) return null;
+                                                    const LabelIcon = ICON_MAP[lbl.icon] || Tag;
+                                                    return (
+                                                        <span
+                                                            key={id}
+                                                            className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
+                                                        >
+                                                            <LabelIcon className="h-3 w-3" />
+                                                            {lbl.name}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    field.onChange((field.value || []).filter((v: string) => v !== id));
+                                                                }}
+                                                                className="ml-0.5 hover:text-destructive"
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </span>
+                                                    );
+                                                })}
+                                                <Select
+                                                    onValueChange={(val) => {
+                                                        if (val && val !== 'none') {
+                                                            field.onChange([...(field.value || []), val]);
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-7 w-auto px-2 text-xs">
+                                                        <SelectValue placeholder="+ Add" />
                                                     </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {labels?.map(label => (
-                                                        <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                                    <SelectContent>
+                                                        {labels?.filter(l => !(field.value || []).includes(l._id)).map(lbl => (
+                                                            <SelectItem key={lbl._id} value={lbl._id}>{lbl.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </FormItem>
                                     )}
                                 />
@@ -423,7 +494,7 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
             variant="outline" 
             size="lg"
             className="w-full border-dashed h-12 rounded-xl text-muted-foreground hover:text-primary hover:border-primary/50" 
-            onClick={() => append({ categoryId: '', amount: '', description: '', labelId: '' })}
+            onClick={() => append({ categoryId: '', amount: '', description: '', labelIds: [] })}
         >
             <PlusCircle className="mr-2 h-5 w-5" /> Add Another Split
         </Button>
