@@ -12,7 +12,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal as MoreIcon, Trash2 as TrashIcon, Edit as EditIcon } from 'lucide-react'
+import {
+  MoreHorizontal as MoreIcon, Trash2 as TrashIcon, Edit as EditIcon,
+  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
+  Car, Bus, Plane, Train, Bike, Ship, Fuel,
+  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
+  Activity, Pill, Stethoscope, Dumbbell, Moon,
+  Users, User, Baby, PawPrint,
+  Tag, Hash, Clock, MapPin, Phone, Music, Camera, Umbrella,
+  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
+  TrendingUp, DollarSign, BarChart3, Folder, FileText,
+} from 'lucide-react'
+
+const ICON_MAP: Record<string, React.ElementType> = {
+  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
+  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
+  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
+  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
+  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
+  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
+  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
+  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
+  Globe, Bookmark, Shield, Folder, FileText, Hash,
+};
 import LabelDrawer from '@/components/LabelDrawer'
 import {
   AlertDialog,
@@ -97,37 +121,39 @@ export default function LabelsPage() {
           <LabelsListSkeleton />
         ) : (
           <div className="space-y-2">
-            {labels.map(label => (
-              <Card key={label._id} className="p-4 flex flex-row justify-between items-center shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div
-                    className="h-6 w-6 rounded-full"
-                    style={{ backgroundColor: label.color }}
-                  />
-                  <p className="font-medium">{label.name}</p>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreIcon className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(label)}>
-                      <EditIcon className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => setLabelToDelete(label)}
-                    >
-                      <TrashIcon className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </Card>
-            ))}
+            {labels.map(label => {
+              const LabelIcon = ICON_MAP[label.icon] || Tag;
+              return (
+                <Card key={label._id} className="p-3 flex flex-row justify-between items-center shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center">
+                      <LabelIcon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="font-medium text-sm">{label.name}</p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreIcon className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEdit(label)}>
+                        <EditIcon className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => setLabelToDelete(label)}
+                      >
+                        <TrashIcon className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </Card>
+              );
+            })}
             {labels.length === 0 && (
               <div className="p-4 border rounded-md bg-muted/50 text-center">
                 <p className="text-muted-foreground">No labels yet. Create one to get started.</p>
