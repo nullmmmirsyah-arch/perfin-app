@@ -11,30 +11,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import {
-  MoreHorizontal, Trash2, Edit, ChevronDown, GitBranch, Tag,
-  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
-  Car, Bus, Plane, Train, Bike, Ship, Fuel,
-  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
-  Activity, Pill, Stethoscope, Dumbbell, Moon,
-  Users, User, Baby, PawPrint,
-  Clock, MapPin, Phone, Music, Camera, Umbrella,
-  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
-  TrendingUp, DollarSign, BarChart3, Folder, FileText, Hash,
+  MoreHorizontal, Trash2, Edit, ChevronDown, GitBranch,
 } from 'lucide-react'
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
-  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
-  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
-  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
-  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
-  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
-  Globe, Bookmark, Shield, Folder, FileText, Hash,
-}
 import { TransactionWithDetails } from './transactions/types'
 
 export function TransactionItem({ 
@@ -160,14 +139,13 @@ export function TransactionItem({
               {displayAmount}
             </p>
             {transaction.labels?.map((label) => {
-              const LabelIcon = ICON_MAP[label.icon || ''] || Tag;
               return (
                 <span
                   key={label._id}
                   className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-md"
                   title={label.name}
                 >
-                  <LabelIcon className="h-3 w-3" />
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
                   <span className="hidden sm:inline">{label.name}</span>
                 </span>
               );
@@ -234,13 +212,13 @@ export function TransactionItem({
                     <div className="text-right">
                       <span className="font-semibold">{shouldMask ? '••••' : split.amount}</span>
                       {split.labelIcons?.map((iconName, i) => {
-                        const SplitIcon = ICON_MAP[iconName] || Tag;
+                        const labelColor = split.labelColors?.[i] || '#6b7280';
                         return (
                           <span
                             key={i}
                             className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
                           >
-                            <SplitIcon className="h-3 w-3" />
+                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: labelColor }} />
                             {split.labelNames?.[i]}
                           </span>
                         );

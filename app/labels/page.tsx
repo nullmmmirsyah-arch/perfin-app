@@ -14,29 +14,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   MoreHorizontal as MoreIcon, Trash2 as TrashIcon, Edit as EditIcon,
-  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
-  Car, Bus, Plane, Train, Bike, Ship, Fuel,
-  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
-  Activity, Pill, Stethoscope, Dumbbell, Moon,
-  Users, User, Baby, PawPrint,
-  Tag, Hash, Clock, MapPin, Phone, Music, Camera, Umbrella,
-  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
-  TrendingUp, DollarSign, BarChart3, Folder, FileText,
 } from 'lucide-react'
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
-  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
-  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
-  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
-  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
-  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
-  Globe, Bookmark, Shield, Folder, FileText, Hash,
-};
 import LabelDrawer from '@/components/LabelDrawer'
 import {
   AlertDialog,
@@ -122,12 +101,11 @@ export default function LabelsPage() {
         ) : (
           <div className="space-y-2">
             {labels.map(label => {
-              const LabelIcon = ICON_MAP[label.icon || ''] || Tag;
               return (
                 <Card key={label._id} className="p-3 flex flex-row justify-between items-center shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center">
-                      <LabelIcon className="h-4 w-4 text-muted-foreground" />
+                      <span className="h-4 w-4 rounded-full" style={{ backgroundColor: label.color }} />
                     </div>
                     <p className="font-medium text-sm">{label.name}</p>
                   </div>

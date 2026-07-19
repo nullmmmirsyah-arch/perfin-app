@@ -63,29 +63,7 @@ import {
   Tag,
   Store,
   Loader2,
-  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
-  Car, Bus, Plane, Train, Bike, Ship, Fuel,
-  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
-  Activity, Pill, Stethoscope, Dumbbell, Moon,
-  Users, User, Baby, PawPrint,
-  Clock, MapPin, Phone, Music, Camera, Umbrella,
-  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
-  TrendingUp, DollarSign, BarChart3, Folder, Hash,
 } from 'lucide-react';
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
-  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
-  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
-  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
-  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
-  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
-  Globe, Bookmark, Shield, Folder, FileText, Hash,
-};
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { Doc, Id } from '../convex/_generated/dataModel';
 import { toast } from 'sonner';
@@ -1203,20 +1181,17 @@ const TransactionFormFields = ({
                                                   field.onChange(next);
                                                 }
                                             }}
-                                            options={[
-                                                { value: 'none', label: 'None (clear all)' },
-                                                ...(labels?.map(lbl => {
-                                                    const LblIcon = ICON_MAP[lbl.icon || ''] || Tag;
-                                                    return {
+                                                options={[
+                                                    { value: 'none', label: 'None (clear all)' },
+                                                    ...(labels?.map(lbl => ({
                                                         value: lbl._id,
                                                         label: (
                                                             <span className="flex items-center gap-2">
-                                                                <LblIcon className="h-4 w-4 shrink-0" />
+                                                                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
                                                                 {lbl.name}
                                                             </span>
                                                         )
-                                                    };
-                                                }) || [])
+                                                    })) || [])
                                             ]}
                                             trigger={
                                                 <button type="button" className="w-full text-left outline-none">
@@ -1537,13 +1512,12 @@ const TransactionFormFields = ({
                               {(field.value || []).map((id: string) => {
                                 const lbl = labels?.find(l => l._id === id);
                                 if (!lbl) return null;
-                                const LabelIcon = ICON_MAP[lbl.icon || ''] || Tag;
                                 return (
                                   <span
                                     key={id}
                                     className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
                                   >
-                                    <LabelIcon className="h-3 w-3" />
+                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
                                     {lbl.name}
                                     <button
                                       type="button"
@@ -1568,17 +1542,14 @@ const TransactionFormFields = ({
                                   <SelectValue placeholder="+ Add" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => {
-                                    const LblIcon = ICON_MAP[label.icon || ''] || Tag;
-                                    return (
-                                      <SelectItem key={label._id} value={label._id}>
-                                        <span className="flex items-center gap-2">
-                                          <LblIcon className="h-3.5 w-3.5" />
-                                          {label.name}
-                                        </span>
-                                      </SelectItem>
-                                    );
-                                  })}
+                                  {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
+                                    <SelectItem key={label._id} value={label._id}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                                        {label.name}
+                                      </span>
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1970,13 +1941,12 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                           {(field.value || []).map((id: string) => {
                             const lbl = labels?.find(l => l._id === id);
                             if (!lbl) return null;
-                            const LabelIcon = ICON_MAP[lbl.icon || ''] || Tag;
                             return (
                               <span
                                 key={id}
                                 className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
                               >
-                                <LabelIcon className="h-3 w-3" />
+                                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
                                 {lbl.name}
                                 <button
                                   type="button"
@@ -2001,17 +1971,14 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                               <SelectValue placeholder="+ Add" />
                             </SelectTrigger>
                             <SelectContent>
-                              {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => {
-                                const LblIcon = ICON_MAP[label.icon || ''] || Tag;
-                                return (
-                                  <SelectItem key={label._id} value={label._id}>
-                                    <span className="flex items-center gap-2">
-                                      <LblIcon className="h-3.5 w-3.5" />
-                                      {label.name}
-                                    </span>
-                                  </SelectItem>
-                                );
-                              })}
+                              {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
+                                <SelectItem key={label._id} value={label._id}>
+                                  <span className="flex items-center gap-2">
+                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                                    {label.name}
+                                  </span>
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>

@@ -13,29 +13,9 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import {
-  Filter, X, Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
-  Car, Bus, Plane, Train, Bike, Ship, Fuel,
-  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
-  Activity, Pill, Stethoscope, Dumbbell, Moon,
-  Users, User, Baby, PawPrint,
-  Clock, MapPin, Phone, Music, Camera, Umbrella,
-  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
-  TrendingUp, DollarSign, BarChart3, Folder, FileText, Hash,
+  Filter, X,
 } from 'lucide-react'
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Tag, Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  DollarSign, TrendingUp, BarChart3, Briefcase, Building,
-  GraduationCap, BookOpen, Laptop, Code, Car, Bus, Plane,
-  Train, Bike, Ship, Fuel, Coffee, UtensilsCrossed, ShoppingBag,
-  Apple, Beer, Cake, Activity, Pill, Stethoscope, Dumbbell,
-  Moon, Users, User, Baby, PawPrint, Clock, MapPin, Phone,
-  Music, Camera, Umbrella, Wrench, Hammer, Palette, Zap,
-  Globe, Bookmark, Shield, Folder, FileText, Hash,
-}
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { Label } from './ui/label'
 import { useState } from 'react'
@@ -86,7 +66,7 @@ export default function TransactionFilters({
 
   const accountOptions: Option[] = accounts?.map(a => ({ label: a.name, value: a._id })) || [];
   const categoryOptions: Option[] = categories?.map(c => ({ label: c.name, value: c._id })) || [];
-  const labelOptions: Option[] = labels?.map(l => ({ label: l.name, value: l._id, icon: (ICON_MAP[l.icon || ''] || Tag) as React.ComponentType<{ className?: string }> })) || [];
+  const labelOptions: Option[] = labels?.map(l => ({ label: l.name, value: l._id })) || [];
   const merchantOptions: Option[] = merchants?.map(m => ({ label: m.name, value: m._id })) || [];
 
   const resetAll = () => onFilterChange({ type: undefined, accountId: undefined, categoryId: undefined, labelId: undefined, merchantId: undefined, dateRange: filters.dateRange });
@@ -220,10 +200,10 @@ export default function TransactionFilters({
           ))}
           {filters.labelId?.map(id => {
             const opt = labelOptions.find(o => o.value === id);
-            const LabelIcon = opt?.icon || Tag;
+            const label = labels?.find(l => l._id === id);
             return (
               <span key={id} className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md">
-                <LabelIcon className="h-3 w-3" />
+                {label && <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />}
                 {opt?.label || id}
                 <button onClick={() => onFilterChange({ ...filters, labelId: filters.labelId?.filter(i => i !== id) })} className="ml-0.5 hover:text-destructive">×</button>
               </span>
