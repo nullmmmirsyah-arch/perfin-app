@@ -19,6 +19,6 @@ export type TransactionWithDetails = Omit<Doc<'transactions'>, 'splits' | 'accou
     labelIds?: Id<'labels'>[];
     categoryName?: string;
     labelNames?: string[];
-    labelIcons?: string[];
+    labelColors?: string[];
   }>;
 };

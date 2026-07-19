@@ -350,7 +350,7 @@ export const getCategoryDetails = query({
                         ...split,
                         categoryName: splitCategory?.name,
                         labelNames: splitLabels.map(l => l!.name),
-                        labelIcons: splitLabels.map(l => l!.icon),
+                        labelColors: splitLabels.map(l => l!.color),
                     };
                 });
 

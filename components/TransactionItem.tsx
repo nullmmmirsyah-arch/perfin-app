@@ -211,14 +211,13 @@ export function TransactionItem({
                     </div>
                     <div className="text-right">
                       <span className="font-semibold">{shouldMask ? '••••' : split.amount}</span>
-                      {split.labelIcons?.map((iconName, i) => {
-                        const labelColor = split.labelColors?.[i] || '#6b7280';
+                      {split.labelColors?.map((color, i) => {
                         return (
                           <span
                             key={i}
                             className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
                           >
-                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: labelColor }} />
+                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                             {split.labelNames?.[i]}
                           </span>
                         );
