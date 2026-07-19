@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,91 +25,17 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Loader2, Search } from 'lucide-react';
-import {
-  Home, Heart, Star, Gift, Sparkles, Gem, Crown, Flame,
-  Wallet, CreditCard, Banknote, Coins, PiggyBank, Receipt,
-  Briefcase, Building, GraduationCap, BookOpen, Laptop, Code,
-  Car, Bus, Plane, Train, Bike, Ship, Fuel,
-  Coffee, UtensilsCrossed, ShoppingBag, Apple, Beer, Cake,
-  Activity, Pill, Stethoscope, Dumbbell, Moon,
-  Users, User, Baby, PawPrint,
-  Tag, Clock, MapPin, Phone, Music, Camera, Umbrella,
-  Wrench, Hammer, Palette, Zap, Globe, Bookmark, Shield,
-  TrendingUp, DollarSign, BarChart3, Folder, FileText,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
-const ICON_LIST = [
-  { name: 'Tag', Icon: Tag },
-  { name: 'Home', Icon: Home },
-  { name: 'Heart', Icon: Heart },
-  { name: 'Star', Icon: Star },
-  { name: 'Gift', Icon: Gift },
-  { name: 'Sparkles', Icon: Sparkles },
-  { name: 'Gem', Icon: Gem },
-  { name: 'Crown', Icon: Crown },
-  { name: 'Flame', Icon: Flame },
-  { name: 'Wallet', Icon: Wallet },
-  { name: 'CreditCard', Icon: CreditCard },
-  { name: 'Banknote', Icon: Banknote },
-  { name: 'Coins', Icon: Coins },
-  { name: 'PiggyBank', Icon: PiggyBank },
-  { name: 'Receipt', Icon: Receipt },
-  { name: 'DollarSign', Icon: DollarSign },
-  { name: 'TrendingUp', Icon: TrendingUp },
-  { name: 'BarChart3', Icon: BarChart3 },
-  { name: 'Briefcase', Icon: Briefcase },
-  { name: 'Building', Icon: Building },
-  { name: 'GraduationCap', Icon: GraduationCap },
-  { name: 'BookOpen', Icon: BookOpen },
-  { name: 'Laptop', Icon: Laptop },
-  { name: 'Code', Icon: Code },
-  { name: 'Car', Icon: Car },
-  { name: 'Bus', Icon: Bus },
-  { name: 'Plane', Icon: Plane },
-  { name: 'Train', Icon: Train },
-  { name: 'Bike', Icon: Bike },
-  { name: 'Ship', Icon: Ship },
-  { name: 'Fuel', Icon: Fuel },
-  { name: 'Coffee', Icon: Coffee },
-  { name: 'UtensilsCrossed', Icon: UtensilsCrossed },
-  { name: 'ShoppingBag', Icon: ShoppingBag },
-  { name: 'Apple', Icon: Apple },
-  { name: 'Beer', Icon: Beer },
-  { name: 'Cake', Icon: Cake },
-  { name: 'Activity', Icon: Activity },
-  { name: 'Pill', Icon: Pill },
-  { name: 'Stethoscope', Icon: Stethoscope },
-  { name: 'Dumbbell', Icon: Dumbbell },
-  { name: 'Moon', Icon: Moon },
-  { name: 'Users', Icon: Users },
-  { name: 'User', Icon: User },
-  { name: 'Baby', Icon: Baby },
-  { name: 'PawPrint', Icon: PawPrint },
-  { name: 'Clock', Icon: Clock },
-  { name: 'MapPin', Icon: MapPin },
-  { name: 'Phone', Icon: Phone },
-  { name: 'Music', Icon: Music },
-  { name: 'Camera', Icon: Camera },
-  { name: 'Umbrella', Icon: Umbrella },
-  { name: 'Wrench', Icon: Wrench },
-  { name: 'Hammer', Icon: Hammer },
-  { name: 'Palette', Icon: Palette },
-  { name: 'Zap', Icon: Zap },
-  { name: 'Globe', Icon: Globe },
-  { name: 'Bookmark', Icon: Bookmark },
-  { name: 'Shield', Icon: Shield },
-  { name: 'Folder', Icon: Folder },
-  { name: 'FileText', Icon: FileText },
+const LABEL_COLORS = [
+  '#6b7280', '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e',
+  '#14b8a6', '#84cc16', '#a855f7', '#0ea5e9', '#64748b',
 ];
-
-const ICON_MAP: Record<string, React.ElementType> = Object.fromEntries(
-  ICON_LIST.map(({ name, Icon }) => [name, Icon])
-);
 
 const LabelFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  icon: z.string().min(1, 'Icon is required'),
+  color: z.string().min(1, 'Color is required'),
 });
 
 type LabelFormValues = z.infer<typeof LabelFormSchema>;
@@ -128,28 +54,20 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
   const isEditMode = !!label;
   const [isProcessing, setIsProcessing] = React.useState(false);
   const submitLock = React.useRef(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const form = useForm<LabelFormValues>({
     resolver: zodResolver(LabelFormSchema),
   });
 
-  const filteredIcons = useMemo(() => {
-    if (!searchQuery) return ICON_LIST;
-    const q = searchQuery.toLowerCase();
-    return ICON_LIST.filter(({ name }) => name.toLowerCase().includes(q));
-  }, [searchQuery]);
-
   useEffect(() => {
     if (open) {
       setIsProcessing(false);
       submitLock.current = false;
-      setSearchQuery('');
 
       if (isEditMode) {
-        form.reset({ name: label.name, icon: label.icon });
+        form.reset({ name: label.name, color: label.color || '#6b7280' });
       } else {
-        form.reset({ name: '', icon: 'Tag' });
+        form.reset({ name: '', color: '#6b7280' });
       }
     }
   }, [open, isEditMode, label, form]);
@@ -173,9 +91,6 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
       submitLock.current = false;
     }
   };
-
-  const selectedIcon = form.watch('icon');
-  const SelectedIconComponent = ICON_MAP[selectedIcon] || Tag;
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -201,57 +116,30 @@ const LabelDrawer = ({ open, onOpenChange, label }: LabelDrawerProps) => {
               />
               <FormField
                 control={form.control}
-                name="icon"
+                name="color"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Icon</FormLabel>
+                  <FormItem>
+                    <FormLabel>Color</FormLabel>
                     <FormControl>
-                      <div className="space-y-3">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Search icons..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-9"
+                      <div className="flex flex-wrap gap-2">
+                        {LABEL_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            className={cn(
+                              "h-8 w-8 rounded-full border-2 transition-all",
+                              field.value === color ? "border-primary scale-110" : "border-transparent"
+                            )}
+                            style={{ backgroundColor: color }}
+                            onClick={() => field.onChange(color)}
                           />
-                        </div>
-                        <div className="grid grid-cols-5 sm:grid-cols-6 gap-1.5 max-h-[200px] overflow-y-auto">
-                          {filteredIcons.map(({ name, Icon }) => (
-                            <button
-                              key={name}
-                              type="button"
-                              className={cn(
-                                "h-10 w-10 rounded-lg flex items-center justify-center transition-all hover:bg-muted active:scale-95",
-                                field.value === name
-                                  ? "bg-primary/10 ring-2 ring-primary"
-                                  : "bg-muted/50"
-                              )}
-                              onClick={() => field.onChange(name)}
-                              title={name}
-                            >
-                              <Icon
-                                className={cn(
-                                  "h-4 w-4",
-                                  field.value === name
-                                    ? "text-primary"
-                                    : "text-muted-foreground"
-                                )}
-                              />
-                            </button>
-                          ))}
-                        </div>
+                        ))}
                       </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Preview:</span>
-                <SelectedIconComponent className="h-4 w-4" />
-                <span className="font-medium text-foreground">{form.watch('name') || 'Label'}</span>
-              </div>
               <DrawerFooter className="px-0 pt-2">
                 <Button
                   type="submit"
