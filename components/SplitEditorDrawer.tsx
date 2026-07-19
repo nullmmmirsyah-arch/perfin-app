@@ -39,6 +39,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
 import { MobileAmountInput } from './mobile-amount-input';
 import { Textarea } from '@/components/ui/textarea';
+import LabelCombobox from '@/components/LabelCombobox';
 
 // Reusing types from TransactionDrawer parent context if possible,
 // but for clarity we define what we need.
@@ -272,49 +273,11 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                 name={`splits.${index}.labelIds`}
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormControl>
-                                            <MobileSelectionDrawer
-                                                title="Select Labels"
-                                                closeOnSelect={false}
-                                                selectedValues={field.value || []}
-                                                onSelect={(val) => {
-                                                    if (val === 'none') {
-                                                        field.onChange([]);
-                                                    } else {
-                                                        const current = field.value || [];
-                                                        const next = current.includes(val)
-                                                            ? current.filter((id: string) => id !== val)
-                                                            : [...current, val];
-                                                        field.onChange(next);
-                                                    }
-                                                }}
-                                                options={[
-                                                    { value: 'none', label: 'None (clear all)' },
-                                                    ...(labels?.map(lbl => ({
-                                                        value: lbl._id,
-                                                        label: (
-                                                            <span className="flex items-center gap-2">
-                                                                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
-                                                                {lbl.name}
-                                                            </span>
-                                                        )
-                                                    })) || [])
-                                                ]}
-                                                trigger={
-                                                    <button type="button" className="w-full text-left outline-none">
-                                                        <MobileInputCard
-                                                            label="Labels"
-                                                            icon={Tag}
-                                                            valueDisplay={
-                                                                (field.value || []).length > 0
-                                                                    ? `${(field.value || []).length} selected`
-                                                                    : 'None'
-                                                            }
-                                                        />
-                                                    </button>
-                                                }
-                                            />
-                                        </FormControl>
+                                        <LabelCombobox
+                                            value={field.value || []}
+                                            onSelect={field.onChange}
+                                            labels={labels || []}
+                                        />
                                     </FormItem>
                                 )}
                             />
@@ -420,51 +383,11 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                     name={`splits.${index}.labelIds`}
                                     render={({ field }) => (
                                         <FormItem>
-                                            <div className="flex flex-wrap gap-1.5 min-h-[36px]">
-                                                {(field.value || []).map((id: string) => {
-                                                    const lbl = labels?.find(l => l._id === id);
-                                                    if (!lbl) return null;
-                                                    return (
-                                                        <span
-                                                            key={id}
-                                                            className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
-                                                        >
-                                                            <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
-                                                            {lbl.name}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    field.onChange((field.value || []).filter((v: string) => v !== id));
-                                                                }}
-                                                                className="ml-0.5 hover:text-destructive"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </span>
-                                                    );
-                                                })}
-                                                <Select
-                                                    onValueChange={(val) => {
-                                                        if (val && val !== 'none') {
-                                                            field.onChange([...(field.value || []), val]);
-                                                        }
-                                                    }}
-                                                >
-                                                    <SelectTrigger className="h-7 w-auto px-2 text-xs">
-                                                        <SelectValue placeholder="+ Add" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {labels?.filter(l => !(field.value || []).includes(l._id)).map(lbl => (
-                                                            <SelectItem key={lbl._id} value={lbl._id}>
-                                                                <span className="flex items-center gap-2">
-                                                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
-                                                                    {lbl.name}
-                                                                </span>
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
+                                            <LabelCombobox
+                                                value={field.value || []}
+                                                onSelect={field.onChange}
+                                                labels={labels || []}
+                                            />
                                         </FormItem>
                                     )}
                                 />

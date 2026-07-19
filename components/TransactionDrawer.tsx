@@ -73,6 +73,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Badge } from '@/components/ui/badge';
 import { MobileInputCard, MobileSelectionDrawer } from './ui/mobile-inputs';
 import MerchantCombobox from './MerchantCombobox';
+import LabelCombobox from './LabelCombobox';
 import { MobileAmountInput } from './mobile-amount-input';
 import { MobileDatePicker } from '@/components/ui/mobile-date-picker';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
@@ -894,7 +895,6 @@ const TransactionFormFields = ({
 
   const selectedAccount = accounts.find(a => a._id === accountId);
   const selectedCategory = categories.find(c => c._id === categoryId);
-  const selectedLabels = labels?.filter(l => (labelIds || []).includes(l._id)) || [];
   const selectedMerchant = merchants?.find(m => m._id === merchantId);
 
   const amountValue = parseAmount(amount);
@@ -1166,46 +1166,10 @@ const TransactionFormFields = ({
                             render={({ field }) => (
                                 <FormItem>
                                     <FormControl>
-                                        <MobileSelectionDrawer
-                                            title="Select Labels"
-                                            closeOnSelect={false}
-                                            selectedValues={field.value || []}
-                                            onSelect={(val) => {
-                                                if (val === 'none') {
-                                                  field.onChange([]);
-                                                } else {
-                                                  const current = field.value || [];
-                                                  const next = current.includes(val)
-                                                    ? current.filter((id: string) => id !== val)
-                                                    : [...current, val];
-                                                  field.onChange(next);
-                                                }
-                                            }}
-                                                options={[
-                                                    { value: 'none', label: 'None (clear all)' },
-                                                    ...(labels?.map(lbl => ({
-                                                        value: lbl._id,
-                                                        label: (
-                                                            <span className="flex items-center gap-2">
-                                                                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
-                                                                {lbl.name}
-                                                            </span>
-                                                        )
-                                                    })) || [])
-                                            ]}
-                                            trigger={
-                                                <button type="button" className="w-full text-left outline-none">
-                                                    <MobileInputCard
-                                                      label="Labels"
-                                                      icon={Tag}
-                                                      valueDisplay={
-                                                        selectedLabels.length > 0
-                                                          ? `${selectedLabels.length} selected`
-                                                          : 'None'
-                                                      }
-                                                    />
-                                                </button>
-                                            }
+                                        <LabelCombobox
+                                            value={field.value || []}
+                                            onSelect={field.onChange}
+                                            labels={labels || []}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -1508,55 +1472,16 @@ const TransactionFormFields = ({
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Labels</FormLabel>
-                            <div className="flex flex-wrap gap-1.5 min-h-[36px]">
-                              {(field.value || []).map((id: string) => {
-                                const lbl = labels?.find(l => l._id === id);
-                                if (!lbl) return null;
-                                return (
-                                  <span
-                                    key={id}
-                                    className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
-                                  >
-                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
-                                    {lbl.name}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        field.onChange((field.value || []).filter((v: string) => v !== id));
-                                      }}
-                                      className="ml-0.5 hover:text-destructive"
-                                    >
-                                      ×
-                                    </button>
-                                  </span>
-                                );
-                              })}
-                              <Select
-                                onValueChange={(val) => {
-                                  if (val && val !== 'none') {
-                                    field.onChange([...(field.value || []), val]);
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="h-7 w-auto px-2 text-xs">
-                                  <SelectValue placeholder="+ Add" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
-                                    <SelectItem key={label._id} value={label._id}>
-                                      <span className="flex items-center gap-2">
-                                        <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                                        {label.name}
-                                      </span>
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                            <LabelCombobox
+                                value={field.value || []}
+                                onSelect={field.onChange}
+                                labels={labels || []}
+                            />
                             <FormMessage />
                         </FormItem>
                         )}
                     />
+
                 </div>
 
                 <FormField
@@ -1937,51 +1862,11 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Labels</FormLabel>
-                        <div className="flex flex-wrap gap-1.5 min-h-[36px]">
-                          {(field.value || []).map((id: string) => {
-                            const lbl = labels?.find(l => l._id === id);
-                            if (!lbl) return null;
-                            return (
-                              <span
-                                key={id}
-                                className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md"
-                              >
-                                <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: lbl.color }} />
-                                {lbl.name}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    field.onChange((field.value || []).filter((v: string) => v !== id));
-                                  }}
-                                  className="ml-0.5 hover:text-destructive"
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            );
-                          })}
-                          <Select
-                            onValueChange={(val) => {
-                              if (val && val !== 'none') {
-                                field.onChange([...(field.value || []), val]);
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-7 w-auto px-2 text-xs">
-                              <SelectValue placeholder="+ Add" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
-                                <SelectItem key={label._id} value={label._id}>
-                                  <span className="flex items-center gap-2">
-                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                                    {label.name}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <LabelCombobox
+                            value={field.value || []}
+                            onSelect={field.onChange}
+                            labels={labels || []}
+                        />
                         <FormMessage />
                     </FormItem>
                     )}
