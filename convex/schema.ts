@@ -54,8 +54,10 @@ export default defineSchema({
       amount: v.string(),
       description: v.optional(v.string()),
       labelIds: v.optional(v.array(v.id("labels"))),
+      labelId: v.optional(v.id("labels")), // Legacy — ignore
     }))),
     labelIds: v.optional(v.array(v.id("labels"))),
+    labelId: v.optional(v.id("labels")), // Legacy — ignore
     assetDetails: v.optional(v.object({
       quantity: v.string(),
       unitPrice: v.optional(v.number()),
