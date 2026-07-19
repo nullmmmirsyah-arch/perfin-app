@@ -21,7 +21,7 @@ export const create = mutation({
   args: {
     householdId: v.optional(v.id("households")),
     name: v.string(),
-    icon: v.string(),
+    color: v.string(),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -44,7 +44,7 @@ export const update = mutation({
   args: {
     id: v.id("labels"),
     name: v.optional(v.string()),
-    icon: v.optional(v.string()),
+    color: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
