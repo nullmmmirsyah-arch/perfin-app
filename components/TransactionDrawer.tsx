@@ -1205,10 +1205,18 @@ const TransactionFormFields = ({
                                             }}
                                             options={[
                                                 { value: 'none', label: 'None (clear all)' },
-                                                ...(labels?.map(lbl => ({
-                                                    value: lbl._id,
-                                                    label: lbl.name
-                                                })) || [])
+                                                ...(labels?.map(lbl => {
+                                                    const LblIcon = ICON_MAP[lbl.icon || ''] || Tag;
+                                                    return {
+                                                        value: lbl._id,
+                                                        label: (
+                                                            <span className="flex items-center gap-2">
+                                                                <LblIcon className="h-4 w-4 shrink-0" />
+                                                                {lbl.name}
+                                                            </span>
+                                                        )
+                                                    };
+                                                }) || [])
                                             ]}
                                             trigger={
                                                 <button type="button" className="w-full text-left outline-none">
