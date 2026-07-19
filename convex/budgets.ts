@@ -174,7 +174,8 @@ export const getBudgetStatus = query({
       budgets,
       accountsMap,
       currentMonth,
-      currentYear
+      currentYear,
+      spendingByCategory
     );
 
     // 10. Combine data for Response
@@ -226,7 +227,7 @@ export const getBudgetStatus = query({
 
     const budgetSummary = calculateMonthlyBudgetLeft(budgets, categories, spendingByCategory);
 
-    // Breakdown for UI
+    // Breakdown for UI — pastSurplus is a residual so the breakdown adds up to unassignedCash
     const thisMonthIncome = currentMonthTransactions
         .filter(t => {
             if (t.type !== 'income') return false;
@@ -236,12 +237,9 @@ export const getBudgetStatus = query({
         .reduce((acc, t) => acc + parseFloat(t.amount.replace(/,/g, '') || '0'), 0);
 
     const thisMonthBudgeted = budgets.reduce((acc, b) => {
-        const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
-        const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
-        const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
-        return acc + (allocated + carryover - swept);
+        return acc + parseFloat(b.amount.replace(/,/g, '') || '0');
     }, 0);
-    
+
     const pastSurplus = unassignedCash - (thisMonthIncome - thisMonthBudgeted);
 
     const breakdown = {

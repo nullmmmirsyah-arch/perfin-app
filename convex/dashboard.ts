@@ -384,7 +384,8 @@ export const getDashboardSummary = query({
       budgets,
       accountsMap,
       currentMonth,
-      currentYear
+      currentYear,
+      spendingByCategory
     );
 
     // 2.3 Calculate Receivables (Pending & Partial Only)

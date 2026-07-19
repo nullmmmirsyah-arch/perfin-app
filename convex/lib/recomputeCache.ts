@@ -104,9 +104,24 @@ export async function recomputeUserCache(
     .sort((a, b) => b.year - a.year || b.month - a.month);
 
   // 4. Unassigned cash
+  const now = new Date();
+  const { year: currentYear, month: currentMonth } = getFiscalDateDetails(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+    startDay
+  );
+  const currentMonthSpending = monthlySpending.find(s => s.year === currentYear && s.month === currentMonth);
+  const spendingByCategory: Record<string, number> = {};
+  if (currentMonthSpending) {
+    for (const entry of currentMonthSpending.spending) {
+      spendingByCategory[entry.categoryId] = entry.amount;
+    }
+  }
   const unassignedCash = calculateUnassignedCash(
     allBudgets,
-    accountsMap
+    accountsMap,
+    currentMonth,
+    currentYear,
+    spendingByCategory
   );
 
   // 5. Upsert cache

@@ -196,17 +196,18 @@ export function calculateMonthlyBudgetLeft(
 
 /**
  * Calculates Unassigned Cash.
- * Formula: Total Liquid Cash - Sum(Budget Obligations)
- * Obligation = amount (limit). carryoverAmount is NOT included because
- * carryover is leftover from a prior month's obligation that was already
- * counted when that budget was first set. Only the active `amount` matters
- * as new reserved cash.
+ * Formula: Total Liquid Cash - Sum(Remaining Budget)
+ * Remaining per budget = max(0, (amount + carryover) - spent).
+ * Carryover is added to amount because it represents money reserved
+ * from a prior month that is still allocated to this category.
+ * If the total (amount + carryover) is fully spent, remaining = 0.
  */
 export function calculateUnassignedCash(
   allBudgets: Doc<"budgets">[],
   accountsMap: AccountMap,
   targetMonth?: number,
-  targetYear?: number
+  targetYear?: number,
+  spendingByCategory?: Record<string, number>
 ): number {
   let totalLiquidCash = 0;
   for (const account of accountsMap.values()) {
@@ -215,7 +216,7 @@ export function calculateUnassignedCash(
     }
   }
 
-  let totalObligations = 0;
+  let totalRemaining = 0;
 
   const filteredBudgets = (targetMonth !== undefined && targetYear !== undefined)
     ? allBudgets.filter(b => b.month === targetMonth && b.year === targetYear)
@@ -223,12 +224,13 @@ export function calculateUnassignedCash(
 
   filteredBudgets.forEach(b => {
     const allocated = parseAmount(b.amount);
-    const swept = parseAmount(b.sweptAmount);
-
-    totalObligations += allocated - swept;
+    const carryover = parseAmount(b.carryoverAmount);
+    const spent = spendingByCategory?.[b.categoryId] ?? 0;
+    const remaining = Math.max(0, (allocated + carryover) - spent);
+    totalRemaining += remaining;
   });
 
-  return totalLiquidCash - totalObligations;
+  return totalLiquidCash - totalRemaining;
 }
 
 /**

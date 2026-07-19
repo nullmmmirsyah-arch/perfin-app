@@ -136,9 +136,10 @@ Format:
 - **`components/LabelCombobox.tsx`:** nested `<button>` hydration error — inner remove button (×) diganti dari `<button>` ke `<span role="button">` + Space key `preventDefault()` karena `<button>` tidak boleh jadi descendant `<button>` lain (PopoverTrigger)
 
 ### Changed
-- **`convex/lib/finance.ts` — `calculateUnassignedCash`:** rumus diubah dari `max(0, (allocated + carryover) - swept - spent)` menjadi `(allocated + carryover) - swept`. Spending sekarang **tidak mempengaruhi** unassigned karena unassigned hanya mencerminkan total limit budget (obligasi), bukan sisa limit. Parameter `allTransactions`, `budgetStartDay`, dan `categoriesMap` dihapus
-- **`convex/dashboard.ts`:** obligation breakdown (expense/saving) diselaraskan dengan formula baru — `obligation` bukan `remaining`
+- **`convex/lib/finance.ts` — `calculateUnassignedCash`:** rumus diubah menjadi `cash - sum(max(0, (amount + carryover) - spent))`. Carryover ditambahkan ke amount karena merupakan uang yang di-reserve dari bulan sebelumnya dan masih dialokasikan untuk kategori tersebut. Jika total (amount + carryover) sudah habis terpakai, remaining = 0 (di-cap). Parameter `spendingByCategory` ditambahkan untuk menyediakan data spent per kategori
+- **`convex/dashboard.ts`:** obligation breakdown (expense/saving) diselaraskan dengan formula baru — `obligation = allocated - swept`
 - **`convex/budgets.ts`:**
+  - `getBudgetStatus`: `thisMonthBudgeted` diubah dari `(allocated + carryover - swept)` menjadi `sum(amount)` — hanya alokasi baru bulan ini
   - `getBudgetAssistance`: hapus query `targetTransactions` yang tidak dipakai
   - `upsertBudget`: hapus query `transactions` dan `categories` yang tidak dipakai
   - `moveBudgetFunds`: hapus query `allTx` (all-time transactions) dan `categories` yang tidak dipakai
