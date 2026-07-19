@@ -479,9 +479,17 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                                         <SelectValue placeholder="+ Add" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {labels?.filter(l => !(field.value || []).includes(l._id)).map(lbl => (
-                                                            <SelectItem key={lbl._id} value={lbl._id}>{lbl.name}</SelectItem>
-                                                        ))}
+                                                        {labels?.filter(l => !(field.value || []).includes(l._id)).map(lbl => {
+                                                            const LblIcon = ICON_MAP[lbl.icon || ''] || Tag;
+                                                            return (
+                                                                <SelectItem key={lbl._id} value={lbl._id}>
+                                                                    <span className="flex items-center gap-2">
+                                                                        <LblIcon className="h-3.5 w-3.5" />
+                                                                        {lbl.name}
+                                                                    </span>
+                                                                </SelectItem>
+                                                            );
+                                                        })}
                                                     </SelectContent>
                                                 </Select>
                                             </div>

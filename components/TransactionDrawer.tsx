@@ -1568,9 +1568,17 @@ const TransactionFormFields = ({
                                   <SelectValue placeholder="+ Add" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
-                                    <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
-                                  ))}
+                                  {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => {
+                                    const LblIcon = ICON_MAP[label.icon || ''] || Tag;
+                                    return (
+                                      <SelectItem key={label._id} value={label._id}>
+                                        <span className="flex items-center gap-2">
+                                          <LblIcon className="h-3.5 w-3.5" />
+                                          {label.name}
+                                        </span>
+                                      </SelectItem>
+                                    );
+                                  })}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1993,9 +2001,17 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                               <SelectValue placeholder="+ Add" />
                             </SelectTrigger>
                             <SelectContent>
-                              {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => (
-                                <SelectItem key={label._id} value={label._id}>{label.name}</SelectItem>
-                              ))}
+                              {labels?.filter(l => !(field.value || []).includes(l._id)).map(label => {
+                                const LblIcon = ICON_MAP[label.icon || ''] || Tag;
+                                return (
+                                  <SelectItem key={label._id} value={label._id}>
+                                    <span className="flex items-center gap-2">
+                                      <LblIcon className="h-3.5 w-3.5" />
+                                      {label.name}
+                                    </span>
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
