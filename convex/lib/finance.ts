@@ -195,10 +195,12 @@ export function calculateMonthlyBudgetLeft(
 }
 
 /**
- * Calculates Unassigned Cash (Global Logic).
- * Formula: Total Liquid Cash - Sum(Total Budget Obligations)
- * Obligation = (allocated + carryover) - swept.
- * Spending does NOT affect unassigned — it only affects remaining limit within a budget.
+ * Calculates Unassigned Cash.
+ * Formula: Total Liquid Cash - Sum(Budget Obligations)
+ * Obligation = amount (limit). carryoverAmount is NOT included because
+ * carryover is leftover from a prior month's obligation that was already
+ * counted when that budget was first set. Only the active `amount` matters
+ * as new reserved cash.
  */
 export function calculateUnassignedCash(
   allBudgets: Doc<"budgets">[],
@@ -221,10 +223,9 @@ export function calculateUnassignedCash(
 
   filteredBudgets.forEach(b => {
     const allocated = parseAmount(b.amount);
-    const carryover = parseAmount(b.carryoverAmount);
     const swept = parseAmount(b.sweptAmount);
 
-    totalObligations += (allocated + carryover) - swept;
+    totalObligations += allocated - swept;
   });
 
   return totalLiquidCash - totalObligations;

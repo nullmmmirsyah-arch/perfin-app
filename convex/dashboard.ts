@@ -368,15 +368,13 @@ export const getDashboardSummary = query({
 
     allBudgets.forEach(b => {
         const allocated = parseAmount(b.amount);
-        const carryover = parseAmount(b.carryoverAmount);
         const swept = parseAmount(b.sweptAmount);
         
         const cat = catMap.get(b.categoryId);
-        const obligation = (allocated + carryover) - swept;
+        const obligation = allocated - swept;
 
         if (cat?.type === 'expense') {
             totalExpenseObligations += obligation;
-            if (carryover < 0) totalDebtCovered += Math.abs(carryover);
         } else if (cat?.type === 'saving') {
             totalSavingObligations += obligation;
         }
