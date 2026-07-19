@@ -16,21 +16,30 @@ export const MobileSelectionDrawer = ({
   title, 
   options, 
   value, 
+  selectedValues,
   onSelect, 
   trigger,
   children,
-  disabled
+  disabled,
+  closeOnSelect = true
 }: { 
   title: string, 
   options?: { value: string, label: React.ReactNode, subLabel?: string, isAction?: boolean }[], 
   value?: string | Date, 
+  selectedValues?: string[],
   onSelect?: (val: string) => void, 
   trigger: React.ReactNode,
   children?: React.ReactNode | ((props: { close: () => void }) => React.ReactNode),
-  disabled?: boolean
+  disabled?: boolean,
+  closeOnSelect?: boolean
 }) => {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
+  
+  const isSelected = (optValue: string) => {
+    if (selectedValues) return selectedValues.includes(optValue);
+    return value === optValue;
+  };
   
   return (
     <Drawer open={disabled ? false : open} onOpenChange={setOpen}>
@@ -53,32 +62,35 @@ export const MobileSelectionDrawer = ({
                     type="button"
                     className={cn(
                         "flex items-center justify-between p-4 rounded-xl border transition-all active:scale-[0.98] text-left",
-                        value === opt.value ? "border-primary bg-primary/5" : "border-border bg-card",
+                        isSelected(opt.value) ? "border-primary bg-primary/5" : "border-border bg-card",
                         opt.isAction && "border-primary/50 border-dashed bg-primary/5 shadow-sm"
                     )}
                     onClick={() => {
                         onSelect?.(opt.value);
-                        setOpen(false);
+                        if (closeOnSelect) setOpen(false);
                     }}
                     >
                     <div className="flex flex-col gap-0.5">
                             <span className={cn(
                                 "font-semibold text-base", 
-                                value === opt.value ? "text-primary" : "text-foreground",
+                                isSelected(opt.value) ? "text-primary" : "text-foreground",
                                 opt.isAction && "text-primary"
                             )}>{opt.label}</span>
                             {opt.subLabel && <span className="text-xs text-muted-foreground">{opt.subLabel}</span>}
                     </div>
-                    {value === opt.value ? (
-                        <Check className="h-5 w-5 text-primary" />
+                    {isSelected(opt.value) ? (
+                        <Check className="h-5 w-5 text-primary shrink-0" />
                     ) : (
-                        opt.isAction && <PlusCircle className="h-5 w-5 text-primary/60" />
+                        opt.isAction && <PlusCircle className="h-5 w-5 text-primary/60 shrink-0" />
                     )}
                     </button>
                 ))
             )}
          </div>
          <DrawerFooter className="pt-2">
+            {!closeOnSelect && (
+                <Button variant="default" className="w-full" onClick={close}>Done</Button>
+            )}
             <DrawerClose asChild>
                 <Button variant="outline" className="w-full">Cancel</Button>
             </DrawerClose>

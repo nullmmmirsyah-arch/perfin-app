@@ -296,7 +296,8 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                         <FormControl>
                                             <MobileSelectionDrawer
                                                 title="Select Labels"
-                                                value=""
+                                                closeOnSelect={false}
+                                                selectedValues={field.value || []}
                                                 onSelect={(val) => {
                                                     if (val === 'none') {
                                                         field.onChange([]);
@@ -322,10 +323,7 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                                             icon={Tag}
                                                             valueDisplay={
                                                                 (field.value || []).length > 0
-                                                                    ? (field.value || [])
-                                                                        .map((id: string) => labels?.find(l => l._id === id)?.name || '')
-                                                                        .filter(Boolean)
-                                                                        .join(', ')
+                                                                    ? `${(field.value || []).length} selected`
                                                                     : 'None'
                                                             }
                                                         />
@@ -442,7 +440,7 @@ const SplitEditorContent = ({ form, categories, labels, isMobile, fields, append
                                                 {(field.value || []).map((id: string) => {
                                                     const lbl = labels?.find(l => l._id === id);
                                                     if (!lbl) return null;
-                                                    const LabelIcon = ICON_MAP[lbl.icon] || Tag;
+                                                    const LabelIcon = ICON_MAP[lbl.icon || ''] || Tag;
                                                     return (
                                                         <span
                                                             key={id}

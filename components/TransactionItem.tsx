@@ -160,7 +160,7 @@ export function TransactionItem({
               {displayAmount}
             </p>
             {transaction.labels?.map((label) => {
-              const LabelIcon = ICON_MAP[label.icon] || Tag;
+              const LabelIcon = ICON_MAP[label.icon || ''] || Tag;
               return (
                 <span
                   key={label._id}

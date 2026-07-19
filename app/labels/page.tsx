@@ -122,7 +122,7 @@ export default function LabelsPage() {
         ) : (
           <div className="space-y-2">
             {labels.map(label => {
-              const LabelIcon = ICON_MAP[label.icon] || Tag;
+              const LabelIcon = ICON_MAP[label.icon || ''] || Tag;
               return (
                 <Card key={label._id} className="p-3 flex flex-row justify-between items-center shadow-sm">
                   <div className="flex items-center gap-3">

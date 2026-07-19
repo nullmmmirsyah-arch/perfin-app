@@ -1190,7 +1190,8 @@ const TransactionFormFields = ({
                                     <FormControl>
                                         <MobileSelectionDrawer
                                             title="Select Labels"
-                                            value=""
+                                            closeOnSelect={false}
+                                            selectedValues={field.value || []}
                                             onSelect={(val) => {
                                                 if (val === 'none') {
                                                   field.onChange([]);
@@ -1216,7 +1217,7 @@ const TransactionFormFields = ({
                                                       icon={Tag}
                                                       valueDisplay={
                                                         selectedLabels.length > 0
-                                                          ? selectedLabels.map(l => l.name).join(', ')
+                                                          ? `${selectedLabels.length} selected`
                                                           : 'None'
                                                       }
                                                     />
@@ -1528,7 +1529,7 @@ const TransactionFormFields = ({
                               {(field.value || []).map((id: string) => {
                                 const lbl = labels?.find(l => l._id === id);
                                 if (!lbl) return null;
-                                const LabelIcon = ICON_MAP[lbl.icon] || Tag;
+                                const LabelIcon = ICON_MAP[lbl.icon || ''] || Tag;
                                 return (
                                   <span
                                     key={id}
@@ -1953,7 +1954,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                           {(field.value || []).map((id: string) => {
                             const lbl = labels?.find(l => l._id === id);
                             if (!lbl) return null;
-                            const LabelIcon = ICON_MAP[lbl.icon] || Tag;
+                            const LabelIcon = ICON_MAP[lbl.icon || ''] || Tag;
                             return (
                               <span
                                 key={id}
