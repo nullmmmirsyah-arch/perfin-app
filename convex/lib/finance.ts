@@ -196,19 +196,16 @@ export function calculateMonthlyBudgetLeft(
 
 /**
  * Calculates Unassigned Cash (Global Logic).
- * New Formula: Total Liquid Cash - Sum(Remaining Budget Obligations)
- * Remaining Obligation = Max(0, Budget Amount - Spent in that Period)
+ * Formula: Total Liquid Cash - Sum(Total Budget Obligations)
+ * Obligation = (allocated + carryover) - swept.
+ * Spending does NOT affect unassigned — it only affects remaining limit within a budget.
  */
 export function calculateUnassignedCash(
-  allTransactions: Doc<"transactions">[],
   allBudgets: Doc<"budgets">[],
   accountsMap: AccountMap,
-  budgetStartDay: number = 1,
-  categoriesMap?: Map<string, Doc<"categories">>,
   targetMonth?: number,
   targetYear?: number
 ): number {
-  // 1. Calculate Total Liquid Cash (Current Reality)
   let totalLiquidCash = 0;
   for (const account of accountsMap.values()) {
     if (isLiquidAccount(account)) {
@@ -216,55 +213,21 @@ export function calculateUnassignedCash(
     }
   }
 
-  // 2. Group Spending by Fiscal Month & Category
-  const monthlySpending = new Map<string, Map<string, number>>();
-
-  allTransactions.forEach(t => {
-    const flows = analyzeTransactionFlow(t, accountsMap, categoriesMap);
-    const { year, month } = getFiscalDateDetails(t.date, budgetStartDay);
-    const key = `${year}-${month}`; 
-
-    if (!monthlySpending.has(key)) {
-        monthlySpending.set(key, new Map());
-    }
-    const categoryMap = monthlySpending.get(key)!;
-
-    flows.forEach(flow => {
-      if (flow.type === 'SPENDING') {
-        const catId = String(flow.categoryId);
-        const current = categoryMap.get(catId) || 0;
-        categoryMap.set(catId, current + flow.amount);
-      }
-    });
-  });
-
-  // 3. Calculate Total Remaining Budget Obligations
-  let totalRemainingObligations = 0;
+  let totalObligations = 0;
 
   const filteredBudgets = (targetMonth !== undefined && targetYear !== undefined)
     ? allBudgets.filter(b => b.month === targetMonth && b.year === targetYear)
     : allBudgets;
 
   filteredBudgets.forEach(b => {
-    const key = `${b.year}-${b.month}`;
-    const categoryMap = monthlySpending.get(key);
-    const spent = categoryMap?.get(String(b.categoryId)) || 0;
-    
     const allocated = parseAmount(b.amount);
     const carryover = parseAmount(b.carryoverAmount);
     const swept = parseAmount(b.sweptAmount);
-    
-    // Correct Obligation Logic:
-    // The obligation (money reserved from current cash) is simply the Effective Limit.
-    // 1. Surplus (+Carryover): Increases obligation (reserves existing cash).
-    // 2. Debt (-Carryover): Reduces obligation (we don't need to reserve cash for money that's already gone).
-    const baseObligation = (allocated + carryover) - swept;
-    const remaining = Math.max(0, baseObligation - spent);
-    
-    totalRemainingObligations += remaining;
+
+    totalObligations += (allocated + carryover) - swept;
   });
 
-  return totalLiquidCash - totalRemainingObligations;
+  return totalLiquidCash - totalObligations;
 }
 
 /**

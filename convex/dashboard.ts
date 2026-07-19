@@ -352,7 +352,7 @@ export const getDashboardSummary = query({
     const budgetSummary = calculateMonthlyBudgetLeft(budgets, categories, spendingByCategory);
     const remainingBudget = budgetSummary.totalRemaining;
 
-    // 2.2 Calculate Unassigned Cash & Obligation Breakdown (Using Helper logic but split)
+    // 2.2 Calculate Unassigned Cash & Obligation Breakdown
     let allBudgets;
     if (householdId) {
         allBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
@@ -360,41 +360,31 @@ export const getDashboardSummary = query({
         allBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId)).collect();
     }
     
-    // We need category types to split obligations
     const catMap = new Map(categories.map(c => [c._id, c]));
-    
-    // Group all transactions by month/category for historical obligation check
-    const monthlySpendingAll = cache?.monthlySpending ?? [];
 
     let totalExpenseObligations = 0;
     let totalSavingObligations = 0;
     let totalDebtCovered = 0;
 
     allBudgets.forEach(b => {
-        const monthData = monthlySpendingAll.find(m => m.year === b.year && m.month === b.month);
-        const spent = monthData?.spending.find(s => s.categoryId === String(b.categoryId))?.amount ?? 0;
         const allocated = parseAmount(b.amount);
         const carryover = parseAmount(b.carryoverAmount);
         const swept = parseAmount(b.sweptAmount);
         
         const cat = catMap.get(b.categoryId);
-        const baseObligation = (allocated + carryover) - swept;
-        const remaining = Math.max(0, baseObligation - spent);
+        const obligation = (allocated + carryover) - swept;
 
         if (cat?.type === 'expense') {
-            totalExpenseObligations += remaining;
+            totalExpenseObligations += obligation;
             if (carryover < 0) totalDebtCovered += Math.abs(carryover);
         } else if (cat?.type === 'saving') {
-            totalSavingObligations += remaining;
+            totalSavingObligations += obligation;
         }
     });
 
     const unassignedCash = calculateUnassignedCash(
-      currentMonthTransactions,
       budgets,
       accountsMap,
-      startDay,
-      categoriesMap,
       currentMonth,
       currentYear
     );

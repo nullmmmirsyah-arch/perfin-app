@@ -248,16 +248,24 @@ const LabelCombobox = ({
                     style={{ backgroundColor: lbl.color || '#6b7280' }}
                   />
                   {lbl.name}
-                  <button
-                    type="button"
+                  <span
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleLabel(lbl._id);
                     }}
-                    className="ml-0.5 hover:text-destructive"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleLabel(lbl._id);
+                      }
+                    }}
+                    className="ml-0.5 hover:text-destructive cursor-pointer"
                   >
                     ×
-                  </button>
+                  </span>
                 </span>
               ))}
               <span className="text-xs text-muted-foreground">+ Add</span>

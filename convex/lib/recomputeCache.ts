@@ -105,11 +105,8 @@ export async function recomputeUserCache(
 
   // 4. Unassigned cash
   const unassignedCash = calculateUnassignedCash(
-    allTransactions,
     allBudgets,
-    accountsMap,
-    startDay,
-    categoriesMap
+    accountsMap
   );
 
   // 5. Upsert cache

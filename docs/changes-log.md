@@ -130,3 +130,19 @@ Format:
 - `docs/PRODUCT_GUIDELINES.md` — updated Merchant UX section with split tooltip and filter details
 - `docs/DATABASE_AND_RELATIONSHIPS.md` — added merchantId to query guidelines
 
+## 2026-07-19
+
+### Fixed
+- **`components/LabelCombobox.tsx`:** nested `<button>` hydration error — inner remove button (×) diganti dari `<button>` ke `<span role="button">` + Space key `preventDefault()` karena `<button>` tidak boleh jadi descendant `<button>` lain (PopoverTrigger)
+
+### Changed
+- **`convex/lib/finance.ts` — `calculateUnassignedCash`:** rumus diubah dari `max(0, (allocated + carryover) - swept - spent)` menjadi `(allocated + carryover) - swept`. Spending sekarang **tidak mempengaruhi** unassigned karena unassigned hanya mencerminkan total limit budget (obligasi), bukan sisa limit. Parameter `allTransactions`, `budgetStartDay`, dan `categoriesMap` dihapus
+- **`convex/dashboard.ts`:** obligation breakdown (expense/saving) diselaraskan dengan formula baru — `obligation` bukan `remaining`
+- **`convex/budgets.ts`:**
+  - `getBudgetAssistance`: hapus query `targetTransactions` yang tidak dipakai
+  - `upsertBudget`: hapus query `transactions` dan `categories` yang tidak dipakai
+  - `moveBudgetFunds`: hapus query `allTx` (all-time transactions) dan `categories` yang tidak dipakai
+
+### Removed
+- Dead DB queries: 3 query transaction fetches (`targetTransactions` di `getBudgetAssistance`, `allTransactions` di `upsertBudget`, `allTx` di `moveBudgetFunds`) dan 3 category fetches yang tidak lagi diperlukan
+

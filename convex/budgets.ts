@@ -171,11 +171,8 @@ export const getBudgetStatus = query({
 
     // 9. Unassigned cash — compute from current month data (cache stores all-time value)
     const unassignedCash = calculateUnassignedCash(
-      currentMonthTransactions,
       budgets,
       accountsMap,
-      startDay,
-      categoriesMap,
       currentMonth,
       currentYear
     );
@@ -378,22 +375,14 @@ export const getBudgetAssistance = query({
     const averageSpent = monthsWithData > 0 ? totalSpent3Months / monthsWithData : 0;
 
     // 4. Unassigned Cash (scoped to target month)
-    const { start: targetStart, end: targetEnd } = getFiscalMonthRange(targetYear, targetMonth, startDay);
-
-    let targetBudgets, targetTransactions;
+    let targetBudgets;
     if (householdId) {
-        [targetBudgets, targetTransactions] = await Promise.all([
-            ctx.db.query("budgets").withIndex("by_householdId_year_month", (q) => q.eq("householdId", householdId).eq("year", targetYear).eq("month", targetMonth)).collect(),
-            ctx.db.query("transactions").withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", targetStart).lte("date", targetEnd)).collect(),
-        ]);
+        targetBudgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", (q) => q.eq("householdId", householdId).eq("year", targetYear).eq("month", targetMonth)).collect();
     } else {
-        [targetBudgets, targetTransactions] = await Promise.all([
-            ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId).eq("year", targetYear).eq("month", targetMonth)).collect(),
-            ctx.db.query("transactions").withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", targetStart).lte("date", targetEnd)).collect(),
-        ]);
+        targetBudgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId).eq("year", targetYear).eq("month", targetMonth)).collect();
     }
 
-    const unassignedCash = calculateUnassignedCash(targetTransactions, targetBudgets, accountsMap, startDay, categoriesMap, targetMonth, targetYear);
+    const unassignedCash = calculateUnassignedCash(targetBudgets, accountsMap, targetMonth, targetYear);
 
     return {
       lastMonthBudget: prevBudget?.amount,
@@ -538,26 +527,17 @@ export const upsertBudget = mutation({
     const startDay = household?.budgetStartDay || 1;
 
     // 1. Validate Funds (Unassigned Check) — scoped to target period
-    const { start: targetStart, end: targetEnd } = getFiscalMonthRange(args.year, args.month, startDay);
-
-    let [allBudgets, allTransactions, allAccounts, allCategories] = await Promise.all([
+    let [allBudgets, allAccounts] = await Promise.all([
         householdId
             ? ctx.db.query("budgets").withIndex("by_householdId_year_month", (q) => q.eq("householdId", householdId).eq("year", args.year).eq("month", args.month)).collect()
             : ctx.db.query("budgets").withIndex("by_userId_year_month", (q) => q.eq("userId", userId).eq("year", args.year).eq("month", args.month)).collect(),
         householdId
-            ? ctx.db.query("transactions").withIndex("by_householdId_date", (q) => q.eq("householdId", householdId).gte("date", targetStart).lte("date", targetEnd)).collect()
-            : ctx.db.query("transactions").withIndex("by_userId_date", (q) => q.eq("userId", userId).gte("date", targetStart).lte("date", targetEnd)).collect(),
-        householdId
             ? ctx.db.query("accounts").withIndex("by_householdId", (q) => q.eq("householdId", householdId)).collect()
             : ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect(),
-        householdId
-            ? ctx.db.query("categories").withIndex("by_householdId", (q) => q.eq("householdId", householdId)).collect()
-            : ctx.db.query("categories").withIndex("by_userId", (q) => q.eq("userId", userId)).collect(),
     ]);
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
-    const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
-    const unassignedCash = calculateUnassignedCash(allTransactions, allBudgets, accountsMap, startDay, categoriesMap, args.month, args.year);
+    const unassignedCash = calculateUnassignedCash(allBudgets, accountsMap, args.month, args.year);
 
     // Logic: 
     // We need to check if (Available Unassigned + Old Budget Amount) >= New Budget Amount
@@ -722,33 +702,19 @@ export const moveBudgetFunds = mutation({
         }
     } else {
         // Move from Unassigned Cash
-        // Re-calculate Unassigned Global
-        // (Expensive but safe). Or trust frontend? Better re-calculate.
-        
-        // Fetch ALL time data for accurate Unassigned Calc
-        let allTx, allAcc, allBudgetsGlobal;
+        let allBudgetsGlobal, allAcc;
         
         if (householdId) {
-            allTx = await ctx.db.query("transactions").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
             allBudgetsGlobal = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId)).collect();
             allAcc = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
         } else {
-            allTx = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", userId)).collect();
             allBudgetsGlobal = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId)).collect();
             allAcc = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", userId)).collect();
         }
         
         const accMap = new Map(allAcc.map(a => [a._id, a]));
-        
-        let allCategories;
-        if (householdId) {
-            allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
-        } else {
-            allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
-        }
-        const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
 
-        const unassigned = calculateUnassignedCash(allTx, allBudgetsGlobal, accMap, startDay, categoriesMap, month, year);
+        const unassigned = calculateUnassignedCash(allBudgetsGlobal, accMap, month, year);
 
         if (moveAmount > unassigned) {
              throw new Error(`Insufficient Unassigned Cash. Available: ${unassigned.toLocaleString()}`);
