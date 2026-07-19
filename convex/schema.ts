@@ -152,7 +152,8 @@ export default defineSchema({
     userId: v.string(),
     householdId: v.optional(v.id("households")),
     name: v.string(),
-    color: v.string(),
+    color: v.optional(v.string()), // Optional — some labels created during icon phase lack color
+    icon: v.optional(v.string()), // Legacy — ignore, will be cleaned up
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
