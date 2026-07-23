@@ -10,6 +10,17 @@ Format:
 ### Docs
 -->
 
+## 2026-07-24
+
+### Fixed
+- **Bug: `moveBudgetFunds` — "Insufficient Unassigned Cash" error saat seharusnya cukup.** `calculateUnassignedCash` dipanggil tanpa data spending, sehingga semua alokasi budget dianggap belum terpakai. Unassigned terhitung jauh lebih kecil dari kenyataan (bahkan negatif). Sama juga terjadi di `getBudgetAssistance` dan `upsertBudget`.
+- **Bug: `getUnassignedCash` — cache hanya berlaku untuk bulan saat ini.** Cache `userCaches.unassignedCash` dihitung untuk bulan fiscal sekarang. Jika user set budget untuk bulan lain (misal bulan depan), validasi pakai unassigned yang salah. Fix: bulan sekarang → baca cache; bulan lain → hitung langsung dengan spending data.
+
+### Changed
+- **`convex/budgets.ts` — `getUnassignedCash` helper:** fungsi baru yang handle dua case: (1) bulan sekarang → baca dari `userCaches` (1 DB read), (2) bulan lain → hitung langsung dengan fetch transactions + spending data (fallback). Ketiga function (`getBudgetAssistance`, `upsertBudget`, `moveBudgetFunds`) sekarang pakai helper ini.
+- **`convex/budgets.ts` — `upsertBudget`:** hapus `Promise.all` yang bungkus 1 query, hapus fetch `accounts` yang tidak dipakai.
+- **`convex/budgets.ts` — `getBudgetAssistance`:** hapus dead code `targetBudgets` query yang tidak dipakai setelah refactor ke cache.
+
 ## 2026-07-23
 
 ### Added

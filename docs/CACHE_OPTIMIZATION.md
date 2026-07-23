@@ -54,8 +54,24 @@ getCache(ctx: QueryCtx, userId: string, householdId?: Id<"households">): Promise
 | Cache Field | Replaces | Used In |
 |-------------|----------|---------|
 | `accumulatedByCategory` | `calculateSpendingByCategory(allTransactions, ...)` | getBudgetStatus, getDashboardSummary |
-| `unassignedCash` | `calculateUnassignedCash(allTransactions, allBudgets, ...)` | getBudgetStatus, getDashboardSummary (note: getBudgetStatus computes month-scoped from currentMonthTransactions + budgets) |
+| `unassignedCash` | `calculateUnassignedCash(allTransactions, allBudgets, ...)` | getBudgetStatus, getDashboardSummary, getBudgetAssistance, upsertBudget, moveBudgetFunds (via `getUnassignedCash` helper) |
 | `monthlySpending` | Manual monthly spending map built from scanning all transactions | getMonthlyTrends, getDashboardSummary (obligations) |
+
+### `getUnassignedCash` helper
+
+Fungsi di `convex/budgets.ts` yang handle akses unassigned cash dengan benar:
+
+```ts
+// Bulan sekarang → baca dari cache (1 DB read)
+// Bulan lain → hitung langsung dengan spending data (fallback)
+async function getUnassignedCash(
+  ctx, userId, householdId, targetMonth, targetYear, household
+): Promise<number>
+```
+
+**Kenapa tidak selalu pakai cache?** Cache `unassignedCash` hanya menyimpan nilai untuk bulan fiscal saat ini (dihitung di `recomputeCache.ts:107-125`). Jika user set budget untuk bulan lain, cache tidak valid.
+
+**Kapan pakai fallback?** Jarang — hanya saat user berinteraksi dengan bulan selain bulan sekarang (misal: set budget bulan depan, move funds bulan lalu). Untuk bulan sekarang, selalu pakai cache.
 
 ## Developer Rules
 
@@ -116,6 +132,21 @@ const recent = await ctx.db.query("transactions")
 ```
 
 ## Recent Optimizations
+
+### Unassigned cash validation — fix bug + optimize DB I/O (July 2026)
+
+**Bug:** `moveBudgetFunds`, `getBudgetAssistance`, dan `upsertBudget` memanggil `calculateUnassignedCash` tanpa data spending. Akibatnya semua alokasi budget dianggap belum terpakai, unassigned terhitung terlalu kecil (bahkan negatif).
+
+**Fix:** Buat helper `getUnassignedCash` yang:
+- Bulan sekarang → baca dari `userCaches` (1 DB read)
+- Bulan lain → hitung langsung dengan spending data (fallback)
+
+**DB I/O impact:**
+| Function | Sebelum (buggy) | Sesudah (current month) | Sesudah (other month) |
+|----------|-----------------|------------------------|----------------------|
+| moveBudgetFunds | 3-4 queries, no spending | 1 query (cache) | 4 queries + spending |
+| getBudgetAssistance | 1 query, no spending | 1 query (cache) | 4 queries + spending |
+| upsertBudget | 2 queries, no spending | 2 queries (cache) | 5 queries + spending |
 
 ### `getBudgetAssistance` — 4 full scans → 0 (June 2026)
 
