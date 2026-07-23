@@ -67,6 +67,8 @@ import {
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { Doc, Id } from '../convex/_generated/dataModel';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { drawerFieldStagger, drawerFieldItem, shake } from '@/lib/animations';
 import { useHousehold } from '@/components/HouseholdProvider';
 import { SplitEditorDrawer } from './SplitEditorDrawer';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -799,49 +801,64 @@ const TransactionForm = ({
 
            {/* Footer Rendering */}
            {isMobile ? (
-              <div className="mt-auto pt-6 pb-2">
-                <Button 
-                  type="submit" 
-                  size="lg" 
-                  disabled={isProcessing}
-                  onClick={() => {
-                    if (navigator.vibrate) navigator.vibrate(10);
-                  }}
-                  className="w-full rounded-full h-14 text-base font-semibold shadow-lg"
+              <motion.div 
+                className="mt-auto pt-6 pb-2"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.3 }}
+              >
+                <motion.div
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                 >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      Save Transaction <ArrowRight className="ml-2 h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-              </div>
+                  <Button 
+                    type="submit" 
+                    size="lg" 
+                    disabled={isProcessing}
+                    onClick={() => {
+                      if (navigator.vibrate) navigator.vibrate(10);
+                    }}
+                    className="w-full rounded-full h-14 text-base font-semibold shadow-lg"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        Save Transaction <ArrowRight className="ml-2 h-5 w-5" />
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+              </motion.div>
            ) : (
               <div className="flex justify-end gap-2 border-t -mx-6 pt-4 px-6 mt-6">
                  <SheetClose asChild>
                     <Button variant="outline" type="button" disabled={isProcessing}>Cancel</Button>
                  </SheetClose>
-                 <Button 
-                   type="submit" 
-                   disabled={isProcessing}
-                   onClick={() => {
-                     if (navigator.vibrate) navigator.vibrate(10);
-                   }}
+                 <motion.div
+                   whileTap={{ scale: 0.97 }}
+                   transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save changes"
-                    )}
-                 </Button>
+                   <Button 
+                     type="submit" 
+                     disabled={isProcessing}
+                     onClick={() => {
+                       if (navigator.vibrate) navigator.vibrate(10);
+                     }}
+                   >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save changes"
+                      )}
+                   </Button>
+                 </motion.div>
               </div>
            )}
         </form>
@@ -925,8 +942,14 @@ const TransactionFormFields = ({
 
   return (
     <>
-      <div className={cn(isMobile && "space-y-6")}>
+      <motion.div
+        className={cn(isMobile && "space-y-6")}
+        variants={drawerFieldStagger}
+        initial="hidden"
+        animate="visible"
+      >
           {/* AMOUNT FIELD */}
+          <motion.div variants={drawerFieldItem}>
           <FormField
             control={form.control}
             name="amount"
@@ -950,9 +973,13 @@ const TransactionFormFields = ({
                             </div>
                         </button>
                         {isOverspent && (
-                            <div className="flex items-center justify-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
+                            <motion.div
+                              variants={shake}
+                              animate="shake"
+                              className="flex items-center justify-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full"
+                            >
                                 <AlertCircle className="h-3 w-3" /> Insufficient Balance
-                            </div>
+                            </motion.div>
                         )}
                         <div className="h-1 w-16 bg-primary/20 rounded-full mt-4" />
 
@@ -985,8 +1012,10 @@ const TransactionFormFields = ({
               </FormItem>
             )}
           />
+          </motion.div>
 
           {/* MERCHANT FIELD - After Amount, Before Account */}
+          <motion.div variants={drawerFieldItem}>
           <FormField
             control={form.control}
             name="merchantId"
@@ -1013,10 +1042,11 @@ const TransactionFormFields = ({
               </FormItem>
             )}
           />
+          </motion.div>
 
           {/* CARD INPUTS FOR MOBILE */}
           {isMobile ? (
-             <div className="space-y-3">
+             <motion.div className="space-y-3" variants={drawerFieldItem}>
                 <FormField
                     control={form.control}
                     name="accountId"
@@ -1297,10 +1327,10 @@ const TransactionFormFields = ({
                     </div>
                 )}
 
-             </div>
+             </motion.div>
           ) : (
              // DESKTOP LAYOUT (Standard)
-             <>
+             <motion.div variants={drawerFieldItem}>
                 <FormField
                     control={form.control}
                     name="accountId"
@@ -1536,9 +1566,9 @@ const TransactionFormFields = ({
                         </div>
                     )}
                 />
-             </>
+             </motion.div>
           )}
-      </div>
+      </motion.div>
     </>
   );
 };
@@ -1612,7 +1642,12 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
   const impliedPrice = parsedQuantity > 0 ? parsedAmount / parsedQuantity : 0;
 
   return (
-    <>
+    <motion.div
+      variants={drawerFieldStagger}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div variants={drawerFieldItem}>
       <FormField
         control={form.control}
         name="amount"
@@ -1638,9 +1673,13 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                         </div>
                     </button>
                     {isOverspent && (
-                        <div className="flex items-center justify-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
+                        <motion.div
+                          variants={shake}
+                          animate="shake"
+                          className="flex items-center justify-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full"
+                        >
                             <AlertCircle className="h-3 w-3" /> Insufficient Balance
-                        </div>
+                        </motion.div>
                     )}
                     <div className="h-1 w-16 bg-primary/20 rounded-full mt-4" />
                   </div>
@@ -1661,9 +1700,10 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
           </FormItem>
         )}
       />
+      </motion.div>
 
       {isMobile ? (
-          <div className="space-y-3">
+          <motion.div className="space-y-3" variants={drawerFieldItem}>
              <FormField
                 control={form.control}
                 name="accountId"
@@ -1824,9 +1864,9 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                     </div>
                 )}
             />
-          </div>
+          </motion.div>
       ) : (
-          <div className="space-y-4">
+          <motion.div className="space-y-4" variants={drawerFieldItem}>
              <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="accountId" render={({ field }) => (
                    <FormItem><FormLabel>From</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="From" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
@@ -1932,7 +1972,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                  </FormItem>
                  )}
              />
-          </div>
+          </motion.div>
         )}
 
         <MobileAmountInput
@@ -1942,7 +1982,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
           onChange={(val) => form.setValue('amount', val)}
           onDone={() => setTransferAmountSheetOpen(false)}
         />
-    </>
+    </motion.div>
   );
 };
 

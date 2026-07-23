@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
+import { fadeInUp, staggerContainer } from '@/lib/animations'
 import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
@@ -212,7 +214,7 @@ export default function BudgetsPage() {
   return (
     <div className="pb-24 p-4 md:p-8 overflow-x-hidden">
       {/* Mobile Header Layout */}
-      <div className="md:hidden mb-4 space-y-3">
+      <motion.div className="md:hidden mb-4 space-y-3" variants={fadeInUp} initial="hidden" animate="visible">
         {/* Row 1: Title */}
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Budgets</h1>
@@ -312,7 +314,7 @@ export default function BudgetsPage() {
         >
           Move Funds
         </Button>
-      </div>
+      </motion.div>
 
       {/* Desktop Header Layout */}
       <div className="hidden md:flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -417,7 +419,7 @@ export default function BudgetsPage() {
       </div>
 
       {monthEndProposals && monthEndProposals.length > 0 && !isPastMonth && (
-        <div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/10 text-primary flex justify-between items-center">
+        <motion.div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/10 text-primary flex justify-between items-center" variants={fadeInUp} initial="hidden" animate="visible">
             <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
                 <div>
@@ -430,7 +432,7 @@ export default function BudgetsPage() {
             <Button size="sm" onClick={() => setShowMonthEndDialog(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 Review & Process
             </Button>
-        </div>
+        </motion.div>
       )}
 
       <MonthEndProcessDialog 
@@ -515,9 +517,9 @@ export default function BudgetsPage() {
 
             {/* Expenses Section */}
             {activeSection === 'expenses' && (
-                <div className="space-y-4">
+                <motion.div className="space-y-4" variants={staggerContainer} initial="hidden" animate="visible">
                     {/* Expenses Summary Card */}
-                    <div className="bg-card border rounded-xl p-5 shadow-sm overflow-hidden relative">
+                    <motion.div variants={fadeInUp} className="bg-card border rounded-xl p-5 shadow-sm overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                             <Wallet className="h-24 w-24 rotate-12" />
                         </div>
@@ -570,7 +572,7 @@ export default function BudgetsPage() {
                                 )}
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {expenses.length === 0 ? (
                         <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
@@ -580,30 +582,31 @@ export default function BudgetsPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4">
+                        <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4" variants={staggerContainer} initial="hidden" animate="visible">
                             {expenses.map(item => (
-                                <BudgetCard 
-                                    key={item.category._id}
-                                    item={item}
-                                    daysRemaining={calculatedDaysRemaining}
-                                    isPastMonth={isPastMonth}
-                                    selectedDate={selectedDate}
-                                    budgetStartDay={budgetStartDay}
-                                    isAdmin={isAdmin}
-                                    onEdit={handleEdit}
-                                    onDelete={(id, name) => setBudgetToDelete({ id, name })}
-                                />
+                                <motion.div key={item.category._id} variants={fadeInUp}>
+                                    <BudgetCard 
+                                        item={item}
+                                        daysRemaining={calculatedDaysRemaining}
+                                        isPastMonth={isPastMonth}
+                                        selectedDate={selectedDate}
+                                        budgetStartDay={budgetStartDay}
+                                        isAdmin={isAdmin}
+                                        onEdit={handleEdit}
+                                        onDelete={(id, name) => setBudgetToDelete({ id, name })}
+                                    />
+                                </motion.div>
                             ))}
-                        </div>
+                        </motion.div>
                     )}
-                </div>
+                </motion.div>
             )}
 
             {/* Savings Section */}
             {activeSection === 'savings' && (
-                <div className="space-y-4">
+                <motion.div className="space-y-4" variants={staggerContainer} initial="hidden" animate="visible">
                     {/* Savings Summary Card */}
-                    <div className="bg-card border rounded-xl p-4 shadow-sm">
+                    <motion.div variants={fadeInUp} className="bg-card border rounded-xl p-4 shadow-sm">
                         <div className="flex justify-between items-end mb-2">
                             <div>
                                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Monthly Saving Progress</p>
@@ -628,7 +631,7 @@ export default function BudgetsPage() {
                             value={savingsAggregate.totalTarget > 0 ? (savingsAggregate.totalSaved / savingsAggregate.totalTarget) * 100 : (savingsAggregate.totalSaved > 0 ? 100 : 0)} 
                             className="h-2 bg-muted [&>div]:bg-success"
                         />
-                    </div>
+                    </motion.div>
 
                     {savings.length === 0 ? (
                         <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
@@ -638,24 +641,25 @@ export default function BudgetsPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4">
+                        <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4" variants={staggerContainer} initial="hidden" animate="visible">
                             {savings.map(item => (
-                                <BudgetCard 
-                                    key={item.category._id}
-                                    item={item}
-                                    daysRemaining={calculatedDaysRemaining}
-                                    isPastMonth={isPastMonth}
-                                    selectedDate={selectedDate}
-                                    budgetStartDay={budgetStartDay}
-                                    isAdmin={isAdmin}
-                                    onEdit={handleEdit}
-                                    onDelete={(id, name) => setBudgetToDelete({ id, name })}
-                                    onClickGoal={(id) => router.push(`/goals/${id}`)}
-                                />
+                                <motion.div key={item.category._id} variants={fadeInUp}>
+                                    <BudgetCard 
+                                        item={item}
+                                        daysRemaining={calculatedDaysRemaining}
+                                        isPastMonth={isPastMonth}
+                                        selectedDate={selectedDate}
+                                        budgetStartDay={budgetStartDay}
+                                        isAdmin={isAdmin}
+                                        onEdit={handleEdit}
+                                        onDelete={(id, name) => setBudgetToDelete({ id, name })}
+                                        onClickGoal={(id) => router.push(`/goals/${id}`)}
+                                    />
+                                </motion.div>
                             ))}
-                        </div>
+                        </motion.div>
                     )}
-                </div>
+                </motion.div>
             )}
           </>
         )}

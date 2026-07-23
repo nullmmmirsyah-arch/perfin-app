@@ -13,6 +13,25 @@ Format:
 ## 2026-07-23
 
 ### Added
+- **Motion animations di TransactionDrawer & MobileAmountInput:** Staggered field entrance, spring press feedback, pulse on amount change, shake on overspent warning.
+- **Motion animations di Budgets page:** Mobile header fade-in, month-end banner fade-in, expense/savings summary cards fade-in, budget cards stagger entrance.
+- **Motion animations di Transactions page:** Page header fade-in, controls toolbar fade-in, list view fade-in, analytics view fade-in.
+- **`lib/animations.ts`:** Tambah `drawerFieldStagger`, `drawerFieldItem`, `shake` variants.
+- **`components/mobile-amount-input.tsx`:** Numpad buttons `motion.button` + `whileTap` spring; amount display pulse via `useAnimation` controls; overspent `AnimatePresence` fade; Done button spring feedback.
+- **`components/TransactionDrawer.tsx`:** Form fields wrapped `motion.div` + `drawerFieldStagger`; submit buttons wrapped `motion.div` + `whileTap` spring; overspent warning wrapped `motion.div` + `shake`.
+- **`components/TransactionDrawer.tsx` — TransferFormFields:** Added `drawerFieldStagger` + `drawerFieldItem` motion wrappers for consistency with Expense/Income tabs.
+
+### Fixed
+- **Bug: AnimatePresence cause focus loss di MobileAmountInput.** Menggunakan `key={displayAmount}` menyebabkan remount input setiap keystroke. Fix: gunakan `useAnimation` controls dengan imperative `triggerPulse()` calls.
+- **Bug: `motion.button` invalid di framer-motion v12.** `motion` namespace tidak punya `Button`. Fix: wrap Radix Button dengan `motion.div` wrapper.
+
+### Changed
+- **`docs/CODE_STYLE_GUIDE.md`:** Tambah section "Motion & Animation" dengan patterns dan rules.
+
+### Removed
+- **`lib/animations.ts`:** Hapus `amountPulse` dan `tabContent` exports yang tidak terpakai.
+
+### Added
 - **Timezone support untuk fiscal period:** Backend sekarang gunakan `getServerNow(timezone)` alih-alih `new Date()` (UTC) untuk menentukan fiscal period. Period transisi terjadi di tengah malam waktu user, bukan tengah malam UTC.
 - **`convex/schema.ts`:** Tambah field `timezone` (IANA string, default "Asia/Jakarta") dan `timezoneMode` ("manual" | "device") di households table.
 - **`convex/lib/finance.ts`:** Tambah `getServerNow(timezone)` — compute "now" berdasarkan IANA timezone, normalize ke noon untuk hindari edge case. Tambah `getFiscalConfig(household)` — extract `{ startDay, timezone }` dari household.

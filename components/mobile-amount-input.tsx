@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 
 interface MobileAmountInputProps {
   open: boolean;
@@ -62,12 +63,21 @@ export const MobileAmountInput = ({
 }: MobileAmountInputProps) => {
   const rawValue = value.replace(/,/g, '');
   const inputRef = useRef<HTMLInputElement>(null);
+  const controls = useAnimation();
+
+  const triggerPulse = () => {
+    controls.start({
+      scale: [1, 1.06, 1],
+      transition: { duration: 0.25, ease: 'easeOut' },
+    });
+  };
 
   const applyPaste = (text: string) => {
     if (!text?.trim()) return;
     const result = parseClipboardAmount(text.trim());
     if (!result) return;
     onChange(result.value);
+    triggerPulse();
     if (navigator.vibrate) navigator.vibrate(10);
     if (result.capped) {
       toast.warning('Amount capped at maximum');
@@ -89,6 +99,7 @@ export const MobileAmountInput = ({
       const newRaw = rawValue.slice(0, -1);
       onChange(newRaw ? formatNumber(newRaw) : '');
       if (navigator.vibrate) navigator.vibrate(10);
+      triggerPulse();
       return;
     }
     if (key === '.') {
@@ -99,10 +110,12 @@ export const MobileAmountInput = ({
         onChange(formatNumber(rawValue) + '.');
       }
       if (navigator.vibrate) navigator.vibrate(10);
+      triggerPulse();
       return;
     }
     onChange(formatNumber(rawValue + key));
     if (navigator.vibrate) navigator.vibrate(10);
+    triggerPulse();
   };
 
   const handleDone = () => {
@@ -129,13 +142,14 @@ export const MobileAmountInput = ({
         <div className="px-4 pt-3 pb-6 flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center py-4 min-h-[80px]">
             <span className="text-xs font-medium text-muted-foreground mb-1">Rp</span>
-            <input
+            <motion.input
               ref={inputRef}
               type="text"
               inputMode="none"
+              animate={controls}
               value={displayAmount || '0'}
               className={cn(
-                "font-bold text-foreground text-center transition-all leading-tight bg-muted/50 border border-border/50 rounded-xl px-4 py-2 outline-none max-w-[280px] w-full caret-primary",
+                "font-bold text-foreground text-center leading-tight bg-muted/50 border border-border/50 rounded-xl px-4 py-2 outline-none max-w-[280px] w-full caret-primary",
                 displayAmount.length > 12 ? "text-2xl" : displayAmount.length > 8 ? "text-3xl" : "text-4xl"
               )}
               onPaste={handlePasteEvent}
@@ -143,22 +157,31 @@ export const MobileAmountInput = ({
               onChange={() => {}}
               onFocus={(e) => e.target.select()}
             />
-            {isOverspent && (
-              <div className="flex items-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full">
-                <AlertCircle className="h-3 w-3" /> Insufficient Balance
-              </div>
-            )}
+            <AnimatePresence>
+              {isOverspent && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="flex items-center gap-1 mt-2 text-destructive text-xs font-medium bg-destructive/10 px-3 py-1 rounded-full"
+                >
+                  <AlertCircle className="h-3 w-3" /> Insufficient Balance
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="flex flex-col gap-2">
             {numpadRows.map((row, ri) => (
               <div key={ri} className="flex gap-2 justify-center">
                 {row.map((key) => (
-                  <button
+                  <motion.button
                     key={key}
                     type="button"
+                    whileTap={{ scale: 0.93 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                     className={cn(
-                      "h-14 w-0 flex-1 max-w-[88px] rounded-xl text-lg font-semibold transition-all active:scale-[0.97] select-none",
+                      "h-14 w-0 flex-1 max-w-[88px] rounded-xl text-lg font-semibold select-none",
                       key === '⌫'
                         ? "bg-muted text-muted-foreground hover:bg-muted/80"
                         : "bg-card text-foreground shadow-sm border border-border/50 hover:bg-accent"
@@ -166,25 +189,27 @@ export const MobileAmountInput = ({
                     onClick={() => handleKey(key)}
                   >
                     {key}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             ))}
           </div>
 
-          <button
+          <motion.button
             type="button"
             disabled={isEmpty}
+            whileTap={isEmpty ? {} : { scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             className={cn(
-              "w-full h-12 rounded-xl text-base font-semibold transition-all select-none",
+              "w-full h-12 rounded-xl text-base font-semibold select-none",
               isEmpty
                 ? "bg-muted text-muted-foreground/50 cursor-not-allowed"
-                : "bg-primary text-primary-foreground shadow-lg active:scale-[0.98] hover:opacity-90"
+                : "bg-primary text-primary-foreground shadow-lg hover:opacity-90"
             )}
             onClick={handleDone}
           >
             Done
-          </button>
+          </motion.button>
         </div>
       </DrawerContent>
     </Drawer>

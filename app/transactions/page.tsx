@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { fadeInUp } from '@/lib/animations'
 import { usePaginatedQuery, useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../convex/_generated/api'
 import TransactionDrawer from '@/components/TransactionDrawer'
@@ -168,10 +170,12 @@ export default function TransactionsPage() {
 
   return (
     <div className="p-8">
-      <PageHeader 
-        title="Transactions" 
-        description="View and manage your financial history." 
-      />
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible">
+        <PageHeader 
+          title="Transactions" 
+          description="View and manage your financial history." 
+        />
+      </motion.div>
 
       <div className="space-y-4">
         {/* Tabs */}
@@ -193,7 +197,7 @@ export default function TransactionsPage() {
         </Tabs>
 
         {/* Controls Toolbar */}
-        <div className="flex flex-wrap items-center gap-2">
+        <motion.div className="flex flex-wrap items-center gap-2" variants={fadeInUp} initial="hidden" animate="visible">
             {/* Search Bar */}
             <div className="relative w-full sm:w-auto sm:min-w-[200px] md:w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -220,7 +224,7 @@ export default function TransactionsPage() {
                     <ExportTransactionDialog currentFilters={filters} />
                 }
             />
-        </div>
+        </motion.div>
 
         <TransactionDrawer
             open={open}
@@ -244,7 +248,7 @@ export default function TransactionsPage() {
                 <CarouselContent>
                     {/* LIST VIEW */}
                     <CarouselItem className="basis-full">
-                         <div className="space-y-4">
+                         <motion.div className="space-y-4" variants={fadeInUp} initial="hidden" animate="visible">
                             {(displayTransactions ?? []).length === 0 && (
                                 <div className="mt-8 p-4 border rounded-md bg-muted/50">
                                 <p className="text-muted-foreground">
@@ -274,12 +278,12 @@ export default function TransactionsPage() {
                                     </Button>
                                 </div>
                             )}
-                        </div>
+                        </motion.div>
                     </CarouselItem>
                     
                     {/* ANALYTICS VIEW */}
                     <CarouselItem className="basis-full">
-                         <div className="space-y-4 px-1">
+                         <motion.div className="space-y-4 px-1" variants={fadeInUp} initial="hidden" animate="visible">
                               {activeTab === "analytics" && (
                               <TransactionAnalytics 
                                  transactions={(displayTransactions ?? []) as TransactionWithDetails[]} 
@@ -300,7 +304,7 @@ export default function TransactionsPage() {
                                     </p>
                                 </div>
                             )}
-                        </div>
+                        </motion.div>
                     </CarouselItem>
                 </CarouselContent>
             </Carousel>

@@ -161,6 +161,58 @@ Certain UI patterns are standardized to ensure consistency.
     - **Create Flow:** Use `MerchantCombobox` for inline creation (first-letter icon auto-assigned). Use `MerchantDrawer` for full customization.
     - **Delete Guard:** Always check `by_merchantId` index before deleting a merchant to prevent breaking transaction references.
 
+## Motion & Animation
+
+Semua animasi pakai **Framer Motion**. Variasi reusable ada di `lib/animations.ts`.
+
+### Pattern: Staggered Field Entrance (Drawer)
+```tsx
+import { motion } from "framer-motion"
+import { drawerFieldStagger, drawerFieldItem } from "@/lib/animations"
+
+// Wrap form fields container
+<motion.div variants={drawerFieldStagger} initial="hidden" animate="visible">
+  <motion.div variants={drawerFieldItem}> {/* Each field */}
+    <Input ... />
+  </motion.div>
+</motion.div>
+```
+
+### Pattern: Press Feedback (Buttons)
+```tsx
+// Button wrapped in motion.div — never use motion.button (invalid in framer-motion v12)
+<motion.div whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
+  <Button type="submit" disabled={isProcessing}>
+    {isProcessing ? <Loader2 className="animate-spin" /> : "Save"}
+  </Button>
+</motion.div>
+```
+
+### Pattern: Pulse on Value Change
+```tsx
+import { useAnimation } from "framer-motion"
+
+const controls = useAnimation()
+
+const triggerPulse = useCallback(() => {
+  controls.start({ scale: [1, 1.06, 1], transition: { duration: 0.25 } })
+}, [controls])
+
+// Trigger on input change
+useEffect(() => { if (displayAmount) triggerPulse() }, [displayAmount])
+
+// Wrap target element
+<motion.div animate={controls}>
+  <div className="text-4xl">{displayAmount}</div>
+</motion.div>
+```
+
+### Rules
+- **Jangan pakai `motion.button`** — framer-motion v12 tidak punya. Wrap Button dengan `motion.div`.
+- **Jangan pakai `AnimatePresence` untuk input value changes** — menyebabkan remount/remount focus loss. Pakai `useAnimation` controls.
+- **Variants:** Selalu import dari `lib/animations.ts`, jangan define inline.
+- **Spring params:** `type: "spring"`, stiffness 400-500, damping 15 untuk press feedback. Stiffness 300, damping 20 untuk field entrance.
+
 ## Frontend Logic
 
 1.  **State Management:**
