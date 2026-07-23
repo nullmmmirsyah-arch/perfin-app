@@ -3,7 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { checkHouseholdAccess, ensureHouseholdAccess, ensureAdminAccess } from "./lib/auth";
 import { ACCOUNT_TYPES, CATEGORY_TYPES, TRANSACTION_TYPES, GOAL_STATUS, GOAL_TYPES } from "./lib/constants";
-import { getFiscalDateDetails } from "./lib/finance";
+import { getFiscalDateDetails, getServerNow } from "./lib/finance";
 
 export const get = query({
   args: { 
@@ -76,12 +76,14 @@ export const create = mutation({
 
         // AUTO-CREATE BUDGET if monthlyBudget provided
         if (args.monthlyBudget) {
-            const now = new Date();
             let startDay = 1;
+            let timezone: string | null = null;
             if (args.householdId) {
                 const household = await ctx.db.get(args.householdId);
                 startDay = household?.budgetStartDay || 1;
+                timezone = household?.timezone ?? null;
             }
+            const now = getServerNow(timezone);
             const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
             const existingBudget = await ctx.db.query("budgets")
                 .withIndex(args.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {
@@ -223,12 +225,14 @@ export const update = mutation({
 
     // Handle Budget Update
     if (monthlyBudget !== undefined && account.linkedCategoryId) {
-        const now = new Date();
         let startDay = 1;
+        let timezone: string | null = null;
         if (account.householdId) {
             const household = await ctx.db.get(account.householdId);
             startDay = household?.budgetStartDay || 1;
+            timezone = household?.timezone ?? null;
         }
+        const now = getServerNow(timezone);
         const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
         let existingBudget;
@@ -285,12 +289,14 @@ export const update = mutation({
 
         // Also create budget here if provided
         if (monthlyBudget) {
-            const now = new Date();
             let startDay = 1;
+            let timezone: string | null = null;
             if (account.householdId) {
                 const household = await ctx.db.get(account.householdId);
                 startDay = household?.budgetStartDay || 1;
+                timezone = household?.timezone ?? null;
             }
+            const now = getServerNow(timezone);
             const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(now.toISOString(), startDay);
              const existingBudget = await ctx.db.query("budgets")
                 .withIndex(account.householdId ? "by_householdId_category_year_month" : "by_user_category_year_month", q => {

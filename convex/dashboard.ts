@@ -10,7 +10,9 @@ import {
   getFiscalMonthRange,
   getFiscalDateDetails,
   analyzeTransactionFlow,
-  parseAmount
+  parseAmount,
+  getServerNow,
+  getFiscalConfig
 } from "./lib/finance";
 import { TRANSACTION_TYPES, ACCOUNT_TYPES } from "./lib/constants";
 import { getCache } from "./lib/recomputeCache";
@@ -146,7 +148,7 @@ export const getDashboardSummary = query({
     }
 
     const household = await getHousehold(ctx, householdId, userId);
-    const startDay = household?.budgetStartDay || 1;
+    const { startDay, timezone } = getFiscalConfig(household);
 
     const cache = await getCache(ctx, userId, householdId ?? undefined);
 
@@ -163,7 +165,7 @@ export const getDashboardSummary = query({
     const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
 
     // Pre-compute fiscal month details
-    const now = new Date();
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
     const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(currentYear, currentMonth, startDay);
 
@@ -529,7 +531,7 @@ export const getMonthlyTrends = query({
     }
 
     const household = await getHousehold(ctx, householdId, userId);
-    const startDay = household?.budgetStartDay || 1;
+    const { startDay, timezone } = getFiscalConfig(household);
 
     const cache = await getCache(ctx, userId, householdId ?? undefined);
     if (!cache) return [];
@@ -537,7 +539,7 @@ export const getMonthlyTrends = query({
     const numMonths = months;
 
     // Calculate fiscal start date
-    const now = new Date();
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(
       now.toISOString(),
       startDay

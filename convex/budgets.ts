@@ -9,7 +9,9 @@ import {
   parseAmount,
   AccountMap,
   getFiscalMonthRange,
-  getFiscalDateDetails 
+  getFiscalDateDetails,
+  getServerNow,
+  getFiscalConfig
 } from "./lib/finance";
 import { recomputeUserCache, getCache } from "./lib/recomputeCache";
 
@@ -85,9 +87,9 @@ export const getBudgetStatus = query({
     }
 
     const household = await getHousehold(ctx, householdId, userId);
-    const startDay = household?.budgetStartDay || 1;
+    const { startDay, timezone } = getFiscalConfig(household);
 
-    const now = new Date();
+    const now = getServerNow(timezone);
     const fiscalDetails = getFiscalDateDetails(now.toISOString(), startDay);
     const currentYear = year ?? fiscalDetails.year;
     const currentMonth = month ?? fiscalDetails.month;
@@ -401,9 +403,9 @@ export const getMonthEndProposals = query({
     const userId = identity.subject;
 
     const household = await getHousehold(ctx, householdId, userId);
-    const startDay = household?.budgetStartDay || 1;
+    const { startDay, timezone } = getFiscalConfig(household);
 
-    const now = new Date();
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
     let prevMonth = currentMonth - 1;
@@ -981,9 +983,9 @@ export const fixAllCarryovers = mutation({
     }
 
     const household = await getHousehold(ctx, householdId, userId);
-    const startDay = household?.budgetStartDay || 1;
+    const { startDay, timezone } = getFiscalConfig(household);
 
-    const now = new Date();
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
     // Batch collect all budgets once — index by month and by category key for O(1) lookups
@@ -1132,9 +1134,9 @@ export const ensureCurrentRollover = mutation({
     }
 
     const household = await getHousehold(ctx, householdId, userId);
-    const startDay = household?.budgetStartDay || 1;
+    const { startDay, timezone } = getFiscalConfig(household);
 
-    const now = new Date();
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
     let prevMonth = currentMonth - 1;
@@ -1172,9 +1174,9 @@ export const getBudgetReport = query({
     }
 
     const household = await getHousehold(ctx, householdId, userId);
-    const startDay = household?.budgetStartDay || 1;
+    const { startDay, timezone } = getFiscalConfig(household);
 
-    const now = new Date();
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
 
     // 1. Get all categories (filter by type)

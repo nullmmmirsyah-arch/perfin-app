@@ -8,6 +8,10 @@ This document explains how data is structured in Perfin and how different entiti
 - **Relation:** One `household` has many `householdMembers`.
 - **Ownership:** Every data point (Transactions, Accounts, Budgets) belongs to either a `userId` (Personal) or a `householdId` (Shared).
 - **Rule:** Always use the `by_householdId` index when fetching shared data to ensure privacy and security.
+- **Timezone Fields:**
+    - `timezone`: IANA timezone string (e.g. `"Asia/Jakarta"`). Used by backend to compute fiscal periods in the user's local time.
+    - `timezoneMode`: `"manual"` or `"device"`. Determines whether timezone is user-selected or auto-detected from the browser.
+    - Default: `timezone: "Asia/Jakarta"`, `timezoneMode: "device"` for new households.
 
 ### 2. Accounts & Categories (Atomic Mirroring)
 This is a unique architectural pattern in Perfin.
@@ -56,6 +60,7 @@ To support partial settlements (installments), we use a self-referential relatio
 - **Relation:** A `budget` document exists for a unique combination of `categoryId`, `year`, and `month`.
 - **Fiscal Start Day:** All monthly groupings are calculated using `budgetStartDay` from the household settings. 
     - *Example:* If Start Day is 25, a transaction on Jan 26 belongs to the "February" budget period.
+- **Timezone:** Fiscal period transitions happen at midnight in the user's configured timezone (not UTC). Backend uses `getServerNow(timezone)` to compute the current period.
 - **Budget Fields:**
     - `amount`: Current budget allocation for the period.
     - `initialAmount`: Original allocation from "Set Limit" action. Updated when user changes budget via "Set Limit".

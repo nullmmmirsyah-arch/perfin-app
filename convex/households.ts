@@ -33,6 +33,8 @@ export const getOrCreateDefault = mutation({
       name: "Personal",
       ownerId: identity.subject,
       budgetStartDay: 1,
+      timezone: "Asia/Jakarta",
+      timezoneMode: "device",
     });
 
     await ctx.db.insert("householdMembers", {
@@ -81,6 +83,7 @@ export const create = mutation({
   args: { 
     name: v.string(),
     budgetStartDay: v.optional(v.number()),
+    timezone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -92,6 +95,8 @@ export const create = mutation({
       name: args.name,
       ownerId: identity.subject,
       budgetStartDay: args.budgetStartDay || 1,
+      timezone: args.timezone || "Asia/Jakarta",
+      timezoneMode: "device",
     });
 
     await ctx.db.insert("householdMembers", {
@@ -296,6 +301,8 @@ export const updateSettings = mutation({
     householdId: v.id("households"),
     name: v.optional(v.string()),
     budgetStartDay: v.optional(v.number()),
+    timezone: v.optional(v.string()),
+    timezoneMode: v.optional(v.union(v.literal("manual"), v.literal("device"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -315,6 +322,17 @@ export const updateSettings = mutation({
             throw new Error("Budget start day must be between 1 and 28");
         }
         updates.budgetStartDay = args.budgetStartDay;
+    }
+    if (args.timezone) {
+        try {
+            new Date().toLocaleString("en-US", { timeZone: args.timezone });
+        } catch {
+            throw new Error("Invalid timezone");
+        }
+        updates.timezone = args.timezone;
+    }
+    if (args.timezoneMode) {
+        updates.timezoneMode = args.timezoneMode;
     }
 
     await ctx.db.patch(args.householdId, updates);

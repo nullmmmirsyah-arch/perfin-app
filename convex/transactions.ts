@@ -8,7 +8,8 @@ import {
   analyzeTransactionFlow,
   getFiscalDateDetails,
   getFiscalMonthRange,
-  parseAmount
+  parseAmount,
+  getServerNow
 } from "./lib/finance";
 import { checkHouseholdAccess, ensureHouseholdAccess } from "./lib/auth";
 import { 
@@ -155,13 +156,16 @@ export const getExpensesTrend = query({
 
     // Calculate period boundaries
     let startDay = 1;
+    let timezone: string | null = null;
     if (householdId) {
       const household = await ctx.db.get(householdId);
       startDay = household?.budgetStartDay || 1;
+      timezone = household?.timezone ?? null;
     }
-    const { year, month } = getFiscalDateDetails(new Date().toISOString(), startDay);
+    const now = getServerNow(timezone);
+    const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
     const currentStart = dateRange?.start || getFiscalMonthRange(year, month, startDay).start;
-    const currentEnd = dateRange?.end || new Date().toISOString();
+    const currentEnd = dateRange?.end || now.toISOString();
 
     // Previous period (same duration shifted back)
     const startObj = new Date(currentStart);

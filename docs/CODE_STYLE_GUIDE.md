@@ -140,7 +140,8 @@ Certain UI patterns are standardized to ensure consistency.
 5.  **Date Handling:**
     - Store dates as ISO Strings (`v.string()`) in the database (e.g., `2023-12-25T10:00:00Z`).
     - Manipulate dates in TS using `Date` object or `date-fns`.
-    - **Budgeting Logic:** Be aware that the server uses UTC. Frontend must send "safe" dates (e.g. Noon) if budget period allocation relies on server-side `getMonth()`.
+    - **Budgeting Logic:** Backend uses `getServerNow(timezone)` instead of `new Date()` to compute fiscal periods in the user's local timezone. The timezone comes from `household.timezone` (IANA string). **Never** use `new Date()` directly in backend queries for fiscal period calculations.
+    - **Frontend Date Normalization:** When sending dates to the backend (e.g., Transaction Date), always normalize time to **12:00 PM (Noon)** local time to prevent UTC conversion shifts.
 
 6.  **Number Handling:**
     - We currently store Amounts as `v.string()` to prevent float precision issues in the DB (Legacy decision).

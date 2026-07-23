@@ -16,6 +16,8 @@ export default defineSchema({
     name: v.string(),
     ownerId: v.string(),
     budgetStartDay: v.optional(v.number()),
+    timezone: v.optional(v.string()), // IANA timezone, e.g. "Asia/Jakarta"
+    timezoneMode: v.optional(v.union(v.literal("manual"), v.literal("device"))), // "manual" | "device"
   }),
   householdMembers: defineTable({
     householdId: v.id("households"),

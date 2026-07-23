@@ -234,6 +234,45 @@ export function calculateUnassignedCash(
 }
 
 /**
+ * Extracts fiscal config (startDay + timezone) from a household document.
+ * Use this to avoid repeating the same extraction pattern across queries.
+ */
+export function getFiscalConfig(household?: { budgetStartDay?: number; timezone?: string } | null): { startDay: number; timezone: string | null } {
+  return {
+    startDay: household?.budgetStartDay || 1,
+    timezone: household?.timezone ?? null,
+  };
+}
+
+/**
+ * Computes the UTC offset in milliseconds for a given IANA timezone.
+ */
+function getTimezoneOffsetMs(tz: string): number {
+  const now = new Date();
+  const tzStr = now.toLocaleString("en-US", { timeZone: tz });
+  const utcStr = now.toLocaleString("en-US", { timeZone: "UTC" });
+  return new Date(tzStr).getTime() - new Date(utcStr).getTime();
+}
+
+/**
+ * Returns "now" in the user's local timezone, normalized to 12:00 PM
+ * to avoid day-boundary issues from UTC conversion.
+ * Falls back to raw UTC if no timezone is provided.
+ */
+export function getServerNow(timezone?: string | null): Date {
+  if (!timezone) return new Date();
+  try {
+    const now = new Date();
+    const offset = getTimezoneOffsetMs(timezone);
+    const local = new Date(now.getTime() + offset);
+    local.setUTCHours(12, 0, 0, 0);
+    return local;
+  } catch {
+    return new Date();
+  }
+}
+
+/**
  * Calculates the Fiscal Month details for a given date.
  * Returns the month label using end-month convention.
  * Example: If StartDay = 25.

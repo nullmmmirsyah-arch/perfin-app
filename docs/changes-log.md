@@ -10,6 +10,31 @@ Format:
 ### Docs
 -->
 
+## 2026-07-23
+
+### Added
+- **Timezone support untuk fiscal period:** Backend sekarang gunakan `getServerNow(timezone)` alih-alih `new Date()` (UTC) untuk menentukan fiscal period. Period transisi terjadi di tengah malam waktu user, bukan tengah malam UTC.
+- **`convex/schema.ts`:** Tambah field `timezone` (IANA string, default "Asia/Jakarta") dan `timezoneMode` ("manual" | "device") di households table.
+- **`convex/lib/finance.ts`:** Tambah `getServerNow(timezone)` — compute "now" berdasarkan IANA timezone, normalize ke noon untuk hindari edge case. Tambah `getFiscalConfig(household)` — extract `{ startDay, timezone }` dari household.
+- **`components/TimezoneSettings.tsx`:** Komponen timezone picker dengan toggle Device/Manual mode di Preferences page.
+- **`app/preferences/page.tsx`:** Tambah section "Timezone" dengan TimezoneSettings component.
+- **Timezone picker di Household Settings:** User bisa pilih WIB/WITA/WIT atau timezone lain.
+
+### Changed
+- **`convex/budgets.ts` (5 locations):** Semua query yang gunakan `new Date()` untuk fiscal period sekarang pakai `getServerNow(household?.timezone)`.
+- **`convex/dashboard.ts` (2 locations):** `getDashboardSummary` dan `getMonthlyTrends` gunakan timezone-aware "now".
+- **`convex/transactions.ts` (1 location):** `getExpensesTrend` gunakan timezone-aware "now".
+- **`convex/categories.ts` (5 locations):** Semua query fiscal period gunakan `getServerNow`.
+- **`convex/accounts.ts` (3 locations):** Auto-budget creation gunakan timezone-aware "now".
+- **`convex/households.ts`:** `updateSettings`, `create`, `getOrCreateDefault` handle `timezone` dan `timezoneMode`. Default timezone "Asia/Jakarta" dan mode "device" untuk household baru.
+- **`docs/TECH_STACK_AND_WORKFLOW.md`:** Updated fiscal logic section dengan `getServerNow` dan `getFiscalConfig`.
+- **`docs/DATABASE_AND_RELATIONSHIPS.md`:** Tambah timezone fields di households section.
+- **`docs/CODE_STYLE_GUIDE.md`:** Updated date handling rules — backend pakai `getServerNow`, frontend normalize ke noon.
+- **`docs/PRODUCT_GUIDELINES.md`:** Updated timezone safety section.
+
+### Fixed
+- **Bug: Period terlambat 7 jam untuk user WIB.** Sebelumnya backend pakai `new Date()` yang return UTC time. User di WIB (UTC+7) jam 00:00 tanggal 25 → server masih lihat tanggal 24. Sekarang backend compute timezone user, period transisi tepat di tengah malam waktu user.
+
 ## 2026-07-10
 
 ### Added

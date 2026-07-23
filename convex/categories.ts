@@ -9,7 +9,8 @@ import {
   calculateSpendingByCategory, 
   AccountMap, 
   parseAmount, 
-  analyzeTransactionFlow 
+  analyzeTransactionFlow,
+  getServerNow
 } from "./lib/finance";
 
 function calculateThisMonthContribution(
@@ -99,12 +100,14 @@ export const getGoalDetails = query({
         .order("desc")
         .collect();
     
-    const now = new Date();
     let startDay = 1;
+    let timezone: string | null = null;
     if (householdId) {
         const household = await ctx.db.get(householdId);
         startDay = household?.budgetStartDay || 1;
+        timezone = household?.timezone ?? null;
     }
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
     let currentBudget;
     if (householdId) {
@@ -181,20 +184,26 @@ export const getCategoryDetails = query({
     }
 
     let startDay = 1;
+    let timezone: string | null = null;
     if (category.householdId) {
         const h = await ctx.db.get(category.householdId);
         if (h?.budgetStartDay) startDay = h.budgetStartDay;
+        timezone = h?.timezone ?? null;
     } else if (householdId) {
         const h = await ctx.db.get(householdId);
         if (h?.budgetStartDay) startDay = h.budgetStartDay;
+        timezone = h?.timezone ?? null;
     } else {
         const members = await ctx.db.query("householdMembers").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
         const households = await Promise.all(members.map(m => ctx.db.get(m.householdId)));
         const configuredHousehold = households.find(h => h && h.budgetStartDay && h.budgetStartDay > 1);
-        if (configuredHousehold) startDay = configuredHousehold.budgetStartDay!;
+        if (configuredHousehold) {
+            startDay = configuredHousehold.budgetStartDay!;
+            timezone = configuredHousehold.timezone ?? null;
+        }
     }
 
-    const now = new Date();
+    const now = getServerNow(timezone);
     const { year: currentYear, month: currentMonth } = getFiscalDateDetails(now.toISOString(), startDay);
     
     let allTransactions;
@@ -417,12 +426,14 @@ export const get = query({
         const accountsMap: AccountMap = new Map(accounts.map((a: Doc<"accounts">) => [String(a._id), a]));
         const categoriesMap = new Map(categories.map((c: Doc<"categories">) => [String(c._id), c]));
         
-        const now = new Date();
         let startDay = 1;
+        let timezone: string | null = null;
         if (householdId) {
             const household = await ctx.db.get(householdId);
             startDay = household?.budgetStartDay || 1;
+            timezone = household?.timezone ?? null;
         }
+        const now = getServerNow(timezone);
         const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
         const { start } = getFiscalMonthRange(year, month, startDay);
         const startOfThisMonth = new Date(start).getTime();
@@ -522,18 +533,21 @@ export const create = mutation({
 
         if (args.monthlyBudget) {
             let startDay = 1;
+            let timezone: string | null = null;
             if (args.householdId) {
                 const household = await ctx.db.get(args.householdId);
                 startDay = household?.budgetStartDay || 1;
+                timezone = household?.timezone ?? null;
             } else {
                 const member = await ctx.db.query("householdMembers").withIndex("by_userId", q => q.eq("userId", identity.subject)).first();
                 if (member) {
                     const household = await ctx.db.get(member.householdId);
                     startDay = household?.budgetStartDay || 1;
+                    timezone = household?.timezone ?? null;
                 }
             }
 
-            const now = new Date();
+            const now = getServerNow(timezone);
             const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
 
             const existingBudget = await ctx.db.query("budgets")
@@ -593,18 +607,21 @@ export const update = mutation({
 
     if (monthlyBudget !== undefined) {
         let startDay = 1;
+        let timezone: string | null = null;
         if (category.householdId) {
             const household = await ctx.db.get(category.householdId);
             startDay = household?.budgetStartDay || 1;
+            timezone = household?.timezone ?? null;
         } else {
             const member = await ctx.db.query("householdMembers").withIndex("by_userId", q => q.eq("userId", identity.subject)).first();
             if (member) {
                 const household = await ctx.db.get(member.householdId);
                 startDay = household?.budgetStartDay || 1;
+                timezone = household?.timezone ?? null;
             }
         }
 
-        const now = new Date();
+        const now = getServerNow(timezone);
         const { year, month } = getFiscalDateDetails(now.toISOString(), startDay);
 
         let existingBudget;

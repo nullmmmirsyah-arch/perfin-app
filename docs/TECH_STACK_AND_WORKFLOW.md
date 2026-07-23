@@ -66,9 +66,12 @@
         - This reduces the `spent` amount of that category and restores the budget limit.
         - **Critical:** This logic requires `categoriesMap` to be passed to `analyzeTransactionFlow` or `calculateSpendingByCategory`.
     - **`convex/lib/finance.ts` (Fiscal Logic):**
+        - `getServerNow(timezone)`: Returns "now" adjusted to the user's IANA timezone, normalized to noon to avoid day-boundary issues. Falls back to UTC if no timezone provided.
+        - `getFiscalConfig(household)`: Extracts `{ startDay, timezone }` from a household document for use in queries.
         - `getFiscalDateDetails(date, startDay)`: Converts a Calendar Date to Fiscal Year/Month.
         - `getFiscalMonthRange(year, month, startDay)`: Returns start/end timestamps for a fiscal period.
-        - **Critical:** All budget queries MUST use these helpers to support custom start days.
+        - **Critical:** All budget queries MUST use `getServerNow(timezone)` instead of `new Date()` to ensure period transitions happen at midnight in the user's local timezone, not midnight UTC.
+        - **Timezone Source:** The timezone comes from `household.timezone` (IANA string, e.g. "Asia/Jakarta"). The `timezoneMode` field determines whether it's auto-detected from the device or manually set.
     - **`convex/lib/auth.ts`:** Centralized authorization checks (`ensureHouseholdAccess`).
     - **`convex/lib/constants.ts`:** Constants for Transaction Types, Category Types, Account Types, etc. **NEVER** use string literals (e.g., "expense") directly; import from constants.
     - **`lib/utils.ts` (Frontend):**

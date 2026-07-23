@@ -47,9 +47,8 @@ This document outlines the design philosophy and user experience patterns used i
     - **Visual Feedback:** Buttons must show a "Loading/Saving..." state with a Spinner (`Loader2`) and be disabled during processing.
     - **Haptic Feedback:** Trigger a small vibration (`navigator.vibrate(10)`) on submit for tactile confirmation (Mobile).
 - **Date Handling:**
-    - **Timezone Safety:** When sending dates to the backend (e.g., Transaction Date, Goal Target Date), **always normalize the time**.
-        - **Rule:** Always set time to **12:00 PM (Noon)** local time, regardless of whether it is "Today" or a manual selection.
-        - This prevents UTC conversion shifts (e.g., 00:00 WIB -> 17:00 UTC previous day) from causing data to appear in the wrong budget period.
+    - **Timezone Safety:** Backend now uses `getServerNow(timezone)` to compute fiscal periods in the user's local timezone (not UTC). The timezone is stored per-household (`household.timezone`) and can be set to "Device" (auto-detect) or "Manual" (user-selected) via Preferences page.
+    - **Frontend Date Normalization:** When sending dates to the backend (e.g., Transaction Date, Goal Target Date), **always normalize the time** to **12:00 PM (Noon)** local time to prevent UTC conversion shifts.
 
 ### 3. Wizard Pattern (Multi-Step Forms)
 - **Drawer-Based Wizards:** Use `Drawer` (vaul) for multi-step forms, not full-screen modals. Consistent with existing drawer patterns.
