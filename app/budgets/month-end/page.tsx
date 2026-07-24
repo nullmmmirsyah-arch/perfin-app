@@ -203,7 +203,7 @@ export default function MonthEndPage() {
     }
   }
 
-  const handleConfirm = (selectedIds: string[]) => {
+  const handleConfirm = (result: { categoryId: string; type: 'sweep' | 'rollover' }[]) => {
     setIsProcessing(true)
 
     // Testing mode — no execution
