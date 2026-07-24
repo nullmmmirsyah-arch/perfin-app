@@ -15,11 +15,14 @@ Format:
 ### Fixed
 - **Bug: `moveBudgetFunds` — "Insufficient Unassigned Cash" error saat seharusnya cukup.** `calculateUnassignedCash` dipanggil tanpa data spending, sehingga semua alokasi budget dianggap belum terpakai. Unassigned terhitung jauh lebih kecil dari kenyataan (bahkan negatif). Sama juga terjadi di `getBudgetAssistance` dan `upsertBudget`.
 - **Bug: `getUnassignedCash` — cache hanya berlaku untuk bulan saat ini.** Cache `userCaches.unassignedCash` dihitung untuk bulan fiscal sekarang. Jika user set budget untuk bulan lain (misal bulan depan), validasi pakai unassigned yang salah. Fix: bulan sekarang → baca cache; bulan lain → hitung langsung dengan spending data.
+- **Bug: `handleSweep` proses bulan yang salah.** `handleSweep` menggunakan `selectedDate` (bulan yang dilihat user di UI) untuk hitung bulan sebelumnya. Jika user navigasi ke bulan berbeda, sweep/rollover diproses untuk bulan yang salah. Fix: gunakan `currentFiscalDate` (waktu aktual).
+- **Bug: Sweep + rollover tidak atomic.** `handleSweep` memanggil `sweepBudgets` dan `rolloverBudgets` sebagai dua mutation terpisah. Jika sweep sukses tapi rollover gagal, state menjadi tidak konsisten. Fix: buat `processMonthEnd` mutation yang menggabungkan keduanya dalam satu transaksi.
 
 ### Changed
 - **`convex/budgets.ts` — `getUnassignedCash` helper:** fungsi baru yang handle dua case: (1) bulan sekarang → baca dari `userCaches` (1 DB read), (2) bulan lain → hitung langsung dengan fetch transactions + spending data (fallback). Ketiga function (`getBudgetAssistance`, `upsertBudget`, `moveBudgetFunds`) sekarang pakai helper ini.
 - **`convex/budgets.ts` — `upsertBudget`:** hapus `Promise.all` yang bungkus 1 query, hapus fetch `accounts` yang tidak dipakai.
 - **`convex/budgets.ts` — `getBudgetAssistance`:** hapus dead code `targetBudgets` query yang tidak dipakai setelah refactor ke cache.
+- **`convex/budgets.ts` — `processMonthEnd` mutation baru:** Menggabungkan sweep + rollover dalam satu transaksi atomic. `handleSweep` sekarang panggil satu mutation ini alih-alih dua mutation terpisah. Mutation existing (`sweepBudgets`, `rolloverBudgets`) tetap tersedia untuk use case lain.
 
 ## 2026-07-23
 

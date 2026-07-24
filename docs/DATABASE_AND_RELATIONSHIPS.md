@@ -88,6 +88,7 @@ To support partial settlements (installments), we use a self-referential relatio
     - **The `categoriesMap` Rule:** MUST provide `categoriesMap` to include settlements/reimbursements in netting logic.
     - **Standard Categories:** Positive remaining funds are **Swept**.
     - **Paced Categories:** Surplus and Debt are **Rolled Over** via `carryoverAmount`.
+    - **Atomic Processing:** `processMonthEnd` mutation combines sweep + rollover in a single Convex transaction. Client calls this instead of separate `sweepBudgets`/`rolloverBudgets` mutations. If either operation fails, neither is committed.
 - **Swept/Carryover Fields:** 
     - `sweptAmount`: Funds already returned to the wallet (prevents double-counting).
     - `carryoverAmount`: Debt or surplus carried forward (Paced budgets only).

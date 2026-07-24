@@ -76,6 +76,7 @@
     - **`convex/lib/constants.ts`:** Constants for Transaction Types, Category Types, Account Types, etc. **NEVER** use string literals (e.g., "expense") directly; import from constants.
     - **`lib/utils.ts` (Frontend):**
         - `formatCurrency`: Centralizes currency formatting and **Privacy Mode** logic. Handles standard bullet masking (`••••`).
+    - **`convex/budgets.ts` — `processMonthEnd`:** Single mutation yang combine sweep + rollover dalam satu transaction. Memastikan kedua operasi atomic — jika salah satu gagal, keduanya tidak ter-commit. `handleSweep` di client memanggil mutation ini alih-alih dua mutation terpisah.
 
 4.  **Triggers & Automation:**
     - We don't have DB triggers (like SQL). We use **Application-Level Triggers**.
