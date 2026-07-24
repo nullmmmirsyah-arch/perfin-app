@@ -126,8 +126,7 @@ export default function BudgetsPage() {
   const breakdown = budgetData?.breakdown;
 
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
-  const sweepBudgets = useMutation(convexApi.budgets.sweepBudgets)
-  const rolloverBudgets = useMutation(convexApi.budgets.rolloverBudgets)
+  const processMonthEnd = useMutation(convexApi.budgets.processMonthEnd)
   const ensureCurrentRollover = useMutation(convexApi.budgets.ensureCurrentRollover)
 
   const rolloverInitRef = useRef(false)
@@ -155,16 +154,14 @@ export default function BudgetsPage() {
   }
 
   const handleSweep = async () => {
-      const { year: sweepYear, month: sweepMonth } = getFiscalDateDetails(selectedDate.toISOString(), budgetStartDay);
-      let prevMonth = sweepMonth - 1;
-      let prevYear = sweepYear;
+      let prevMonth = currentFiscalDate.getMonth() - 1;
+      let prevYear = currentFiscalDate.getFullYear();
       if (prevMonth < 0) { prevMonth = 11; prevYear--; }
 
       setIsProcessingMonthEnd(true);
       try {
-          const sweptCount = await sweepBudgets({ month: prevMonth, year: prevYear, householdId: householdId ?? undefined });
-          const rolloverCount = await rolloverBudgets({ month: prevMonth, year: prevYear, householdId: householdId ?? undefined });
-          
+          const { sweptCount, rolloverCount } = await processMonthEnd({ month: prevMonth, year: prevYear, householdId: householdId ?? undefined });
+
           if (sweptCount > 0 || rolloverCount > 0) {
               toast.success(`Processing complete: ${sweptCount} swept, ${rolloverCount} rolled over.`);
           } else {
