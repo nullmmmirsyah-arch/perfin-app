@@ -85,14 +85,27 @@ export default function MonthEndPage() {
     const budget = parseFloat(item.budget?.amount?.replace(/,/g, '') || '0')
     const spent = item.spent
     const percentage = budget > 0 ? (spent / budget) * 100 : 0
+    const isSaving = item.category.type === 'saving'
 
     let status: 'on-track' | 'warning' | 'overspent'
-    if (percentage <= 80) {
-      status = 'on-track'
-    } else if (percentage <= 100) {
-      status = 'warning'
+    if (isSaving) {
+      // Savings: more saved = better
+      if (percentage >= 100) {
+        status = 'on-track' // Met or exceeded target
+      } else if (percentage >= 80) {
+        status = 'warning' // Close to target
+      } else {
+        status = 'overspent' // Under target (needs attention)
+      }
     } else {
-      status = 'overspent'
+      // Expenses: less spent = better
+      if (percentage <= 80) {
+        status = 'on-track'
+      } else if (percentage <= 100) {
+        status = 'warning'
+      } else {
+        status = 'overspent'
+      }
     }
 
     return {

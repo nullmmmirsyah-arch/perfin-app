@@ -28,21 +28,24 @@ const statusConfig = {
     color: 'text-success',
     bg: 'bg-success/10',
     border: 'border-success/20',
-    message: 'Great job!'
+    expenseMessage: 'Great job!',
+    savingMessage: 'On track!'
   },
   'warning': {
     icon: AlertTriangle,
     color: 'text-yellow-500',
     bg: 'bg-yellow-500/10',
     border: 'border-yellow-500/20',
-    message: 'Getting close'
+    expenseMessage: 'Getting close',
+    savingMessage: 'Almost there!'
   },
   'overspent': {
     icon: XCircle,
     color: 'text-destructive',
     bg: 'bg-destructive/10',
     border: 'border-destructive/20',
-    message: 'Over budget'
+    expenseMessage: 'Over budget',
+    savingMessage: 'Needs attention'
   }
 }
 
@@ -117,6 +120,7 @@ export function CategoryReviewStep({ categories }: CategoryReviewStepProps) {
             const config = statusConfig[cat.status]
             const Icon = config.icon
             const percentage = cat.budget > 0 ? (cat.spent / cat.budget) * 100 : 0
+            const message = cat.type === 'saving' ? config.savingMessage : config.expenseMessage
 
             return (
               <motion.div
@@ -134,13 +138,13 @@ export function CategoryReviewStep({ categories }: CategoryReviewStepProps) {
                     <span className="font-medium text-sm">{cat.name}</span>
                   </div>
                   <span className={cn("text-xs font-medium", config.color)}>
-                    {config.message}
+                    {message}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                   <span>
-                    {activeTab === 'expense' ? 'Spent' : 'Saved'}: {formatCurrency(cat.spent)}
+                    {cat.type === 'saving' ? 'Saved' : 'Spent'}: {formatCurrency(cat.spent)}
                   </span>
                   <span>Target: {formatCurrency(cat.budget)}</span>
                 </div>
