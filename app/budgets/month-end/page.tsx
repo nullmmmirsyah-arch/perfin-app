@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { PartyPopper } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { toast } from 'sonner'
+import { getFiscalDateDetails } from '../../../convex/lib/finance'
 
 type CategoryHealth = {
   name: string
@@ -41,7 +42,9 @@ const slideVariants = {
 
 export default function MonthEndPage() {
   const router = useRouter()
-  const { householdId } = useHousehold()
+  const { householdId, households } = useHousehold()
+  const activeHousehold = households.find(h => h._id === householdId)
+  const budgetStartDay = activeHousehold?.budgetStartDay || 1
   const [currentStep, setCurrentStep] = useState(1)
   const [direction, setDirection] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -49,8 +52,10 @@ export default function MonthEndPage() {
 
   // Calculate previous month for proposals and budget data
   const now = new Date()
-  let prevMonth = now.getMonth() - 1
-  let prevYear = now.getFullYear()
+  const { year: currentFiscalYear, month: currentFiscalMonth } = getFiscalDateDetails(now.toISOString(), budgetStartDay)
+
+  let prevMonth = currentFiscalMonth - 1
+  let prevYear = currentFiscalYear
   if (prevMonth < 0) { prevMonth = 11; prevYear-- }
 
   // Two months ago for comparison
