@@ -203,7 +203,7 @@ export default function MonthEndPage() {
     }
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = (selectedIds: string[]) => {
     setIsProcessing(true)
 
     // Testing mode — no execution
@@ -298,10 +298,7 @@ export default function MonthEndPage() {
 
             {currentStep === 4 && (
               <ConfirmStep
-                sweepCount={sweeps.length}
-                rolloverCount={rollovers.length}
-                totalSwept={totalSwept}
-                totalRollover={totalRollover}
+                proposals={sweeps.concat(rollovers)}
                 isProcessing={isProcessing}
                 onConfirm={handleConfirm}
                 onBack={prevStep}
