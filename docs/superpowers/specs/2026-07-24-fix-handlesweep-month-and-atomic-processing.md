@@ -76,8 +76,8 @@ Both operations are atomic — if either fails, neither is committed.
 
 ## What Does NOT Change
 
-- `getMonthEndProposals` query — already correct
-- `MonthEndProcessDialog` component — no changes needed
+- `getMonthEndProposals` query — still exists for backward compatibility, but month-end page no longer uses it (proposals derived from `budgetData.data` client-side)
+- `MonthEndProcessDialog` — **DELETED.** All logic moved to `/budgets/month-end` page.
 - `sweepBudgets` mutation — kept for manual use
 - `rolloverBudgets` mutation — kept for manual use
 - BudgetCard, MoveFundsDrawer, other page functions — unaffected

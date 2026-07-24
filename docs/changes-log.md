@@ -10,6 +10,28 @@ Format:
 ### Docs
 -->
 
+## 2026-07-25
+
+### Changed
+- **Month-end page data flow — proposals derived from `budgetData`:** Hapus query `getMonthEndProposals` dari month-end page. Proposals sekarang di-derive langsung dari `budgetData.data` (yang sudah di-fetch untuk Steps 1-3) menggunakan `useMemo`. Eliminasi timezone/date mismatch antara client dan server. Satu sumber data, konsisten.
+- **Rollover dedup check:** Tambah `currentBudgetData` query (current fiscal month) untuk cek apakah rollover sudah diproses. Kalau `currentBudget.carryoverAmount` sudah match `sisa`, proposal rollover tidak ditampilkan lagi.
+- **Banner condition:** Banner "Review & Process" di budgets page sekarang tampil kalau `budgetData.data.length > 0` (ada budget bulan lalu), bukan `monthEndProposals.length > 0`. Alasan: user perlu review performa meskipun tidak ada action sweep/rollover.
+- **Banner text dinamis:** Subtitle banner tampilkan action count kalau ada proposals, atau "Review your previous period performance" kalau tidak ada.
+
+### Fixed
+- **Fiscal month calculation:** `prevMonth` di month-end page sekarang pakai `getFiscalDateDetails(now, budgetStartDay)` bukan `new Date().getMonth()`. Sebelumnya dengan `budgetStartDay=25`, July 25 → calendar month 6 → prevMonth 5 (June). Sekarang → fiscal month 7 (August) → prevMonth 6 (July). Data yang ditampilkan sekarang benar.
+- **Import path:** `getFiscalDateDetails` diimport dari `@/lib/finance-utils` (client), bukan `convex/lib/finance` (server).
+- **Negative amount colors:** Di ConfirmStep, amount < 0 (overspent) sekarang tampil dengan warna `destructive` (merah), bukan `success` (hijau). Checkbox, text, dan toggle button juga pakai warna merah untuk negatif.
+
+### Removed
+- **`MonthEndProcessDialog.tsx`:** Dihapus. Seluruh logic dipindah ke `/budgets/month-end` page.
+- **Dead code di `budgets/page.tsx`:** Hapus `handleSweep`, `showMonthEndDialog`, `isProcessingMonthEnd` state, `processMonthEnd` useMutation, dan test button.
+- **Query `getMonthEndProposals` dari month-end page:** Tidak lagi dipanggil dari client. Query masih ada di backend untuk backward compatibility.
+
+### Docs
+- **Spec `2026-07-24-month-end-experience-page-design.md`:** Update data flow section — hapus referensi ke `getMonthEndProposals` query, ganti dengan derived proposals dari `budgetData`. Hapus testing mode section. Update step descriptions.
+- **Spec `2026-07-24-fix-handlesweep-month-and-atomic-processing.md`:** Tambah note bahwa `MonthEndProcessDialog` sudah dihapus dan logic ada di `/budgets/month-end` page.
+
 ## 2026-07-24
 
 ### Fixed
