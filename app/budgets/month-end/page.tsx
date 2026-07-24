@@ -52,13 +52,26 @@ export default function MonthEndPage() {
   let prevYear = now.getFullYear()
   if (prevMonth < 0) { prevMonth = 11; prevYear-- }
 
+  // Two months ago for comparison
+  let twoMonthsAgo = prevMonth - 1
+  let twoMonthsAgoYear = prevYear
+  if (twoMonthsAgo < 0) { twoMonthsAgo = 11; twoMonthsAgoYear-- }
+
   const proposals = useQuery(convexApi.budgets.getMonthEndProposals, {
     householdId: householdId ?? undefined
   })
 
+  // This month (the month being reviewed)
   const budgetData = useQuery(convexApi.budgets.getBudgetStatus, {
     month: prevMonth,
     year: prevYear,
+    householdId: householdId ?? undefined
+  })
+
+  // Last month (for comparison)
+  const lastMonthData = useQuery(convexApi.budgets.getBudgetStatus, {
+    month: twoMonthsAgo,
+    year: twoMonthsAgoYear,
     householdId: householdId ?? undefined
   })
 
@@ -100,6 +113,11 @@ export default function MonthEndPage() {
     }, 0) || 0
   const savingsRate = totalBudget > 0 ? (totalSaved / totalBudget) * 100 : 0
   const healthScore = Math.min(100, Math.max(0, Math.round(savingsRate + (totalSaved > 0 ? 20 : 0))))
+
+  // Last month spending for comparison
+  const lastMonthTotalSpent = lastMonthData?.data
+    ?.filter(item => item.category.type === 'expense')
+    .reduce((acc, item) => acc + item.spent, 0) || 0
 
   // Calculate category health
   const categoryHealth: CategoryHealth[] = budgetData?.data?.map(item => {
@@ -289,7 +307,7 @@ export default function MonthEndPage() {
               <InsightsStep
                 monthComparison={{
                   thisMonth: totalSpent,
-                  lastMonth: totalSpent * 1.1
+                  lastMonth: lastMonthTotalSpent
                 }}
                 tips={tips}
                 achievements={achievements}
