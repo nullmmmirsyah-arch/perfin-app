@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { PartyPopper } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { toast } from 'sonner'
-import { getFiscalDateDetails } from '../../../convex/lib/finance'
+import { getFiscalDateDetails } from '@/lib/finance-utils'
 
 type CategoryHealth = {
   name: string
