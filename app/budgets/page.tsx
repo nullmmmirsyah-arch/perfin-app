@@ -389,19 +389,35 @@ export default function BudgetsPage() {
       </div>
 
       {monthEndProposals && monthEndProposals.length > 0 && !isPastMonth && (
-        <motion.div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/10 text-primary flex justify-between items-center" variants={fadeInUp} initial="hidden" animate="visible">
-            <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-primary" />
-                <div>
-                    <h4 className="font-semibold text-sm">Month-end processing required!</h4>
-                    <p className="text-xs text-primary/80">
-                        {monthEndProposals.length} pending actions (Sweep/Rollover) from last month.
-                    </p>
+        <motion.div
+          variants={fadeInUp}
+          initial="hidden"
+          animate="visible"
+          className="mb-6"
+        >
+          <button
+            onClick={() => router.push('/budgets/month-end')}
+            className="w-full p-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/15 transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
                 </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-primary">Month-End Ready</p>
+                  <p className="text-[10px] text-primary/70">
+                    {monthEndProposals.length} action{monthEndProposals.length > 1 ? 's' : ''} pending
+                  </p>
+                </div>
+              </div>
+              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
             </div>
-            <Button size="sm" onClick={() => router.push('/budgets/month-end')} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Review & Process
-            </Button>
+          </button>
         </motion.div>
       )}
 
