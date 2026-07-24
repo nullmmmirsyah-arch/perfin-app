@@ -88,15 +88,23 @@ export default function MonthEndPage() {
 
   // Calculate category health
   const categoryHealth: CategoryHealth[] = budgetData?.data?.map(item => {
-    const budget = parseFloat(item.budget?.amount?.replace(/,/g, '') || '0')
+    const allocated = parseFloat(item.budget?.amount?.replace(/,/g, '') || '0')
+    const carryover = parseFloat(item.budget?.carryoverAmount?.replace(/,/g, '') || '0')
+    const swept = parseFloat(item.budget?.sweptAmount?.replace(/,/g, '') || '0')
     const spent = item.spent
-    const percentage = budget > 0 ? (spent / budget) * 100 : 0
     const isSaving = item.category.type === 'saving'
+
+    // For expenses: effective budget includes carryover from previous months
+    const effectiveBudget = isSaving ? allocated : allocated + carryover
+    const percentage = effectiveBudget > 0 ? (spent / effectiveBudget) * 100 : 0
 
     let status: 'on-track' | 'warning' | 'overspent'
     if (isSaving) {
       // Savings: more saved = better
-      if (percentage >= 100) {
+      if (allocated === 0 && spent > 0) {
+        // No budget set but actively saving — show as on-track
+        status = 'on-track'
+      } else if (percentage >= 100) {
         status = 'on-track' // Met or exceeded target
       } else if (percentage >= 80) {
         status = 'warning' // Close to target
@@ -104,7 +112,7 @@ export default function MonthEndPage() {
         status = 'overspent' // Under target (needs attention)
       }
     } else {
-      // Expenses: less spent = better
+      // Expenses: less spent = better (considering carryover)
       if (percentage <= 80) {
         status = 'on-track'
       } else if (percentage <= 100) {
@@ -117,7 +125,7 @@ export default function MonthEndPage() {
     return {
       name: item.category.name,
       spent,
-      budget,
+      budget: effectiveBudget,
       status,
       type: item.category.type as 'expense' | 'saving'
     }
