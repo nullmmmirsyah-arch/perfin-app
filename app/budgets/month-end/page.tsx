@@ -46,13 +46,19 @@ export default function MonthEndPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
 
+  // Calculate previous month for proposals and budget data
+  const now = new Date()
+  let prevMonth = now.getMonth() - 1
+  let prevYear = now.getFullYear()
+  if (prevMonth < 0) { prevMonth = 11; prevYear-- }
+
   const proposals = useQuery(convexApi.budgets.getMonthEndProposals, {
     householdId: householdId ?? undefined
   })
 
   const budgetData = useQuery(convexApi.budgets.getBudgetStatus, {
-    month: new Date().getMonth(),
-    year: new Date().getFullYear(),
+    month: prevMonth,
+    year: prevYear,
     householdId: householdId ?? undefined
   })
 
