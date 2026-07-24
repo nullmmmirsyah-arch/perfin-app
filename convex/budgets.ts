@@ -1008,8 +1008,12 @@ export const processMonthEnd = mutation({
     householdId: v.optional(v.id("households")),
     month: v.number(),
     year: v.number(),
+    actions: v.optional(v.array(v.object({
+      categoryId: v.id("categories"),
+      type: v.union(v.literal("sweep"), v.literal("rollover")),
+    }))),
   },
-  handler: async (ctx, { householdId, month, year }) => {
+  handler: async (ctx, { householdId, month, year, actions }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     const userId = identity.subject;
@@ -1017,6 +1021,11 @@ export const processMonthEnd = mutation({
     if (householdId) {
       if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
     }
+
+    // If actions provided, build lookup maps; otherwise process all
+    const actionMap = actions
+      ? new Map(actions.map(a => [String(a.categoryId), a.type]))
+      : null;
 
     const household = await getHousehold(ctx, householdId, userId);
     const startDay = household?.budgetStartDay || 1;
@@ -1062,19 +1071,27 @@ export const processMonthEnd = mutation({
 
     let sweptCount = 0;
     for (const budget of budgets) {
-      const category = categoriesMap.get(budget.categoryId);
-      if (!category?.enablePacing) {
-        const spent = spendingByCategory[budget.categoryId] || 0;
-        const allocated = parseFloat(budget.amount.replace(/,/g, '') || '0');
-        const carryover = parseFloat(budget.carryoverAmount?.replace(/,/g, '') || '0');
-        const currentSwept = parseFloat(budget.sweptAmount?.replace(/,/g, '') || '0');
-        const totalAvailable = allocated + carryover;
-        const remaining = totalAvailable - spent;
+      const catId = String(budget.categoryId);
 
-        if (remaining > 0 && Math.abs(remaining - currentSwept) > 0.01) {
-          await ctx.db.patch(budget._id, { sweptAmount: remaining.toString() });
-          sweptCount++;
-        }
+      // If actions provided, only sweep categories explicitly marked as 'sweep'
+      if (actionMap) {
+        if (actionMap.get(catId) !== "sweep") continue;
+      } else {
+        // Default behavior: skip pacing categories
+        const category = categoriesMap.get(budget.categoryId);
+        if (category?.enablePacing) continue;
+      }
+
+      const spent = spendingByCategory[budget.categoryId] || 0;
+      const allocated = parseFloat(budget.amount.replace(/,/g, '') || '0');
+      const carryover = parseFloat(budget.carryoverAmount?.replace(/,/g, '') || '0');
+      const currentSwept = parseFloat(budget.sweptAmount?.replace(/,/g, '') || '0');
+      const totalAvailable = allocated + carryover;
+      const remaining = totalAvailable - spent;
+
+      if (remaining > 0 && Math.abs(remaining - currentSwept) > 0.01) {
+        await ctx.db.patch(budget._id, { sweptAmount: remaining.toString() });
+        sweptCount++;
       }
     }
 
@@ -1100,35 +1117,43 @@ export const processMonthEnd = mutation({
 
     let rolloverCount = 0;
     for (const b of budgets) {
-      const category = categoriesMap.get(b.categoryId);
-      if (category?.enablePacing) {
-        const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
-        const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
-        const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
-        const spent = spendingByCategory[b.categoryId] || 0;
-        const sisa = (allocated + carryover - swept) - spent;
+      const catId = String(b.categoryId);
 
-        if (sisa !== 0) {
-          const targetBudget = targetBudgetByCategory.get(b.categoryId);
+      // If actions provided, only rollover categories explicitly marked as 'rollover'
+      if (actionMap) {
+        if (actionMap.get(catId) !== "rollover") continue;
+      } else {
+        // Default behavior: only pacing categories
+        const category = categoriesMap.get(b.categoryId);
+        if (!category?.enablePacing) continue;
+      }
 
-          if (targetBudget) {
-            const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
-            if (Math.abs(targetCarryover - sisa) > 0.01) {
-              await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
-              rolloverCount++;
-            }
-          } else {
-            await ctx.db.insert("budgets", {
-              userId,
-              householdId,
-              categoryId: b.categoryId,
-              amount: "0",
-              year: targetYear,
-              month: targetMonth,
-              carryoverAmount: sisa.toString()
-            });
+      const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+      const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+      const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
+      const spent = spendingByCategory[b.categoryId] || 0;
+      const sisa = (allocated + carryover - swept) - spent;
+
+      if (sisa !== 0) {
+        const targetBudget = targetBudgetByCategory.get(b.categoryId);
+
+        if (targetBudget) {
+          const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
+          if (Math.abs(targetCarryover - sisa) > 0.01) {
+            await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
             rolloverCount++;
           }
+        } else {
+          await ctx.db.insert("budgets", {
+            userId,
+            householdId,
+            categoryId: b.categoryId,
+            amount: "0",
+            year: targetYear,
+            month: targetMonth,
+            carryoverAmount: sisa.toString()
+          });
+          rolloverCount++;
         }
       }
     }

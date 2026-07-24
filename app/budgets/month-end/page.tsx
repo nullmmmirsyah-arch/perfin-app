@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQuery } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../../convex/_generated/api'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { StepIndicator } from '@/components/budgets/month-end/StepIndicator'
@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { PartyPopper } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { toast } from 'sonner'
 
 type CategoryHealth = {
   name: string
@@ -78,23 +79,8 @@ export default function MonthEndPage() {
   const totalSteps = 4
 
   // Calculate data from proposals
-  // Use real proposals, or mock data for testing when empty
-  const realSweeps = proposals?.filter(p => p.type === 'sweep') || []
-  const realRollovers = proposals?.filter(p => p.type === 'rollover') || []
-
-  // Mock data for testing (when proposals are empty)
-  const mockSweeps = realSweeps.length === 0 ? [
-    { type: 'sweep' as const, categoryId: 'mock1' as any, categoryName: 'Food & Dining', amount: 150000 },
-    { type: 'sweep' as const, categoryId: 'mock2' as any, categoryName: 'Transport', amount: 75000 },
-    { type: 'sweep' as const, categoryId: 'mock3' as any, categoryName: 'Entertainment', amount: 50000 },
-  ] : []
-  const mockRollovers = realRollovers.length === 0 ? [
-    { type: 'rollover' as const, categoryId: 'mock4' as any, categoryName: 'Emergency Fund', amount: 200000 },
-    { type: 'rollover' as const, categoryId: 'mock5' as any, categoryName: 'Vacation', amount: -50000 },
-  ] : []
-
-  const sweeps = realSweeps.length > 0 ? realSweeps : mockSweeps
-  const rollovers = realRollovers.length > 0 ? realRollovers : mockRollovers
+  const sweeps = proposals?.filter(p => p.type === 'sweep') || []
+  const rollovers = proposals?.filter(p => p.type === 'rollover') || []
   const totalSwept = sweeps.reduce((acc, p) => acc + p.amount, 0)
   const totalRollover = rollovers.reduce((acc, p) => acc + p.amount, 0)
 
@@ -221,12 +207,25 @@ export default function MonthEndPage() {
     }
   }
 
-  const handleConfirm = (result: { categoryId: string; type: 'sweep' | 'rollover' }[]) => {
+  const processMonthEnd = useMutation(convexApi.budgets.processMonthEnd)
+
+  const handleConfirm = async (result: { categoryId: string; type: 'sweep' | 'rollover' }[]) => {
     setIsProcessing(true)
 
-    // Testing mode — no execution
-    setTimeout(() => {
-      setIsProcessing(false)
+    try {
+      // Map string IDs back to Convex IDs
+      const actions = result.map(r => ({
+        categoryId: r.categoryId as any,
+        type: r.type
+      }))
+
+      await processMonthEnd({
+        month: prevMonth,
+        year: prevYear,
+        householdId: householdId ?? undefined,
+        actions
+      })
+
       setIsComplete(true)
 
       // Trigger confetti
@@ -235,7 +234,14 @@ export default function MonthEndPage() {
         spread: 70,
         origin: { y: 0.6 }
       })
-    }, 1000)
+
+      toast.success("Month-end processing complete!")
+    } catch (error) {
+      console.error("Failed to process month-end:", error)
+      toast.error("Failed to process month-end budgets.")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   if (isComplete) {
@@ -255,10 +261,6 @@ export default function MonthEndPage() {
             <p className="text-muted-foreground">
               You&apos;ve reviewed your month-end budget. Great job staying on top of your finances!
             </p>
-          </div>
-
-          <div className="bg-card border rounded-xl p-4 text-sm text-muted-foreground">
-            ⚠️ Testing Mode — No changes were made
           </div>
 
           <Button onClick={() => router.push('/budgets')} className="w-full">

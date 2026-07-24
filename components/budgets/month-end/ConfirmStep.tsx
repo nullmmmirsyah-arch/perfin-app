@@ -216,13 +216,6 @@ export function ConfirmStep({
         </div>
       </motion.div>
 
-      {/* Testing Mode Notice */}
-      <motion.div variants={fadeInUp} className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 text-center">
-        <p className="text-[10px] text-yellow-600 font-medium">
-          ⚠️ Testing Mode — No execution will be performed
-        </p>
-      </motion.div>
-
       {/* Actions */}
       <motion.div variants={fadeInUp} className="flex gap-3">
         <Button

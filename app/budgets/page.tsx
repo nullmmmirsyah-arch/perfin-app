@@ -52,15 +52,11 @@ import {
 
 import { useRouter } from "next/navigation"
 
-import { MonthEndProcessDialog } from '@/components/budgets/MonthEndProcessDialog'
-
 // ... existing imports
 
 export default function BudgetsPage() {
   const [open, setOpen] = useState(false)
   const [moveFundsOpen, setMoveFundsOpen] = useState(false)
-  const [showMonthEndDialog, setShowMonthEndDialog] = useState(false)
-  const [isProcessingMonthEnd, setIsProcessingMonthEnd] = useState(false)
   
   // ... existing state ...
   const [selectedCategory, setSelectedCategory] = useState<Doc<'categories'> | undefined>(undefined)
@@ -126,7 +122,6 @@ export default function BudgetsPage() {
   const breakdown = budgetData?.breakdown;
 
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
-  const processMonthEnd = useMutation(convexApi.budgets.processMonthEnd)
   const ensureCurrentRollover = useMutation(convexApi.budgets.ensureCurrentRollover)
 
   const rolloverInitRef = useRef(false)
@@ -151,28 +146,6 @@ export default function BudgetsPage() {
         toast.success("Budget removed");
         setBudgetToDelete(undefined);
     }
-  }
-
-  const handleSweep = async () => {
-      let prevMonth = currentFiscalDate.getMonth() - 1;
-      let prevYear = currentFiscalDate.getFullYear();
-      if (prevMonth < 0) { prevMonth = 11; prevYear--; }
-
-      setIsProcessingMonthEnd(true);
-      try {
-          const { sweptCount, rolloverCount } = await processMonthEnd({ month: prevMonth, year: prevYear, householdId: householdId ?? undefined });
-
-          if (sweptCount > 0 || rolloverCount > 0) {
-              toast.success(`Processing complete: ${sweptCount} swept, ${rolloverCount} rolled over.`);
-          } else {
-              toast.info("No actions were needed.");
-          }
-          setShowMonthEndDialog(false);
-      } catch (e) {
-          toast.error("Failed to process month-end budgets.");
-      } finally {
-          setIsProcessingMonthEnd(false);
-      }
   }
 
   const nextMonth = () => setSelectedDate(curr => addMonths(curr, 1))
@@ -415,17 +388,6 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {/* Test Button - Always visible for testing */}
-      <div className="mb-6">
-        <Button
-          variant="outline"
-          onClick={() => router.push('/budgets/month-end')}
-          className="w-full"
-        >
-          Month-End Experience (Test)
-        </Button>
-      </div>
-
       {monthEndProposals && monthEndProposals.length > 0 && !isPastMonth && (
         <motion.div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/10 text-primary flex justify-between items-center" variants={fadeInUp} initial="hidden" animate="visible">
             <div className="flex items-center gap-3">
@@ -442,14 +404,6 @@ export default function BudgetsPage() {
             </Button>
         </motion.div>
       )}
-
-      <MonthEndProcessDialog 
-        open={showMonthEndDialog} 
-        onOpenChange={setShowMonthEndDialog}
-        proposals={monthEndProposals || []}
-        onConfirm={handleSweep}
-        isProcessing={isProcessingMonthEnd}
-      />
 
       <BudgetDrawer
         open={open}
