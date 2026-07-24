@@ -415,6 +415,17 @@ export default function BudgetsPage() {
         </div>
       </div>
 
+      {/* Test Button - Always visible for testing */}
+      <div className="mb-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push('/budgets/month-end')}
+          className="w-full"
+        >
+          Month-End Experience (Test)
+        </Button>
+      </div>
+
       {monthEndProposals && monthEndProposals.length > 0 && !isPastMonth && (
         <motion.div className="mb-6 p-4 rounded-lg border border-primary/20 bg-primary/10 text-primary flex justify-between items-center" variants={fadeInUp} initial="hidden" animate="visible">
             <div className="flex items-center gap-3">
@@ -426,7 +437,7 @@ export default function BudgetsPage() {
                     </p>
                 </div>
             </div>
-            <Button size="sm" onClick={() => setShowMonthEndDialog(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button size="sm" onClick={() => router.push('/budgets/month-end')} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 Review & Process
             </Button>
         </motion.div>
