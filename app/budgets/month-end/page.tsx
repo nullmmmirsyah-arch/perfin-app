@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../../convex/_generated/api'
@@ -63,16 +63,33 @@ export default function MonthEndPage() {
   let twoMonthsAgoYear = prevYear
   if (twoMonthsAgo < 0) { twoMonthsAgo = 11; twoMonthsAgoYear-- }
 
-  const proposals = useQuery(convexApi.budgets.getMonthEndProposals, {
-    householdId: householdId ?? undefined
-  })
-
   // This month (the month being reviewed)
   const budgetData = useQuery(convexApi.budgets.getBudgetStatus, {
     month: prevMonth,
     year: prevYear,
     householdId: householdId ?? undefined
   })
+
+  const proposals = useMemo(() => {
+    if (!budgetData?.data) return []
+    const result: { type: 'sweep' | 'rollover', categoryId: string, categoryName: string, amount: number }[] = []
+    for (const item of budgetData.data) {
+      const allocated = parseFloat(item.budget?.amount?.replace(/,/g, '') || '0')
+      const carryover = parseFloat(item.budget?.carryoverAmount?.replace(/,/g, '') || '0')
+      const swept = parseFloat(item.budget?.sweptAmount?.replace(/,/g, '') || '0')
+      const spent = item.spent
+      const sisa = (allocated + carryover - swept) - spent
+      const enablePacing = item.category.enablePacing ?? false
+
+      if (!enablePacing && sisa > 0) {
+        result.push({ type: 'sweep', categoryId: item.category._id, categoryName: item.category.name, amount: sisa })
+      }
+      if (enablePacing && sisa !== 0) {
+        result.push({ type: 'rollover', categoryId: item.category._id, categoryName: item.category.name, amount: sisa })
+      }
+    }
+    return result
+  }, [budgetData])
 
   // Last month (for comparison)
   const lastMonthData = useQuery(convexApi.budgets.getBudgetStatus, {
