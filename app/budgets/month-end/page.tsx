@@ -20,6 +20,7 @@ type CategoryHealth = {
   spent: number
   budget: number
   status: 'on-track' | 'warning' | 'overspent'
+  type: 'expense' | 'saving'
 }
 
 const slideVariants = {
@@ -92,7 +93,8 @@ export default function MonthEndPage() {
       name: item.category.name,
       spent,
       budget,
-      status
+      status,
+      type: item.category.type as 'expense' | 'saving'
     }
   }) || []
 
