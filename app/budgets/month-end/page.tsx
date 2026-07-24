@@ -121,10 +121,16 @@ export default function MonthEndPage() {
   const tips = categoryHealth
     .filter(c => c.status === 'warning' || c.status === 'overspent')
     .map(c => {
-      if (c.status === 'overspent') {
-        return `${c.name}: Consider reducing spending by ${Math.round(((c.spent - c.budget) / c.budget) * 100)}% next month`
+      if (c.type === 'saving') {
+        if (c.status === 'overspent') {
+          return { text: `${c.name}: You've saved only`, amount: c.spent, suffix: `of ${c.budget} target. Try to save more next month!` }
+        }
+        return { text: `${c.name}: Almost there! You've saved`, amount: c.spent, suffix: `of ${c.budget} target.` }
       }
-      return `${c.name}: You're close to the limit. Try to stay under ${c.budget * 0.9} next month`
+      if (c.status === 'overspent') {
+        return { text: `${c.name}: Consider reducing spending by ${Math.round(((c.spent - c.budget) / c.budget) * 100)}% next month.`, amount: null, suffix: '' }
+      }
+      return { text: `${c.name}: You're close to the limit. Try to stay under`, amount: c.budget * 0.9, suffix: 'next month.' }
     })
     .slice(0, 3)
 
@@ -140,7 +146,9 @@ export default function MonthEndPage() {
   if (totalSaved > 0) {
     achievements.push({
       title: 'Smart Saver',
-      description: `Saved ${totalSaved} this month`,
+      description: 'Saved',
+      amount: totalSaved,
+      suffix: 'this month',
       icon: 'star' as const
     })
   }

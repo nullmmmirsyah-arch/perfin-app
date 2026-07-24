@@ -9,10 +9,16 @@ interface InsightsStepProps {
     thisMonth: number
     lastMonth: number
   }
-  tips: string[]
+  tips: {
+    text: string
+    amount: number | null
+    suffix: string
+  }[]
   achievements: {
     title: string
     description: string
+    amount?: number
+    suffix?: string
     icon: 'award' | 'star' | 'flame'
   }[]
 }
@@ -86,7 +92,13 @@ export function InsightsStep({ monthComparison, tips, achievements }: InsightsSt
                 className="flex items-start gap-2 text-xs text-muted-foreground"
               >
                 <span className="text-yellow-500 mt-0.5">•</span>
-                <span>{tip}</span>
+                <span>
+                  {tip.text}
+                  {tip.amount !== null && (
+                    <span className="font-medium text-foreground"> {formatCurrency(tip.amount)}</span>
+                  )}
+                  {tip.suffix && ` ${tip.suffix}`}
+                </span>
               </motion.div>
             ))}
           </div>
@@ -113,7 +125,13 @@ export function InsightsStep({ monthComparison, tips, achievements }: InsightsSt
                   </div>
                   <div>
                     <p className="text-sm font-medium">{achievement.title}</p>
-                    <p className="text-xs text-muted-foreground">{achievement.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {achievement.description}
+                      {achievement.amount !== undefined && (
+                        <span className="font-medium text-foreground"> {formatCurrency(achievement.amount)}</span>
+                      )}
+                      {achievement.suffix && ` ${achievement.suffix}`}
+                    </p>
                   </div>
                 </motion.div>
               )
