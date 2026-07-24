@@ -65,8 +65,23 @@ export default function MonthEndPage() {
   const totalSteps = 4
 
   // Calculate data from proposals
-  const sweeps = proposals?.filter(p => p.type === 'sweep') || []
-  const rollovers = proposals?.filter(p => p.type === 'rollover') || []
+  // Use real proposals, or mock data for testing when empty
+  const realSweeps = proposals?.filter(p => p.type === 'sweep') || []
+  const realRollovers = proposals?.filter(p => p.type === 'rollover') || []
+
+  // Mock data for testing (when proposals are empty)
+  const mockSweeps = realSweeps.length === 0 ? [
+    { type: 'sweep' as const, categoryId: 'mock1' as any, categoryName: 'Food & Dining', amount: 150000 },
+    { type: 'sweep' as const, categoryId: 'mock2' as any, categoryName: 'Transport', amount: 75000 },
+    { type: 'sweep' as const, categoryId: 'mock3' as any, categoryName: 'Entertainment', amount: 50000 },
+  ] : []
+  const mockRollovers = realRollovers.length === 0 ? [
+    { type: 'rollover' as const, categoryId: 'mock4' as any, categoryName: 'Emergency Fund', amount: 200000 },
+    { type: 'rollover' as const, categoryId: 'mock5' as any, categoryName: 'Vacation', amount: -50000 },
+  ] : []
+
+  const sweeps = realSweeps.length > 0 ? realSweeps : mockSweeps
+  const rollovers = realRollovers.length > 0 ? realRollovers : mockRollovers
   const totalSwept = sweeps.reduce((acc, p) => acc + p.amount, 0)
   const totalRollover = rollovers.reduce((acc, p) => acc + p.amount, 0)
 
