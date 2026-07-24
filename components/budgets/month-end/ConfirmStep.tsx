@@ -133,6 +133,7 @@ export function ConfirmStep({
         {proposals.map((item) => {
           const state = items.get(String(item.categoryId)) || { selected: true, type: item.type }
           const isSweep = state.type === 'sweep'
+          const isNegative = item.amount < 0
 
           return (
             <motion.div
@@ -141,9 +142,11 @@ export function ConfirmStep({
               className={cn(
                 "p-3 rounded-xl border transition-all",
                 state.selected
-                  ? isSweep
-                    ? "bg-primary/5 border-primary/20"
-                    : "bg-success/5 border-success/20"
+                  ? isNegative
+                    ? "bg-destructive/5 border-destructive/20"
+                    : isSweep
+                      ? "bg-primary/5 border-primary/20"
+                      : "bg-success/5 border-success/20"
                   : "bg-muted/30 border-muted opacity-50"
               )}
             >
@@ -156,12 +159,14 @@ export function ConfirmStep({
                   <div className={cn(
                     "h-4 w-4 rounded border-2 flex items-center justify-center transition-colors",
                     state.selected
-                      ? isSweep ? "bg-primary border-primary" : "bg-success border-success"
+                      ? isNegative ? "bg-destructive border-destructive"
+                        : isSweep ? "bg-primary border-primary" : "bg-success border-success"
                       : "border-muted-foreground"
                   )}>
                     {state.selected && <CheckCircle2 className={cn(
                       "h-3 w-3",
-                      isSweep ? "text-primary-foreground" : "text-success-foreground"
+                      isNegative ? "text-destructive-foreground"
+                        : isSweep ? "text-primary-foreground" : "text-success-foreground"
                     )} />}
                   </div>
                   <span className={cn("text-sm font-medium", !state.selected && "text-muted-foreground")}>
@@ -171,7 +176,8 @@ export function ConfirmStep({
                 <span className={cn(
                   "text-sm font-medium",
                   state.selected
-                    ? isSweep ? "text-primary" : "text-success"
+                    ? isNegative ? "text-destructive"
+                      : isSweep ? "text-primary" : "text-success"
                     : "text-muted-foreground"
                 )}>
                   {item.amount > 0 ? '+' : ''}{formatCurrency(item.amount)}
@@ -188,9 +194,11 @@ export function ConfirmStep({
                     onClick={() => toggleType(String(item.categoryId))}
                     className={cn(
                       "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors",
-                      isSweep
-                        ? "bg-primary/10 text-primary hover:bg-primary/20"
-                        : "bg-success/10 text-success hover:bg-success/20"
+                      isNegative
+                        ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                        : isSweep
+                          ? "bg-primary/10 text-primary hover:bg-primary/20"
+                          : "bg-success/10 text-success hover:bg-success/20"
                     )}
                   >
                     {isSweep ? (

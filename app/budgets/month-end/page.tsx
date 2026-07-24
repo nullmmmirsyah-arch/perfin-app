@@ -70,8 +70,18 @@ export default function MonthEndPage() {
     householdId: householdId ?? undefined
   })
 
+  // Current month budget — to check if rollover already processed
+  const currentBudgetData = useQuery(convexApi.budgets.getBudgetStatus, {
+    month: currentFiscalMonth,
+    year: currentFiscalYear,
+    householdId: householdId ?? undefined
+  })
+
   const proposals = useMemo(() => {
     if (!budgetData?.data) return []
+    const currentBudgetMap = new Map(
+      (currentBudgetData?.data || []).map(item => [item.category._id, item])
+    )
     const result: { type: 'sweep' | 'rollover', categoryId: string, categoryName: string, amount: number }[] = []
     for (const item of budgetData.data) {
       const allocated = parseFloat(item.budget?.amount?.replace(/,/g, '') || '0')
@@ -85,11 +95,16 @@ export default function MonthEndPage() {
         result.push({ type: 'sweep', categoryId: item.category._id, categoryName: item.category.name, amount: sisa })
       }
       if (enablePacing && sisa !== 0) {
-        result.push({ type: 'rollover', categoryId: item.category._id, categoryName: item.category.name, amount: sisa })
+        // Check if current month already has correct carryover (already processed)
+        const current = currentBudgetMap.get(item.category._id)
+        const targetCarryover = current ? parseFloat(current.budget?.carryoverAmount?.replace(/,/g, '') || '0') : 0
+        if (!current || Math.abs(targetCarryover - sisa) > 0.01) {
+          result.push({ type: 'rollover', categoryId: item.category._id, categoryName: item.category.name, amount: sisa })
+        }
       }
     }
     return result
-  }, [budgetData])
+  }, [budgetData, currentBudgetData])
 
   // Last month (for comparison)
   const lastMonthData = useQuery(convexApi.budgets.getBudgetStatus, {
