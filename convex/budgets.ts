@@ -1003,6 +1003,141 @@ export const rolloverBudgets = mutation({
     }
 });
 
+export const processMonthEnd = mutation({
+  args: {
+    householdId: v.optional(v.id("households")),
+    month: v.number(),
+    year: v.number(),
+  },
+  handler: async (ctx, { householdId, month, year }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
+
+    if (householdId) {
+      if (!await ensureHouseholdAccess(ctx, householdId, identity.subject)) throw new Error("Unauthorized");
+    }
+
+    const household = await getHousehold(ctx, householdId, userId);
+    const startDay = household?.budgetStartDay || 1;
+
+    // --- SWEEP LOGIC ---
+    let budgets;
+    if (householdId) {
+      budgets = await ctx.db.query("budgets").withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", year).eq("month", month)).collect();
+    } else {
+      budgets = await ctx.db.query("budgets").withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", year).eq("month", month)).collect();
+    }
+
+    const { start: startOfFiscal, end: endOfFiscal } = getFiscalMonthRange(year, month, startDay);
+
+    let monthTransactions;
+    if (householdId) {
+      monthTransactions = await ctx.db.query("transactions")
+        .withIndex("by_householdId_date", q => q.eq("householdId", householdId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+        .collect();
+    } else {
+      monthTransactions = await ctx.db.query("transactions")
+        .withIndex("by_userId_date", q => q.eq("userId", userId).gte("date", startOfFiscal).lte("date", endOfFiscal))
+        .collect();
+    }
+
+    let allAccounts;
+    if (householdId) {
+      allAccounts = await ctx.db.query("accounts").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+      allAccounts = await ctx.db.query("accounts").withIndex("by_userId", (q) => q.eq("userId", userId)).collect();
+    }
+    const accountsMap: AccountMap = new Map(allAccounts.map(a => [String(a._id), a]));
+
+    let allCategories;
+    if (householdId) {
+      allCategories = await ctx.db.query("categories").withIndex("by_householdId", q => q.eq("householdId", householdId)).collect();
+    } else {
+      allCategories = await ctx.db.query("categories").withIndex("by_userId", q => q.eq("userId", userId)).collect();
+    }
+    const categoriesMap = new Map(allCategories.map(c => [c._id, c]));
+
+    const spendingByCategory = calculateSpendingByCategory(monthTransactions, accountsMap, categoriesMap);
+
+    let sweptCount = 0;
+    for (const budget of budgets) {
+      const category = categoriesMap.get(budget.categoryId);
+      if (!category?.enablePacing) {
+        const spent = spendingByCategory[budget.categoryId] || 0;
+        const allocated = parseFloat(budget.amount.replace(/,/g, '') || '0');
+        const carryover = parseFloat(budget.carryoverAmount?.replace(/,/g, '') || '0');
+        const currentSwept = parseFloat(budget.sweptAmount?.replace(/,/g, '') || '0');
+        const totalAvailable = allocated + carryover;
+        const remaining = totalAvailable - spent;
+
+        if (remaining > 0 && Math.abs(remaining - currentSwept) > 0.01) {
+          await ctx.db.patch(budget._id, { sweptAmount: remaining.toString() });
+          sweptCount++;
+        }
+      }
+    }
+
+    // --- ROLLOVER LOGIC ---
+    let targetMonth = month + 1;
+    let targetYear = year;
+    if (targetMonth > 11) {
+      targetMonth = 0;
+      targetYear++;
+    }
+
+    let allTargetBudgets;
+    if (householdId) {
+      allTargetBudgets = await ctx.db.query("budgets")
+        .withIndex("by_householdId_year_month", q => q.eq("householdId", householdId).eq("year", targetYear).eq("month", targetMonth))
+        .collect();
+    } else {
+      allTargetBudgets = await ctx.db.query("budgets")
+        .withIndex("by_userId_year_month", q => q.eq("userId", userId).eq("year", targetYear).eq("month", targetMonth))
+        .collect();
+    }
+    const targetBudgetByCategory = new Map(allTargetBudgets.map(b => [b.categoryId, b]));
+
+    let rolloverCount = 0;
+    for (const b of budgets) {
+      const category = categoriesMap.get(b.categoryId);
+      if (category?.enablePacing) {
+        const allocated = parseFloat(b.amount.replace(/,/g, '') || '0');
+        const swept = parseFloat(b.sweptAmount?.replace(/,/g, '') || '0');
+        const carryover = parseFloat(b.carryoverAmount?.replace(/,/g, '') || '0');
+        const spent = spendingByCategory[b.categoryId] || 0;
+        const sisa = (allocated + carryover - swept) - spent;
+
+        if (sisa !== 0) {
+          const targetBudget = targetBudgetByCategory.get(b.categoryId);
+
+          if (targetBudget) {
+            const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
+            if (Math.abs(targetCarryover - sisa) > 0.01) {
+              await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
+              rolloverCount++;
+            }
+          } else {
+            await ctx.db.insert("budgets", {
+              userId,
+              householdId,
+              categoryId: b.categoryId,
+              amount: "0",
+              year: targetYear,
+              month: targetMonth,
+              carryoverAmount: sisa.toString()
+            });
+            rolloverCount++;
+          }
+        }
+      }
+    }
+
+    await recomputeUserCache(ctx, userId, householdId);
+    return { sweptCount, rolloverCount };
+  }
+});
+
 export const fixAllCarryovers = mutation({
   args: {
     householdId: v.optional(v.id("households")),
