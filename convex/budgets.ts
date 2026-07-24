@@ -31,7 +31,7 @@ async function getHousehold(ctx: QueryCtx, householdId?: Id<"households">, userI
 
 function getCurrentFiscalMonth(household?: { budgetStartDay?: number; timezone?: string } | null): { year: number; month: number } {
     const startDay = household?.budgetStartDay || 1;
-    const now = new Date();
+    const now = getServerNow(household?.timezone);
     return getFiscalDateDetails(
         `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
         startDay

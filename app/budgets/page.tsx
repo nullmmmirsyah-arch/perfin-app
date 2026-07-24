@@ -82,21 +82,12 @@ export default function BudgetsPage() {
   // Helper to get the actual "Current Fiscal Month" based on Today
   const getCurrentFiscalDate = () => getFiscalDate(new Date(), budgetStartDay);
 
-  // INITIALIZE FISCAL DATE
-  // Only run this once when the household data is ready and we haven't manually navigated yet (simplified)
-  useEffect(() => {
-      if (activeHousehold) {
-          const fiscalToday = getCurrentFiscalDate();
-          // If the default "Today" (Jan) is strictly DIFFERENT from "Fiscal Today" (Dec)
-          // AND we are currently viewing "Today" (meaning user hasn't scrolled far away), correct it.
-          if (fiscalToday.getMonth() !== new Date().getMonth() && selectedDate.getMonth() === new Date().getMonth()) {
-              setSelectedDate(fiscalToday);
-          }
-      }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeHousehold?.budgetStartDay]); // Run when setting loads/changes
-  
   const { year: fiscalYear, month: fiscalMonth } = getFiscalDateDetails(selectedDate.toISOString(), budgetStartDay);
+
+  // Fiscal month Date for header display — derived from fiscal year/month, not selectedDate.
+  // selectedDate is a raw calendar date used for navigation; the header must show the
+  // fiscal period label (e.g., "December" for Dec 25 – Jan 24 when budgetStartDay=25).
+  const fiscalDisplayDate = new Date(fiscalYear, fiscalMonth);
   const budgetData = useQuery(convexApi.budgets.getBudgetStatus, {
     month: fiscalMonth,
     year: fiscalYear,
@@ -208,7 +199,7 @@ export default function BudgetsPage() {
             </Button>
             <div className="flex flex-col items-center justify-center px-1">
               <div className="flex items-center gap-1">
-                <span className="text-xs font-medium">{format(selectedDate, 'MMM yyyy')}</span>
+                <span className="text-xs font-medium">{format(fiscalDisplayDate, 'MMM yyyy')}</span>
                 {isCurrentPeriod && (
                   <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Current Active Period" />
                 )}
@@ -311,7 +302,7 @@ export default function BudgetsPage() {
               </Button>
               <div className="flex flex-col items-center justify-center w-40">
                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium">{format(selectedDate, 'MMMM yyyy')}</span>
+                    <span className="text-sm font-medium">{format(fiscalDisplayDate, 'MMMM yyyy')}</span>
                     {isCurrentPeriod && (
                         <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" title="Current Active Period" />
                     )}
@@ -388,7 +379,7 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {monthEndProposals && monthEndProposals.length > 0 && !isPastMonth && (
+      {!isPastMonth && budgetData?.data && budgetData.data.length > 0 && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
@@ -405,9 +396,11 @@ export default function BudgetsPage() {
                   <CheckCircle2 className="h-4 w-4 text-primary" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-primary">Month-End Ready</p>
+                  <p className="text-sm font-semibold text-primary">Month-End Review</p>
                   <p className="text-[10px] text-primary/70">
-                    {monthEndProposals.length} action{monthEndProposals.length > 1 ? 's' : ''} pending
+                    {monthEndProposals && monthEndProposals.length > 0
+                      ? `${monthEndProposals.length} action${monthEndProposals.length > 1 ? 's' : ''} pending`
+                      : 'Review your previous period performance'}
                   </p>
                 </div>
               </div>

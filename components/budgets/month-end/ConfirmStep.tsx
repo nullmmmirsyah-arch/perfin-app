@@ -102,14 +102,31 @@ export function ConfirmStep({
       variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
       className="space-y-4"
     >
-      {/* Header */}
-      <motion.div variants={fadeInUp} className="text-center">
-        <CheckCircle2 className="h-10 w-10 text-primary mx-auto mb-2" />
-        <h3 className="text-lg font-bold">Customize Actions</h3>
-        <p className="text-xs text-muted-foreground">
-          Toggle type or exclude categories
-        </p>
-      </motion.div>
+      {/* Empty state */}
+      {proposals.length === 0 ? (
+        <motion.div variants={fadeInUp} className="text-center py-8">
+          <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-4" />
+          <h3 className="text-lg font-bold mb-2">All Caught Up!</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            No sweep or rollover actions needed for this period.
+          </p>
+          <p className="text-xs text-muted-foreground mb-6">
+            Your previous period budgets are all balanced.
+          </p>
+          <Button onClick={onBack} className="w-full">
+            Back to Review
+          </Button>
+        </motion.div>
+      ) : (
+        <>
+          {/* Header */}
+          <motion.div variants={fadeInUp} className="text-center">
+            <CheckCircle2 className="h-10 w-10 text-primary mx-auto mb-2" />
+            <h3 className="text-lg font-bold">Customize Actions</h3>
+            <p className="text-xs text-muted-foreground">
+              Toggle type or exclude categories
+            </p>
+          </motion.div>
 
       {/* Category List */}
       <motion.div variants={fadeInUp} className="space-y-2">
@@ -242,6 +259,8 @@ export function ConfirmStep({
           )}
         </Button>
       </motion.div>
+        </>
+      )}
     </motion.div>
   )
 }
