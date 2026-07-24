@@ -65,12 +65,18 @@ export default function MonthEndPage() {
   const totalRollover = rollovers.reduce((acc, p) => acc + p.amount, 0)
 
   // Calculate budget data for summary
-  const totalSpent = budgetData?.data?.reduce((acc, item) => acc + item.spent, 0) || 0
-  const totalBudget = budgetData?.data?.reduce((acc, item) => {
-    const amount = parseFloat(item.budget?.amount?.replace(/,/g, '') || '0')
-    return acc + amount
-  }, 0) || 0
-  const totalSaved = Math.max(0, totalBudget - totalSpent)
+  const totalSpent = budgetData?.data
+    ?.filter(item => item.category.type === 'expense')
+    .reduce((acc, item) => acc + item.spent, 0) || 0
+  const totalSaved = budgetData?.data
+    ?.filter(item => item.category.type === 'saving')
+    .reduce((acc, item) => acc + item.spent, 0) || 0
+  const totalBudget = budgetData?.data
+    ?.filter(item => item.category.type === 'expense')
+    .reduce((acc, item) => {
+      const amount = parseFloat(item.budget?.amount?.replace(/,/g, '') || '0')
+      return acc + amount
+    }, 0) || 0
   const savingsRate = totalBudget > 0 ? (totalSaved / totalBudget) * 100 : 0
   const healthScore = Math.min(100, Math.max(0, Math.round(savingsRate + (totalSaved > 0 ? 20 : 0))))
 
