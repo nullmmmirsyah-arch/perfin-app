@@ -279,22 +279,22 @@ export function ConfirmStep({
               Confirm Month-End Process
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>You are about to process <strong>{selectedItems.length} categories</strong>:</p>
+              <div>You are about to process <strong>{selectedItems.length} categories</strong>:</div>
               {sweepItems.length > 0 && (
-                <p className="text-sm">
+                <div className="text-sm">
                   <span className="font-medium text-primary">{sweepItems.length} sweep</span>
                   {totalSwept > 0 && ` — ${formatCurrency(totalSwept)} will move to Unassigned`}
-                </p>
+                </div>
               )}
               {rolloverItems.length > 0 && (
-                <p className="text-sm">
+                <div className="text-sm">
                   <span className="font-medium text-success">{rolloverItems.length} rollover</span>
                   {totalRollover !== 0 && ` — ${totalRollover > 0 ? '+' : ''}${formatCurrency(totalRollover)} will carry to next month`}
-                </p>
+                </div>
               )}
-              <p className="text-destructive font-medium text-sm pt-2">
+              <div className="text-destructive font-medium text-sm pt-2">
                 This action cannot be undone.
-              </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
