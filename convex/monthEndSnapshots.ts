@@ -33,7 +33,13 @@ export async function saveSnapshotInternal(
         .first();
 
   if (existing) {
-    await ctx.db.delete(existing._id);
+    await ctx.db.patch(existing._id, {
+      sweptBudgets: args.sweptBudgets,
+      rolledOverBudgets: args.rolledOverBudgets,
+      insertedBudgets: args.insertedBudgets,
+      createdAt: Date.now(),
+    });
+    return existing._id;
   }
 
   return await ctx.db.insert("monthEndSnapshots", {
