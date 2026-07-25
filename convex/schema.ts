@@ -286,9 +286,10 @@ export default defineSchema({
       previousCarryoverAmount: v.string(),
     })),
     insertedBudgets: v.array(v.id("budgets")),
-    createdAt: v.string(),
+    createdAt: v.number(),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"])
-    .index("by_userId_year_month", ["userId", "year", "month"]),
+    .index("by_userId_year_month", ["userId", "year", "month"])
+    .index("by_householdId_year_month", ["householdId", "year", "month"]),
 });
