@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { fadeInUp, staggerContainer } from '@/lib/animations'
 import { useQuery, useMutation } from 'convex/react'
@@ -113,24 +113,12 @@ export default function BudgetsPage() {
   const breakdown = budgetData?.breakdown;
 
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
-  const ensureCurrentRollover = useMutation(convexApi.budgets.ensureCurrentRollover)
-
   const latestSnapshot = useQuery(convexApi.monthEndSnapshots.getLatest, {
     householdId: householdId ?? undefined
   })
   const rollbackMonthEnd = useMutation(convexApi.monthEndSnapshots.rollback)
   const [showRollbackDialog, setShowRollbackDialog] = useState(false)
   const [isRollingBack, setIsRollingBack] = useState(false)
-
-  const rolloverInitRef = useRef(false)
-
-  useEffect(() => {
-    if (activeHousehold && !rolloverInitRef.current) {
-      rolloverInitRef.current = true
-      ensureCurrentRollover({ householdId: householdId ?? undefined })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeHousehold])
 
   const handleEdit = (category: Doc<'categories'>, amount?: string) => {
     setSelectedCategory(category)
