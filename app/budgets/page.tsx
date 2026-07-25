@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { fadeInUp, staggerContainer } from '@/lib/animations'
 import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../convex/_generated/api'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { MoreHorizontal, Edit2, Trash2, ChevronLeft, ChevronRight, CheckCircle2, Info, Target, Wallet } from 'lucide-react'
@@ -115,6 +115,13 @@ export default function BudgetsPage() {
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
   const ensureCurrentRollover = useMutation(convexApi.budgets.ensureCurrentRollover)
 
+  const latestSnapshot = useQuery(convexApi.monthEndSnapshots.getLatest, {
+    householdId: householdId ?? undefined
+  })
+  const rollbackMonthEnd = useMutation(convexApi.monthEndSnapshots.rollback)
+  const [showRollbackDialog, setShowRollbackDialog] = useState(false)
+  const [isRollingBack, setIsRollingBack] = useState(false)
+
   const rolloverInitRef = useRef(false)
 
   useEffect(() => {
@@ -141,6 +148,19 @@ export default function BudgetsPage() {
 
   const nextMonth = () => setSelectedDate(curr => addMonths(curr, 1))
   const prevMonth = () => setSelectedDate(curr => subMonths(curr, 1))
+
+  const handleRollback = async () => {
+    setIsRollingBack(true)
+    try {
+      await rollbackMonthEnd({ householdId: householdId ?? undefined })
+      toast.success('Month-end process undone')
+      setShowRollbackDialog(false)
+    } catch (error) {
+      toast.error('Failed to undo: ' + (error as Error).message)
+    } finally {
+      setIsRollingBack(false)
+    }
+  }
 
   const calculatedDaysRemaining = (() => {
     if (isPastMonth) return 0;
@@ -414,6 +434,21 @@ export default function BudgetsPage() {
         </motion.div>
       )}
 
+      {/* Rollback Banner */}
+      {latestSnapshot && (
+        <div className="flex items-center justify-between px-4 py-2 bg-muted/50 rounded-lg mb-4">
+          <p className="text-xs text-muted-foreground">
+            ↩ Month-end processed for {latestSnapshot.month + 1}/{latestSnapshot.year}
+          </p>
+          <button
+            onClick={() => setShowRollbackDialog(true)}
+            className="text-xs text-destructive hover:text-destructive/80 font-medium"
+          >
+            Undo last process
+          </button>
+        </div>
+      )}
+
       <BudgetDrawer
         open={open}
         onOpenChange={setOpen}
@@ -442,6 +477,49 @@ export default function BudgetsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Rollback Confirmation Dialog */}
+      <AlertDialog open={showRollbackDialog} onOpenChange={setShowRollbackDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo Month-End Process</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>This will reverse the last month-end process:</p>
+              {latestSnapshot?.sweptBudgets && latestSnapshot.sweptBudgets.length > 0 && (
+                <p className="text-sm">
+                  • {latestSnapshot.sweptBudgets.length} categories will have swept amounts reset
+                </p>
+              )}
+              {latestSnapshot?.rolledOverBudgets && latestSnapshot.rolledOverBudgets.length > 0 && (
+                <p className="text-sm">
+                  • {latestSnapshot.rolledOverBudgets.length} categories will have carryover amounts restored
+                </p>
+              )}
+              {latestSnapshot?.insertedBudgets && latestSnapshot.insertedBudgets.length > 0 && (
+                <p className="text-sm">
+                  • {latestSnapshot.insertedBudgets.length} budgets created during rollover will be deleted
+                </p>
+              )}
+              <p className="text-destructive font-medium text-sm pt-2">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRollingBack}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRollback}
+              disabled={isRollingBack}
+              className={cn(
+                buttonVariants(),
+                "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              )}
+            >
+              {isRollingBack ? 'Undoing...' : 'Undo Process'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
