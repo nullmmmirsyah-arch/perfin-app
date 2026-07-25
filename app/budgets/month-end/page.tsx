@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../../convex/_generated/api'
 import { useHousehold } from '@/components/HouseholdProvider'
@@ -42,10 +42,14 @@ const slideVariants = {
 
 export default function MonthEndPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isReprocess = searchParams.get('reprocess') === 'true'
+  const reprocessMonth = parseInt(searchParams.get('month') || '-1')
+  const reprocessYear = parseInt(searchParams.get('year') || '-1')
   const { householdId, households } = useHousehold()
   const activeHousehold = households.find(h => h._id === householdId)
   const budgetStartDay = activeHousehold?.budgetStartDay || 1
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStep] = useState(isReprocess ? 4 : 1)
   const [direction, setDirection] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
@@ -64,9 +68,12 @@ export default function MonthEndPage() {
   if (twoMonthsAgo < 0) { twoMonthsAgo = 11; twoMonthsAgoYear-- }
 
   // This month (the month being reviewed)
+  const targetMonth = isReprocess ? reprocessMonth : prevMonth
+  const targetYear = isReprocess ? reprocessYear : prevYear
+
   const budgetData = useQuery(convexApi.budgets.getBudgetStatus, {
-    month: prevMonth,
-    year: prevYear,
+    month: targetMonth,
+    year: targetYear,
     householdId: householdId ?? undefined
   })
 
@@ -230,17 +237,21 @@ export default function MonthEndPage() {
     })
   }
 
+  const goToStep = (step: number) => {
+    if (isReprocess && step < 4) return // Can't go back to steps 1-3 in reprocess mode
+    setDirection(step > currentStep ? 1 : -1)
+    setCurrentStep(step)
+  }
+
   const nextStep = () => {
     if (currentStep < totalSteps) {
-      setDirection(1)
-      setCurrentStep(currentStep + 1)
+      goToStep(currentStep + 1)
     }
   }
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setDirection(-1)
-      setCurrentStep(currentStep - 1)
+      goToStep(currentStep - 1)
     }
   }
 
@@ -257,8 +268,8 @@ export default function MonthEndPage() {
       }))
 
       await processMonthEnd({
-        month: prevMonth,
-        year: prevYear,
+        month: targetMonth,
+        year: targetYear,
         householdId: householdId ?? undefined,
         actions
       })
