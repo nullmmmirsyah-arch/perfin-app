@@ -5,6 +5,7 @@ import {
   calculateUnassignedCash,
   AccountMap,
   getFiscalDateDetails,
+  getServerNow,
   analyzeTransactionFlow,
 } from "./finance";
 
@@ -15,6 +16,7 @@ export async function recomputeUserCache(
 ): Promise<void> {
   // 1. Fetch all data in parallel
   let startDay = 1;
+  let timezone: string | null = null;
 
   let transactionsPromise, accountsPromise, categoriesPromise, budgetsPromise;
 
@@ -65,6 +67,7 @@ export async function recomputeUserCache(
   if (householdId) {
     const household = await ctx.db.get(householdId);
     startDay = household?.budgetStartDay || 1;
+    timezone = household?.timezone ?? null;
   }
 
   const accountsMap: AccountMap = new Map(allAccounts.map((a) => [String(a._id), a]));
@@ -104,7 +107,7 @@ export async function recomputeUserCache(
     .sort((a, b) => b.year - a.year || b.month - a.month);
 
   // 4. Unassigned cash
-  const now = new Date();
+  const now = getServerNow(timezone);
   const { year: currentYear, month: currentMonth } = getFiscalDateDetails(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
     startDay
