@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { formatCurrency, cn } from '@/lib/utils'
-import { CheckCircle2, ArrowRight, ArrowLeftRight, CircleArrowRight, CircleArrowDown } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { CheckCircle2, ArrowRight, ArrowLeftRight, CircleArrowRight, CircleArrowDown, AlertTriangle } from 'lucide-react'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 type ProposalType = 'sweep' | 'rollover'
 
@@ -86,6 +87,7 @@ export function ConfirmStep({
   const rolloverItems = selectedItems.filter(p => p.finalType === 'rollover')
   const totalSwept = sweepItems.reduce((acc, p) => acc + p.amount, 0)
   const totalRollover = rolloverItems.reduce((acc, p) => acc + p.amount, 0)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   const handleConfirm = () => {
     const result = selectedItems.map(p => ({
@@ -253,7 +255,7 @@ export function ConfirmStep({
         </Button>
 
         <Button
-          onClick={handleConfirm}
+          onClick={() => setShowConfirmDialog(true)}
           disabled={isProcessing || selectedItems.length === 0}
           className="flex-1"
         >
@@ -267,6 +269,53 @@ export function ConfirmStep({
           )}
         </Button>
       </motion.div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Confirm Month-End Process
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>You are about to process <strong>{selectedItems.length} categories</strong>:</p>
+              {sweepItems.length > 0 && (
+                <p className="text-sm">
+                  <span className="font-medium text-primary">{sweepItems.length} sweep</span>
+                  {totalSwept > 0 && ` — ${formatCurrency(totalSwept)} will move to Unassigned`}
+                </p>
+              )}
+              {rolloverItems.length > 0 && (
+                <p className="text-sm">
+                  <span className="font-medium text-success">{rolloverItems.length} rollover</span>
+                  {totalRollover !== 0 && ` — ${totalRollover > 0 ? '+' : ''}${formatCurrency(totalRollover)} will carry to next month`}
+                </p>
+              )}
+              <p className="text-destructive font-medium text-sm pt-2">
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirm}
+              disabled={isProcessing}
+              className={cn(
+                buttonVariants(),
+                "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              )}
+            >
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                'Process'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
         </>
       )}
     </motion.div>
