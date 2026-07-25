@@ -435,8 +435,8 @@ export default function BudgetsPage() {
         </motion.div>
       )}
 
-      {/* Rollback Banner */}
-      {latestSnapshot && (
+      {/* Rollback Banner — only show when viewing the processed period */}
+      {latestSnapshot && latestSnapshot.month === fiscalMonth && latestSnapshot.year === fiscalYear && (
         <div className="flex items-center justify-between px-4 py-2 bg-muted/50 rounded-lg mb-4">
           <p className="text-xs text-muted-foreground">
             ↩ Month-end processed for {latestSnapshot.month + 1}/{latestSnapshot.year}
