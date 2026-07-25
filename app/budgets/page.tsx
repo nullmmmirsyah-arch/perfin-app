@@ -181,31 +181,28 @@ export default function BudgetsPage() {
       };
   }, { totalTarget: 0, totalSaved: 0 });
 
-  // Detect if current period has been processed by month-end wizard
-  const hasUnprocessedPeriods = useMemo(() => {
-    if (!budgetData?.data || budgetData.data.length === 0) return false
-    // If there's no snapshot or the latest snapshot is for a different period, it's unprocessed
-    if (!latestSnapshot) return true
-    return latestSnapshot.month !== fiscalMonth || latestSnapshot.year !== fiscalYear
-  }, [budgetData?.data, latestSnapshot, fiscalMonth, fiscalYear])
+  // Calculate previous period (the period being reviewed)
+  let prevFiscalMonth = fiscalMonth - 1
+  let prevFiscalYear = fiscalYear
+  if (prevFiscalMonth < 0) { prevFiscalMonth = 11; prevFiscalYear-- }
 
-  // Show Re-process button only if user has processed before (latestSnapshot exists)
-  // AND current period is not the same as the processed period
-  const showReprocessButton = useMemo(() => {
-    if (!latestSnapshot) return false // Never processed before
-    if (!budgetData?.data || budgetData.data.length === 0) return false
-    return latestSnapshot.month !== fiscalMonth || latestSnapshot.year !== fiscalYear
-  }, [latestSnapshot, budgetData?.data, fiscalMonth, fiscalYear])
+  // Check if previous period has been processed (snapshot exists for previous period)
+  const isPreviousPeriodProcessed = useMemo(() => {
+    if (!latestSnapshot) return false
+    return latestSnapshot.month === prevFiscalMonth && latestSnapshot.year === prevFiscalYear
+  }, [latestSnapshot, prevFiscalMonth, prevFiscalYear])
 
-  // Show Month-End Review only if there are proposals AND user hasn't processed this period yet
-  // OR if user has never processed (first time)
+  // Show Month-End Review only if previous period hasn't been processed yet
   const showMonthEndReview = useMemo(() => {
     if (!budgetData?.data || budgetData.data.length === 0) return false
-    // If never processed, show Month-End Review
-    if (!latestSnapshot) return true
-    // If processed period is different from current, show Month-End Review
-    return latestSnapshot.month !== fiscalMonth || latestSnapshot.year !== fiscalYear
-  }, [budgetData?.data, latestSnapshot, fiscalMonth, fiscalYear])
+    return !isPreviousPeriodProcessed
+  }, [budgetData?.data, isPreviousPeriodProcessed])
+
+  // Show Re-process button only if previous period has been processed
+  const showReprocessButton = useMemo(() => {
+    if (!budgetData?.data || budgetData.data.length === 0) return false
+    return isPreviousPeriodProcessed
+  }, [budgetData?.data, isPreviousPeriodProcessed])
 
   return (
     <div className="pb-24 p-4 md:p-8 overflow-x-hidden">
