@@ -1125,7 +1125,24 @@ export const create = mutation({
 
          // ONLY auto-budget if it's a Deposit (Liquid Cash -> Special Goal)
          if (fromIsLiquid && toIsSpecial) {
-            await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, true);
+            // Check if budget goal already exists
+            const household = args.householdId ? await ctx.db.get(args.householdId) : null;
+            const startDay = household?.budgetStartDay || 1;
+            const { year, month } = getFiscalDateDetails(args.date, startDay);
+            
+            const existingBudget = await ctx.db.query("budgets")
+                .withIndex("by_householdId_category_year_month", q => 
+                    q.eq("householdId", args.householdId)
+                     .eq("categoryId", finalCategoryId as Id<"categories">)
+                     .eq("year", year)
+                     .eq("month", month)
+                ).first();
+            
+            if (!existingBudget) {
+                // Direct depositor: no budget yet → create new budget
+                await ensureBudgetExists(ctx, finalCategoryId as Id<"categories">, args.date, identity.subject, args.amount, args.householdId, false);
+            }
+            // else: Manual allocator → deposit is just a transfer, skip budget creation
          }
     }
 
@@ -1656,6 +1673,61 @@ export const deleteTransaction = mutation({
         newBalance = balance + amount;
       }
       await ctx.db.patch(account._id, { balance: newBalance.toString() });
+    }
+
+    // Clean up auto-created budget untuk deposit (Liquid → Saving) — BEFORE deleting the transaction
+    if (transaction.type === TRANSACTION_TYPES.TRANSFER && transaction.categoryId) {
+        const fromAccount = await ctx.db.get(transaction.accountId);
+        const toAccount = transaction.toAccountId ? await ctx.db.get(transaction.toAccountId) : null;
+        
+        const fromIsLiquid = fromAccount && (!fromAccount.type || fromAccount.type.toUpperCase() === ACCOUNT_TYPES.CASH);
+        const toIsSpecial = toAccount && (toAccount.type?.toUpperCase() === ACCOUNT_TYPES.SAVING || toAccount.type?.toUpperCase() === ACCOUNT_TYPES.ASSET);
+        
+        if (fromIsLiquid && toIsSpecial) {
+            // Deposit deleted → reduce/remove budget goal
+            const household = transaction.householdId 
+                ? await ctx.db.get(transaction.householdId) 
+                : null;
+            const startDay = household?.budgetStartDay || 1;
+            const { year, month } = getFiscalDateDetails(transaction.date, startDay);
+            
+            const budget = await ctx.db.query("budgets")
+                .withIndex("by_householdId_category_year_month", q => 
+                    q.eq("householdId", transaction.householdId)
+                     .eq("categoryId", transaction.categoryId)
+                     .eq("year", year)
+                     .eq("month", month)
+                ).first();
+            
+            if (budget) {
+                const budgetAmount = parseFloat(budget.amount.replace(/,/g, ''));
+                const txAmount = parseFloat(transaction.amount.replace(/,/g, ''));
+                const initialAmount = budget.initialAmount ? parseFloat(budget.initialAmount.replace(/,/g, '')) : null;
+                const totalAdjustments = budget.totalAdjustments ? parseFloat(budget.totalAdjustments.replace(/,/g, '')) : 0;
+                
+                const isAutoCreated = initialAmount === null && totalAdjustments === 0;
+                
+                if (isAutoCreated) {
+                    if (budgetAmount <= txAmount) {
+                        await ctx.db.delete(budget._id);
+                    } else {
+                        await ctx.db.patch(budget._id, { amount: (budgetAmount - txAmount).toString() });
+                    }
+                } else {
+                    const newAmount = Math.max(0, budgetAmount - txAmount);
+                    const newAdjustments = totalAdjustments - txAmount;
+                    
+                    if (newAmount <= 0) {
+                        await ctx.db.delete(budget._id);
+                    } else {
+                        await ctx.db.patch(budget._id, { 
+                            amount: newAmount.toString(),
+                            totalAdjustments: newAdjustments.toString()
+                        });
+                    }
+                }
+            }
+        }
     }
 
     await ctx.db.delete(args.id);
