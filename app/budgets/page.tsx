@@ -186,11 +186,24 @@ export default function BudgetsPage() {
   let prevFiscalYear = fiscalYear
   if (prevFiscalMonth < 0) { prevFiscalMonth = 11; prevFiscalYear-- }
 
-  // Check if previous period has been processed (snapshot exists for previous period)
+  // Get previous period budget data to check if it's been processed
+  const prevPeriodBudgetData = useQuery(convexApi.budgets.getBudgetStatus, {
+    month: prevFiscalMonth,
+    year: prevFiscalYear,
+    householdId: householdId ?? undefined
+  })
+
+  // Check if previous period has been processed by checking sweptAmount or carryoverAmount
   const isPreviousPeriodProcessed = useMemo(() => {
-    if (!latestSnapshot) return false
-    return latestSnapshot.month === prevFiscalMonth && latestSnapshot.year === prevFiscalYear
-  }, [latestSnapshot, prevFiscalMonth, prevFiscalYear])
+    if (!prevPeriodBudgetData?.data || prevPeriodBudgetData.data.length === 0) return false
+    // Check if any budget has sweptAmount or carryoverAmount set
+    return prevPeriodBudgetData.data.some(b => {
+      if (!b.budget) return false
+      const swept = parseFloat(b.budget.sweptAmount || '0')
+      const carryover = parseFloat(b.budget.carryoverAmount || '0')
+      return swept > 0 || carryover > 0
+    })
+  }, [prevPeriodBudgetData?.data])
 
   // Show Month-End Review only if previous period hasn't been processed yet
   const showMonthEndReview = useMemo(() => {
