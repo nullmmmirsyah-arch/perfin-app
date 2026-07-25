@@ -12,6 +12,13 @@ Format:
 
 ## 2026-07-25
 
+### Added
+- **Month-end rollback mechanism:** User bisa undo proses month-end terakhir. Snapshot disimpan sebelum `processMonthEnd` menjalankan sweep/rollover, dan bisa di-restore jika user klik "Undo".
+- **`monthEndSnapshots` table:** Menyimpan previous state `sweptAmount` dan `carryoverAmount` sebelum proses, plus ID budget yang di-insert saat rollover.
+- **`convex/monthEndSnapshots.ts`:** Module dengan `getLatest` query, `save` mutation, `rollback` mutation. Semua pakai household auth check.
+- **Undo banner di budgets page:** Banner subtle tampilkan "Month-end processed" dengan tombol "Undo last process". Hanya muncul di bulan yang sedang dilihat (sama dengan snapshot).
+- **Rollback confirmation dialog:** AlertDialog tampilkan detail berapa kategori yang di-rollback (swept amounts, carryover amounts, inserted budgets) dengan warning "This action cannot be undone".
+
 ### Changed
 - **Month-end page data flow — proposals derived from `budgetData`:** Hapus query `getMonthEndProposals` dari month-end page. Proposals sekarang di-derive langsung dari `budgetData.data` (yang sudah di-fetch untuk Steps 1-3) menggunakan `useMemo`. Eliminasi timezone/date mismatch antara client dan server. Satu sumber data, konsisten.
 - **Rollover dedup check:** Tambah `currentBudgetData` query (current fiscal month) untuk cek apakah rollover sudah diproses. Kalau `currentBudget.carryoverAmount` sudah match `sisa`, proposal rollover tidak ditampilkan lagi.
