@@ -150,6 +150,7 @@ export default function BudgetsPage() {
   const prevMonth = () => setSelectedDate(curr => subMonths(curr, 1))
 
   const handleRollback = async () => {
+    navigator.vibrate(10)
     setIsRollingBack(true)
     try {
       await rollbackMonthEnd({ householdId: householdId ?? undefined })
