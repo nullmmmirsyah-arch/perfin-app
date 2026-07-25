@@ -95,7 +95,7 @@ const handler = mutation({
 
 Already implemented in:
 - `convex/transactions.ts`: create, update, deleteTransaction
-- `convex/budgets.ts`: upsertBudget, deleteBudget, moveBudgetFunds, sweepBudgets, rolloverBudgets, fixAllCarryovers, ensureCurrentRollover
+- `convex/budgets.ts`: upsertBudget, deleteBudget, moveBudgetFunds, sweepBudgets, rolloverBudgets, fixAllCarryovers
 
 If you add a new mutation that affects financial data, add the hook.
 

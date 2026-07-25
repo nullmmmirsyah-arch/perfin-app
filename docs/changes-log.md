@@ -12,6 +12,13 @@ Format:
 
 ## 2026-07-25
 
+### Remove Auto-Rollover + Add Re-process Button
+- Removed `ensureCurrentRollover` from page load - wizard is now the single source of truth
+- Added "Re-process Rollover" button on budgets page for unprocessed periods
+- Month-end page handles `?reprocess=true` query param to start at Step 4
+- Snapshot storage now overwrites existing records instead of creating duplicates
+- Users have full control over when month-end processing occurs
+
 ### Added
 - **Month-end rollback mechanism:** User bisa undo proses month-end terakhir. Snapshot disimpan sebelum `processMonthEnd` menjalankan sweep/rollover, dan bisa di-restore jika user klik "Undo".
 - **`monthEndSnapshots` table:** Menyimpan previous state `sweptAmount` dan `carryoverAmount` sebelum proses, plus ID budget yang di-insert saat rollover.
