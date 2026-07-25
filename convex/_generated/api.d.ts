@@ -24,6 +24,7 @@ import type * as lib_recomputeCache from "../lib/recomputeCache.js";
 import type * as lib_transactions from "../lib/transactions.js";
 import type * as merchants from "../merchants.js";
 import type * as migrations from "../migrations.js";
+import type * as monthEndSnapshots from "../monthEndSnapshots.js";
 import type * as notifications from "../notifications.js";
 import type * as push from "../push.js";
 import type * as recurring from "../recurring.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   "lib/transactions": typeof lib_transactions;
   merchants: typeof merchants;
   migrations: typeof migrations;
+  monthEndSnapshots: typeof monthEndSnapshots;
   notifications: typeof notifications;
   push: typeof push;
   recurring: typeof recurring;
