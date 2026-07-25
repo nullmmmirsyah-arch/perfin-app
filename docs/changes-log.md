@@ -22,7 +22,7 @@ Format:
 ### Changed
 - **Month-end page data flow — proposals derived from `budgetData`:** Hapus query `getMonthEndProposals` dari month-end page. Proposals sekarang di-derive langsung dari `budgetData.data` (yang sudah di-fetch untuk Steps 1-3) menggunakan `useMemo`. Eliminasi timezone/date mismatch antara client dan server. Satu sumber data, konsisten.
 - **Rollover dedup check:** Tambah `currentBudgetData` query (current fiscal month) untuk cek apakah rollover sudah diproses. Kalau `currentBudget.carryoverAmount` sudah match `sisa`, proposal rollover tidak ditampilkan lagi.
-- **Banner condition:** Banner "Review & Process" di budgets page sekarang tampil kalau `budgetData.data.length > 0` (ada budget bulan lalu), bukan `monthEndProposals.length > 0`. Alasan: user perlu review performa meskipun tidak ada action sweep/rollover.
+- **Banner condition:** Banner "Month-End Review" di budgets page sekarang tampil kalau `budgetData.data.length > 0` (ada budget bulan lalu), bukan `monthEndProposals.length > 0`. Alasan: user perlu review performa meskipun tidak ada action sweep/rollover.
 - **Banner text dinamis:** Subtitle banner tampilkan action count kalau ada proposals, atau "Review your previous period performance" kalau tidak ada.
 
 ### Fixed

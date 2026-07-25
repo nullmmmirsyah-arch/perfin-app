@@ -21,7 +21,7 @@ If the user navigates to a different month in the UI, `handleSweep` processes th
 
 - Today is July 2026 (current fiscal month = July)
 - User navigates to May 2026 in the UI
-- User clicks "Review & Process"
+- User clicks "Month-End Review"
 - `handleSweep` calculates `prevMonth` = April (based on `selectedDate` = May)
 - But proposals are for June (the month before July)
 - Result: sweep/rollover for June is never processed
@@ -39,7 +39,7 @@ If `sweepBudgets` succeeds but `rolloverBudgets` fails:
 - Sweep is committed (unassigned cash increased)
 - Rollover is not committed (carryover to next month lost)
 - User sees error toast but state is inconsistent
-- Re-clicking "Review & Process" shows no proposals (sweeps already recorded), so rollover can never be processed
+- Re-clicking "Month-End Review" shows no proposals (sweeps already recorded), so rollover can never be processed
 
 ## Solution
 
@@ -85,4 +85,4 @@ Both operations are atomic — if either fails, neither is committed.
 ## Verification
 
 - `npm run lint`
-- Manual test: navigate to a past month, verify "Review & Process" still processes the correct (previous) month
+- Manual test: navigate to a past month, verify "Month-End Review" still processes the correct (previous) month

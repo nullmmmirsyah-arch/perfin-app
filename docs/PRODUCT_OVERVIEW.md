@@ -99,7 +99,7 @@
     - **Settlement Integrity:** Income categorized into an expense category (reimbursements/settlements) acts as **Negative Spending**, accurately increasing the available budget for that category.
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
     - **Flexible Overspending:** Overspending in a category results in a **Negative Available** balance. 
-- **Month-End Processing (Review & Process):**
+- **Month-End Processing (Month-End Review):**
     - **Concept:** A unified action to finalize the previous month's budget and start the new month with accurate balances.
     - **Accurate Settlement Handling:** Corrects for reimbursements by using **Net Spending** in the surplus calculation.
     - **Non-Destructive Sweep:** For standard budgets, unspent funds are "swept" back to **Unassigned Cash** for the current month. The historical budget limit remains unchanged.

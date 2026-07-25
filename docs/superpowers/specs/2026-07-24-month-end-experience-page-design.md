@@ -2,11 +2,11 @@
 
 ## Overview
 
-Replace the current dialog-based "Review & Process" with an immersive, step-by-step page experience at `/budgets/month-end`. Designed to make month-end review feel rewarding and motivating through subtle animations and psychological touches.
+Replace the current dialog-based month-end review with an immersive, step-by-step page experience at `/budgets/month-end`. Designed to make month-end review feel rewarding and motivating through subtle animations and psychological touches.
 
 ## Current State (Production)
 
-- Banner "Review & Process" → navigates to `/budgets/month-end`
+- Banner "Month-End Review" → navigates ke `/budgets/month-end`
 - 4-step wizard page with animations
 - Per-category health status, insights, achievements
 - Celebration with confetti on completion
