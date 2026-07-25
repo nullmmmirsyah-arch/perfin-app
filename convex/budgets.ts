@@ -1073,6 +1073,7 @@ export const processMonthEnd = mutation({
     // Snapshot arrays for rollback
     const sweptSnapshot: { budgetId: typeof budgets[number]["_id"]; previousSweptAmount: string }[] = [];
     const rolloverSnapshot: { budgetId: typeof budgets[number]["_id"]; previousCarryoverAmount: string }[] = [];
+    const insertedBudgetIds: typeof budgets[number]["_id"][] = [];
 
     let sweptCount = 0;
     for (const budget of budgets) {
@@ -1161,6 +1162,7 @@ export const processMonthEnd = mutation({
             carryoverAmount: sisa.toString()
           });
           rolloverSnapshot.push({ budgetId: newBudget, previousCarryoverAmount: "0" });
+          insertedBudgetIds.push(newBudget);
           rolloverCount++;
         }
       }
@@ -1174,9 +1176,7 @@ export const processMonthEnd = mutation({
         year,
         sweptBudgets: sweptSnapshot,
         rolledOverBudgets: rolloverSnapshot,
-        insertedBudgets: rolloverSnapshot
-          .filter(r => r.previousCarryoverAmount === "0")
-          .map(r => r.budgetId),
+        insertedBudgets: insertedBudgetIds,
       });
     }
 
