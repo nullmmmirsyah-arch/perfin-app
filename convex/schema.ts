@@ -271,4 +271,24 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
+
+  monthEndSnapshots: defineTable({
+    userId: v.string(),
+    householdId: v.optional(v.id("households")),
+    month: v.number(),
+    year: v.number(),
+    sweptBudgets: v.array(v.object({
+      budgetId: v.id("budgets"),
+      previousSweptAmount: v.string(),
+    })),
+    rolledOverBudgets: v.array(v.object({
+      budgetId: v.id("budgets"),
+      previousCarryoverAmount: v.string(),
+    })),
+    insertedBudgets: v.array(v.id("budgets")),
+    createdAt: v.string(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_householdId", ["householdId"])
+    .index("by_userId_year_month", ["userId", "year", "month"]),
 });
