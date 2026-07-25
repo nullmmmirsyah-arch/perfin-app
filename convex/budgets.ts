@@ -14,6 +14,7 @@ import {
   getFiscalConfig
 } from "./lib/finance";
 import { recomputeUserCache, getCache } from "./lib/recomputeCache";
+import { saveSnapshotInternal } from "./monthEndSnapshots";
 
 async function getHousehold(ctx: QueryCtx, householdId?: Id<"households">, userId?: string) {
     if (householdId) {
@@ -863,8 +864,8 @@ export const sweepBudgets = mutation({
             if (remaining > 0 && Math.abs(remaining - currentSwept) > 0.01) {
                 await ctx.db.patch(budget._id, { sweptAmount: remaining.toString() });
                 sweptCount++;
-            }
         }
+      }
     }
 
     await recomputeUserCache(ctx, userId, householdId);
@@ -1069,6 +1070,10 @@ export const processMonthEnd = mutation({
 
     const spendingByCategory = calculateSpendingByCategory(monthTransactions, accountsMap, categoriesMap);
 
+    // Snapshot arrays for rollback
+    const sweptSnapshot: { budgetId: typeof budgets[number]["_id"]; previousSweptAmount: string }[] = [];
+    const rolloverSnapshot: { budgetId: typeof budgets[number]["_id"]; previousCarryoverAmount: string }[] = [];
+
     let sweptCount = 0;
     for (const budget of budgets) {
       const catId = String(budget.categoryId);
@@ -1090,6 +1095,7 @@ export const processMonthEnd = mutation({
       const remaining = totalAvailable - spent;
 
       if (remaining > 0 && Math.abs(remaining - currentSwept) > 0.01) {
+        sweptSnapshot.push({ budgetId: budget._id, previousSweptAmount: budget.sweptAmount ?? "0" });
         await ctx.db.patch(budget._id, { sweptAmount: remaining.toString() });
         sweptCount++;
       }
@@ -1140,11 +1146,12 @@ export const processMonthEnd = mutation({
         if (targetBudget) {
           const targetCarryover = parseFloat(targetBudget.carryoverAmount?.replace(/,/g, '') || '0');
           if (Math.abs(targetCarryover - sisa) > 0.01) {
+            rolloverSnapshot.push({ budgetId: targetBudget._id, previousCarryoverAmount: targetBudget.carryoverAmount ?? "0" });
             await ctx.db.patch(targetBudget._id, { carryoverAmount: sisa.toString() });
             rolloverCount++;
           }
         } else {
-          await ctx.db.insert("budgets", {
+          const newBudget = await ctx.db.insert("budgets", {
             userId,
             householdId,
             categoryId: b.categoryId,
@@ -1153,9 +1160,24 @@ export const processMonthEnd = mutation({
             month: targetMonth,
             carryoverAmount: sisa.toString()
           });
+          rolloverSnapshot.push({ budgetId: newBudget, previousCarryoverAmount: "0" });
           rolloverCount++;
         }
       }
+    }
+
+    // Save snapshot for rollback
+    if (sweptSnapshot.length > 0 || rolloverSnapshot.length > 0) {
+      await saveSnapshotInternal(ctx, userId, {
+        householdId: householdId ?? undefined,
+        month,
+        year,
+        sweptBudgets: sweptSnapshot,
+        rolledOverBudgets: rolloverSnapshot,
+        insertedBudgets: rolloverSnapshot
+          .filter(r => r.previousCarryoverAmount === "0")
+          .map(r => r.budgetId),
+      });
     }
 
     await recomputeUserCache(ctx, userId, householdId);

@@ -1,7 +1,52 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { ensureHouseholdAccess } from "./lib/auth";
 import { recomputeUserCache } from "./lib/recomputeCache";
+
+type SnapshotArgs = {
+  householdId?: Id<"households">;
+  month: number;
+  year: number;
+  sweptBudgets: { budgetId: Id<"budgets">; previousSweptAmount: string }[];
+  rolledOverBudgets: { budgetId: Id<"budgets">; previousCarryoverAmount: string }[];
+  insertedBudgets: Id<"budgets">[];
+};
+
+export async function saveSnapshotInternal(
+  ctx: MutationCtx,
+  userId: string,
+  args: SnapshotArgs
+) {
+  const existing = args.householdId
+    ? await ctx.db
+        .query("monthEndSnapshots")
+        .withIndex("by_householdId_year_month", (q) =>
+          q.eq("householdId", args.householdId!).eq("year", args.year).eq("month", args.month)
+        )
+        .first()
+    : await ctx.db
+        .query("monthEndSnapshots")
+        .withIndex("by_userId_year_month", (q) =>
+          q.eq("userId", userId).eq("year", args.year).eq("month", args.month)
+        )
+        .first();
+
+  if (existing) {
+    await ctx.db.delete(existing._id);
+  }
+
+  return await ctx.db.insert("monthEndSnapshots", {
+    userId,
+    householdId: args.householdId,
+    month: args.month,
+    year: args.year,
+    sweptBudgets: args.sweptBudgets,
+    rolledOverBudgets: args.rolledOverBudgets,
+    insertedBudgets: args.insertedBudgets,
+    createdAt: Date.now(),
+  });
+}
 
 export const getLatest = query({
   args: {
@@ -55,35 +100,7 @@ export const save = mutation({
       await ensureHouseholdAccess(ctx, args.householdId, userId);
     }
 
-    // Delete existing snapshot for this month (overwrite if exists)
-    const existing = args.householdId
-      ? await ctx.db
-          .query("monthEndSnapshots")
-          .withIndex("by_householdId_year_month", (q) =>
-            q.eq("householdId", args.householdId!).eq("year", args.year).eq("month", args.month)
-          )
-          .first()
-      : await ctx.db
-          .query("monthEndSnapshots")
-          .withIndex("by_userId_year_month", (q) =>
-            q.eq("userId", userId).eq("year", args.year).eq("month", args.month)
-          )
-          .first();
-
-    if (existing) {
-      await ctx.db.delete(existing._id);
-    }
-
-    return await ctx.db.insert("monthEndSnapshots", {
-      userId,
-      householdId: args.householdId,
-      month: args.month,
-      year: args.year,
-      sweptBudgets: args.sweptBudgets,
-      rolledOverBudgets: args.rolledOverBudgets,
-      insertedBudgets: args.insertedBudgets,
-      createdAt: Date.now(),
-    });
+    return await saveSnapshotInternal(ctx, userId, args);
   },
 });
 
