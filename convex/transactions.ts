@@ -1694,7 +1694,7 @@ export const deleteTransaction = mutation({
             const budget = await ctx.db.query("budgets")
                 .withIndex("by_householdId_category_year_month", q => 
                     q.eq("householdId", transaction.householdId)
-                     .eq("categoryId", transaction.categoryId)
+                     .eq("categoryId", transaction.categoryId as Id<"categories">)
                      .eq("year", year)
                      .eq("month", month)
                 ).first();
