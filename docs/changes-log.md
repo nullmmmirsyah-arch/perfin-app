@@ -12,7 +12,19 @@ Format:
 
 ## 2026-07-25
 
-### Remove Auto-Rollover + Add Re-process Button
+### Fixed
+- **`getFiscalDateDetails` month indexing inconsistency:** Function returned 0-indexed months for `startDay=1` but 1-indexed for `startDay>1`. Database always stores 0-indexed. Caused cache to compute `unassignedCash` against wrong month's budgets. Fix: always return 0-indexed months.
+- **`getFiscalMonthRange` for `startDay=1`:** End date was calculated incorrectly. Fix: use `new Date(year, month+1, 0)` for correct last-day-of-month.
+- **`MobileBudgetToday` pace calculation:** Used raw calendar year/month instead of fiscal year/month. Caused dashboard to show incorrect pacing status when `budgetStartDay > 1`. Fix: use `getFiscalDateDetails` for fiscal year/month.
+
+### Docs
+- Updated `DATABASE_AND_RELATIONSHIPS.md`: Month-end section now reflects client-side proposal derivation via `useMemo`
+- Updated `TECH_STACK_AND_WORKFLOW.md`: Replaced "Lazy Sub-queries for Month-End" with current architecture
+- Updated `CACHE_OPTIMIZATION.md`: Marked `getMonthEndProposals` as legacy (month-end page derives client-side)
+- Updated `TECH_STACK_AND_WORKFLOW.md`: Documented `getFiscalDateDetails` always returns 0-indexed months
+- Updated `DATABASE_AND_RELATIONSHIPS.md`: Added 0-indexed month convention for budgets
+
+### Removed Auto-Rollover + Add Re-process Button
 - Removed `ensureCurrentRollover` from page load - wizard is now the single source of truth
 - Added "Re-process Rollover" button on budgets page for unprocessed periods
 - Month-end page handles `?reprocess=true` query param to start at Step 4

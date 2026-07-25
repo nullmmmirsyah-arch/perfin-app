@@ -68,7 +68,7 @@
     - **`convex/lib/finance.ts` (Fiscal Logic):**
         - `getServerNow(timezone)`: Returns "now" adjusted to the user's IANA timezone, normalized to noon to avoid day-boundary issues. Falls back to UTC if no timezone provided.
         - `getFiscalConfig(household)`: Extracts `{ startDay, timezone }` from a household document for use in queries.
-        - `getFiscalDateDetails(date, startDay)`: Converts a Calendar Date to Fiscal Year/Month.
+        - `getFiscalDateDetails(date, startDay)`: Converts a Calendar Date to Fiscal Year/Month. **Always returns 0-indexed months** (0=Jan, 11=Dec) regardless of `startDay`. Database stores months as 0-indexed.
         - `getFiscalMonthRange(year, month, startDay)`: Returns start/end timestamps for a fiscal period.
         - **Critical:** All budget queries MUST use `getServerNow(timezone)` instead of `new Date()` to ensure period transitions happen at midnight in the user's local timezone, not midnight UTC.
         - **Timezone Source:** The timezone comes from `household.timezone` (IANA string, e.g. "Asia/Jakarta"). The `timezoneMode` field determines whether it's auto-detected from the device or manually set.
@@ -128,7 +128,7 @@
     - **Avoid N+1 Queries:** When fetching lists of items with related data (e.g., Transactions with Accounts/Categories), always use **Batch Fetching**.
     - **Pattern:** Collect all IDs first -> `Promise.all(ids.map(ctx.db.get))` -> Map results back. **Do NOT** await `ctx.db.get` inside a loop.
     - **Date-Range Indexed Queries over Full Scans:** Prefer indexed date-range queries (`by_userId_date` / `by_householdId_date`) over full-table `.collect()` + JS filter. `getBudgetStatus` and related queries now use this pattern — fetching only the current fiscal period's transactions.
-    - **Lazy Sub-queries for Month-End:** Heavy operations like month-end proposal calculation are extracted into separate queries (`getMonthEndProposals`) rather than bundled into the main budget query.
+    - **Month-End Proposals:** Derived client-side from `budgetData.data` via `useMemo` in the month-end page. The backend `getMonthEndProposals` query still exists for backward compatibility but the month-end page no longer uses it.
     - **Memoization (Frontend):** Use `useMemo` for heavy client-side grouping or filtering operations (e.g., `TransactionListGrouped`), especially when dealing with large datasets on mobile devices.
     - **Date-Range Queries with Composite Index:**
         - Filter transactions within a fiscal period using the composite `by_userId_date` / `by_householdId_date` index with `.gte/.lte`. This avoids full-table scans entirely.

@@ -29,8 +29,13 @@ export function getFiscalDateDetails(dateStr: string, startDay: number = 1): { y
 }
 
 export function getFiscalMonthRange(year: number, month: number, startDay: number = 1): { start: Date; end: Date } {
-  const startDate = new Date(year, startDay > 1 ? month - 1 : month, startDay);
-  const endDate = new Date(year, startDay > 1 ? month : month + 1, startDay - 1);
+  if (startDay === 1) {
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0); // day 0 of next month = last day of this month
+    return { start: startDate, end: endDate };
+  }
+  const startDate = new Date(year, month - 1, startDay);
+  const endDate = new Date(year, month, startDay - 1);
   return { start: startDate, end: endDate };
 }
 

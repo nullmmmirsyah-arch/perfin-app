@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatCurrency, parseAmount } from '@/lib/utils'
-import { calculateBudgetPace, calculateFiscalDaysRemaining, type PacingStatus } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails, type PacingStatus } from '@/lib/finance-utils'
 import Link from 'next/link'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -62,8 +62,7 @@ type OverallStatus = 'on_track' | 'spending_faster' | 'slow_down'
 
 function computeOverallStatus(breakdown: BudgetBreakdownItem[], startDay: number = 1): OverallStatus {
   if (!breakdown || breakdown.length === 0) return 'on_track'
-  const year = new Date().getFullYear()
-  const month = new Date().getMonth()
+  const { year, month } = getFiscalDateDetails(new Date().toISOString(), startDay)
   let hasWarning = false
   for (const item of breakdown) {
     if (item.enablePacing === false || item.limit <= 0) continue
@@ -127,8 +126,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
   } as const
   const config = statusConfig[status]
 
-  const year = new Date().getFullYear()
-  const month = new Date().getMonth()
+  const { year, month } = getFiscalDateDetails(new Date().toISOString(), startDay)
 
   const pacedItems = (summary?.budgetBreakdown || [])
     .filter(item => item.enablePacing !== false && item.limit > 0)

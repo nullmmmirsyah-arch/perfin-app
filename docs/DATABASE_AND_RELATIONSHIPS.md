@@ -58,6 +58,7 @@ To support partial settlements (installments), we use a self-referential relatio
 
 ### 5. Budgets & Fiscal Periods
 - **Relation:** A `budget` document exists for a unique combination of `categoryId`, `year`, and `month`.
+- **Month Indexing:** `month` field is **0-indexed** (0=January, 11=December). `getFiscalDateDetails` always returns 0-indexed months.
 - **Fiscal Start Day:** All monthly groupings are calculated using `budgetStartDay` from the household settings. 
     - *Example:* If Start Day is 25, a transaction on Jan 26 belongs to the "February" budget period.
 - **Timezone:** Fiscal period transitions happen at midnight in the user's configured timezone (not UTC). Backend uses `getServerNow(timezone)` to compute the current period.
@@ -82,13 +83,12 @@ To support partial settlements (installments), we use a self-referential relatio
     - Source budget: `amount -= moveAmount` (carryoverAmount NOT modified to avoid `getMonthEndProposals` invariant break).
     - Destination budget: `amount += moveAmount`, `totalAdjustments += moveAmount`.
     - Self-transfer guarded: `fromCategoryId === toCategoryId` throws error.
-- **Month-End Processing (Lazy Query):**
-    - Proposal calculation extracted to `getMonthEndProposals` query (called separately, not part of `getBudgetStatus`).
-    - **Formula for Remaining Funds:** `(Allocated + Carryover - Swept) - Spent`.
-    - **The `categoriesMap` Rule:** MUST provide `categoriesMap` to include settlements/reimbursements in netting logic.
+- **Month-End Processing:**
+    - Proposals are derived client-side from `budgetData.data` via `useMemo` in the month-end page — no separate server call.
+    - **Formula for Remaining Funds:** `max(0, (Allocated + Carryover) - NetSpent)` where `NetSpent = Expenses - Income` (settlements count as negative spending).
     - **Standard Categories:** Positive remaining funds are **Swept**.
     - **Paced Categories:** Surplus and Debt are **Rolled Over** via `carryoverAmount`.
-    - **Atomic Processing:** `processMonthEnd` mutation combines sweep + rollover in a single Convex transaction. Client calls this instead of separate `sweepBudgets`/`rolloverBudgets` mutations. If either operation fails, neither is committed.
+    - **Atomic Processing:** `processMonthEnd` mutation combines sweep + rollover in a single Convex transaction. Saves a snapshot before processing for rollback capability.
 - **Swept/Carryover Fields:** 
     - `sweptAmount`: Funds already returned to the wallet (prevents double-counting).
     - `carryoverAmount`: Debt or surplus carried forward (Paced budgets only).

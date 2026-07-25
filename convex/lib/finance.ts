@@ -284,14 +284,11 @@ export function getFiscalDateDetails(
   startDay: number = 1
 ): { year: number; month: number } {
   const date = new Date(dateStr);
-  if (startDay === 1) {
-    return { year: date.getFullYear(), month: date.getMonth() };
-  }
   const day = date.getDate();
   let year = date.getFullYear();
-  let month = date.getMonth();
+  let month = date.getMonth(); // 0-indexed
 
-  if (day >= startDay) {
+  if (startDay > 1 && day >= startDay) {
     month += 1;
     if (month > 11) { month = 0; year += 1; }
   }
@@ -309,10 +306,15 @@ export function getFiscalMonthRange(
   month: number,
   startDay: number = 1
 ): { start: string; end: string } {
-  const startDate = new Date(year, startDay > 1 ? month - 1 : month, startDay);
-  const endDate = new Date(year, startDay > 1 ? month : month + 1, startDay - 1, 23, 59, 59, 999);
-  return { 
-    start: startDate.toISOString(), 
-    end: endDate.toISOString() 
-  };
+  if (startDay === 1) {
+    // Standard calendar month: month is 0-indexed
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999); // day 0 of next month = last day of this month
+    return { start: startDate.toISOString(), end: endDate.toISOString() };
+  }
+  // Fiscal month with custom start day: month is 0-indexed
+  // month=7 (August) with startDay=25 → period is July 25 to August 24
+  const startDate = new Date(year, month - 1, startDay);
+  const endDate = new Date(year, month, startDay - 1, 23, 59, 59, 999);
+  return { start: startDate.toISOString(), end: endDate.toISOString() };
 }

@@ -152,7 +152,7 @@ const recent = await ctx.db.query("transactions")
 
 **Before:** Did 4 full-table `.collect()` calls — `transactions` (x2), `budgets` (x2).
 
-**Fix:** Replaced with indexed month-scoped queries and extracted month-end proposal calculation into a separate lazy query `getMonthEndProposals`. The main budget query no longer computes proposals synchronously.
+**Fix:** Replaced with indexed month-scoped queries. Month-end proposals are now derived client-side from `budgetData.data` via `useMemo` (the `getMonthEndProposals` backend query is kept for backward compatibility only).
 
 ### `upsertBudget` — full scan → scan of expense budgets only (June 2026)
 
@@ -167,7 +167,7 @@ const recent = await ctx.db.query("transactions")
 | **moveBudgetFunds** | `by_householdId_date` tanpa `.gte/.lte` → fetch semua transaksi | `.gte/.lte` di index — hanya 1 bulan |
 | **sweepBudgets** | `by_householdId` (no date) + JS filter → full scan | `by_householdId_date` + `.gte/.lte` |
 | **getBudgetReport** | `by_householdId` (no date) → full scan | `by_householdId_date` + range reports |
-| **getMonthEndProposals** | N sequential query per pacing category (N+1) | 1 pre-fetch + `Map.get()` O(1) |
+| **getMonthEndProposals** | N sequential query per pacing category (N+1) | 1 pre-fetch + `Map.get()` O(1) — **legacy, month-end page derives client-side** |
 | **getBudgetStatus** | N parallel query per saving reset category (N+1) | 1 batch query + in-memory filter |
 | **getBudgetAssistance** | 3 sequential month queries | 1 range query + in-memory partition |
 
