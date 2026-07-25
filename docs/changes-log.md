@@ -18,6 +18,7 @@ Format:
 - Month-end page handles `?reprocess=true` query param to start at Step 4
 - Snapshot storage now overwrites existing records instead of creating duplicates
 - Users have full control over when month-end processing occurs
+- Fixed button visibility logic: Month-End Review shows for first-time processing, Re-process shows only when user has processed before but current period needs re-processing
 
 ### Added
 - **Month-end rollback mechanism:** User bisa undo proses month-end terakhir. Snapshot disimpan sebelum `processMonthEnd` menjalankan sweep/rollover, dan bisa di-restore jika user klik "Undo".

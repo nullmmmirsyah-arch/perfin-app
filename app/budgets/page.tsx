@@ -189,6 +189,24 @@ export default function BudgetsPage() {
     return latestSnapshot.month !== fiscalMonth || latestSnapshot.year !== fiscalYear
   }, [budgetData?.data, latestSnapshot, fiscalMonth, fiscalYear])
 
+  // Show Re-process button only if user has processed before (latestSnapshot exists)
+  // AND current period is not the same as the processed period
+  const showReprocessButton = useMemo(() => {
+    if (!latestSnapshot) return false // Never processed before
+    if (!budgetData?.data || budgetData.data.length === 0) return false
+    return latestSnapshot.month !== fiscalMonth || latestSnapshot.year !== fiscalYear
+  }, [latestSnapshot, budgetData?.data, fiscalMonth, fiscalYear])
+
+  // Show Month-End Review only if there are proposals AND user hasn't processed this period yet
+  // OR if user has never processed (first time)
+  const showMonthEndReview = useMemo(() => {
+    if (!budgetData?.data || budgetData.data.length === 0) return false
+    // If never processed, show Month-End Review
+    if (!latestSnapshot) return true
+    // If processed period is different from current, show Month-End Review
+    return latestSnapshot.month !== fiscalMonth || latestSnapshot.year !== fiscalYear
+  }, [budgetData?.data, latestSnapshot, fiscalMonth, fiscalYear])
+
   return (
     <div className="pb-24 p-4 md:p-8 overflow-x-hidden">
       {/* Mobile Header Layout */}
@@ -396,7 +414,8 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {!isPastMonth && budgetData?.data && budgetData.data.length > 0 && (
+      {/* Month-End Review button - show only when user hasn't processed this period yet */}
+      {showMonthEndReview && !isPastMonth && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
@@ -431,8 +450,8 @@ export default function BudgetsPage() {
         </motion.div>
       )}
 
-      {/* Re-process button - only show when current period not processed but has data */}
-      {hasUnprocessedPeriods && (
+      {/* Re-process button - only show when user has processed before but current period needs re-processing */}
+      {showReprocessButton && (
         <motion.div
           variants={fadeInUp}
           initial="hidden"
