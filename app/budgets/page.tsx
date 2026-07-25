@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { fadeInUp, staggerContainer } from '@/lib/animations'
 import { useQuery, useMutation } from 'convex/react'
@@ -8,7 +8,7 @@ import { api as convexApi } from '../../convex/_generated/api'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { MoreHorizontal, Edit2, Trash2, ChevronLeft, ChevronRight, CheckCircle2, Info, Target, Wallet } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, ChevronLeft, ChevronRight, CheckCircle2, Info, Target, Wallet, RefreshCw } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -180,6 +180,14 @@ export default function BudgetsPage() {
           totalSaved: acc.totalSaved + monthlySaved
       };
   }, { totalTarget: 0, totalSaved: 0 });
+
+  // Detect if current period has been processed by month-end wizard
+  const hasUnprocessedPeriods = useMemo(() => {
+    if (!budgetData?.data || budgetData.data.length === 0) return false
+    // If there's no snapshot or the latest snapshot is for a different period, it's unprocessed
+    if (!latestSnapshot) return true
+    return latestSnapshot.month !== fiscalMonth || latestSnapshot.year !== fiscalYear
+  }, [budgetData?.data, latestSnapshot, fiscalMonth, fiscalYear])
 
   return (
     <div className="pb-24 p-4 md:p-8 overflow-x-hidden">
@@ -416,6 +424,40 @@ export default function BudgetsPage() {
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                 <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </button>
+        </motion.div>
+      )}
+
+      {/* Re-process button - only show when current period not processed but has data */}
+      {hasUnprocessedPeriods && (
+        <motion.div
+          variants={fadeInUp}
+          initial="hidden"
+          animate="visible"
+          className="mb-6"
+        >
+          <button
+            onClick={() => router.push(`/budgets/month-end?reprocess=true&month=${fiscalMonth}&year=${fiscalYear}`)}
+            className="w-full p-3 rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-amber-500/10 hover:from-amber-500/10 hover:to-amber-500/15 transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <RefreshCw className="h-4 w-4 text-amber-500" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-amber-500">Re-process Rollover</p>
+                  <p className="text-[10px] text-amber-500/70">
+                    Transactions were added to a processed period. Update your rollover to reflect changes.
+                  </p>
+                </div>
+              </div>
+              <div className="h-7 w-7 rounded-full bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                <svg className="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </div>
             </div>
