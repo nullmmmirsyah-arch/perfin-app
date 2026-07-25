@@ -1,5 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { ensureHouseholdAccess } from "./lib/auth";
+import { recomputeUserCache } from "./lib/recomputeCache";
 
 export const getLatest = query({
   args: {
@@ -12,6 +14,7 @@ export const getLatest = query({
 
     let snapshot;
     if (householdId) {
+      await ensureHouseholdAccess(ctx, householdId, userId);
       snapshot = await ctx.db
         .query("monthEndSnapshots")
         .withIndex("by_householdId", (q) => q.eq("householdId", householdId))
@@ -47,6 +50,10 @@ export const save = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     const userId = identity.subject;
+
+    if (args.householdId) {
+      await ensureHouseholdAccess(ctx, args.householdId, userId);
+    }
 
     // Delete existing snapshot for this month (overwrite if exists)
     const existing = args.householdId
@@ -89,6 +96,10 @@ export const rollback = mutation({
     if (!identity) throw new Error("Not authenticated");
     const userId = identity.subject;
 
+    if (householdId) {
+      await ensureHouseholdAccess(ctx, householdId, userId);
+    }
+
     // Find latest snapshot
     const snapshot = householdId
       ? await ctx.db
@@ -103,7 +114,7 @@ export const rollback = mutation({
           .first();
 
     if (!snapshot) {
-      throw new Error("No rollback available");
+      throw new Error("No snapshot found for rollback");
     }
 
     // Restore swept budgets
@@ -125,7 +136,6 @@ export const rollback = mutation({
     await ctx.db.delete(snapshot._id);
 
     // Recompute cache
-    const { recomputeUserCache } = await import("./lib/recomputeCache");
     await recomputeUserCache(ctx, userId, householdId);
 
     return { rolledBack: true };
