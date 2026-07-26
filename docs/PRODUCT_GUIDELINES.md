@@ -115,12 +115,12 @@ This document outlines the design philosophy and user experience patterns used i
 - **On-Demand Details:** Use interactive elements (like clicking a budget row or a goal) to reveal granular insights and full transaction history by navigating to their respective detail pages.
 - **Contextual Summary:** Place summary cards (Total Remaining, Total Saved) directly within their relevant tabs/slides, not in global headers.
 - **Wealth Dashboard:** Provide "Required Saving" insights (e.g., "+1.2M/mo") directly on the Wealth Card to guide user behavior.
-- **Budget Transparency (Assigned vs. Effective):** 
-    - **Concept:** Clearly separate "New Money" allocated this month from "Adjustments" (rollover debt/surplus).
-    - **Visuals:** Use a **Stats Grid** in the header to show the breakdown (Planned + Adjustments = Effective).
-    - **Standardization:** Both the Dashboard and Budgets page use the same centralized function (`calculateMonthlyBudgetLeft`) and label ("Monthly Budget Left") to ensure consistency.
-    - **Mobile-First:** Ensure the grid uses `flex-wrap` to stack gracefully on small screens without losing detail.
-    - **Transparency:** Explicitly show when funds are "swept back" to clarify why the remaining balance might have changed after a month-end process.
+- **Budget Transparency (Allocation Progress):** 
+    - **Concept:** Clearly show how much of the user's income has been assigned to budget categories using a prominent Allocation Progress Hero Card.
+    - **Visuals:** Large progress bar (`h-3.5`) with percentage display, stats row (Income / Budgeted / Unassigned), and contextual nudge messages.
+    - **Motivation:** Uses Goal Gradient Effect (more motivation as you approach 100%) and Completion Bias (unfinished progress creates tension). Confetti celebration at 100%.
+    - **Mobile-First:** Card stacks gracefully on small screens with `flex-wrap` stats row.
+    - **Transparency:** Expenses Summary Card focuses on spending performance (spent/remaining with days left and daily burn rate), separate from allocation progress.
 - **Receivables & Striped Bar:**
     - **Problem:** User lent money, making the budget bar red/full, but it's not their actual expense.
     - **Solution:** Use a **Striped (Arsir) Bar** pattern.

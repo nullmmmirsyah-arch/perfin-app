@@ -77,7 +77,7 @@ To support partial settlements (installments), we use a self-referential relatio
     - When user edits budget (via BudgetDrawer or QuickAdjust), both `amount` and `initialAmount` are set to the new value.
     - `totalAdjustments` remains unchanged.
 - **Move Funds (Standalone Drawer):**
-    - `moveBudgetFunds` mutation powers `components/MoveFundsDrawer.tsx`, accessible via "Move Funds" button in the budget page action bar.
+    - `moveBudgetFunds` mutation powers `components/MoveFundsDrawer.tsx`, accessible via "Move Funds" button in the Allocation Progress Hero Card on the budget page.
     - Supports transfers from Unassigned Cash or other category budgets to any category (or back to Unassigned).
     - `toCategoryId` is optional — `undefined` returns funds to Unassigned Cash.
     - Source budget: `amount -= moveAmount` (carryoverAmount NOT modified to avoid `getMonthEndProposals` invariant break).

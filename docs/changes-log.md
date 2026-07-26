@@ -12,6 +12,28 @@ Format:
 
 ## 2026-07-26
 
+### Added
+- **Allocation Progress Hero Card:** Komponen baru `components/budgets/AllocationProgressCard.tsx` menampilkan progress bar prominent yang menunjukkan berapa % income sudah di-assign ke categories. Menggunakan psychological principles (Goal Gradient, Completion Bias) untuk memotivasi user mencapai zero-based budget. Includes:
+  - Progress bar `h-3.5` dengan percentage display `text-4xl font-black`
+  - Stats row: Income / Budgeted / Unassigned
+  - Contextual nudge messages berdasarkan allocation % (`lib/allocation-nudge.ts`)
+  - Confetti celebration saat mencapai 100% allocation (respect `prefers-reduced-motion`)
+  - "Complete" badge dan green styling saat unassigned = 0
+  - "Move Funds" button prominent (hanya muncul saat unassigned > 0)
+- **`lib/allocation-nudge.ts`:** Helper function yang return contextual motivational messages berdasarkan allocation percentage dan remaining amount.
+
+### Changed
+- **Budgets page header — removed redundant "Move Funds" button:** Tombol "Move Funds" standalone di mobile header (Row 3) dan desktop header dihapus. AllocationProgressCard sudah menyediakan tombol dengan konteks yang lebih baik.
+- **Expenses Summary Card simplified:** Hapus stat blocks "New Planned" dan "Adjustments" (allocation info sudah ada di AllocationProgressCard). Tambah "days left" dan "daily burn rate" di bawah spending progress bar.
+
+### Removed
+- **Old "Unassigned" pill from budgets page header:** Pill kecil "Unassigned: {amount}" dengan Info icon dan Popover breakdown dihapus dari both mobile dan desktop layouts. Digantikan oleh AllocationProgressCard yang lebih prominent dan actionable.
+
+### Fixed
+- **AllocationProgressCard lint errors:** Hapus `showCelebration` state yang tidak terpakai dan `react-hooks/set-state-in-effect` warning.
+
+## 2026-07-26
+
 ### Fixed
 - **`getUnassignedCash` returns 0 when `userCaches` entry is missing:** `moveBudgetFunds`, `getBudgetAssistance`, dan `upsertBudget` membaca unassigned cash dari cache. Jika cache entry belum ada (user lama belum di-seed, atau `recomputeUserCache` belum pernah dipanggil), fallback `?? 0` mengembalikan 0 — padahal UI menampilkan nilai asli dari `getBudgetStatus` (direct computation). Fix: jika cache null, fall through ke direct computation (sama seperti non-current month path).
 

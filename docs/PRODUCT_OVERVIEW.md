@@ -88,14 +88,15 @@
 ### 5. Budgeting (Zero-Based Budgeting)
 - **Monthly Budgets:** Set limits per category per month.
 - **Swipeable Views:** Separate sections for "Monthly Expenses" and "Savings & Goals" navigable via swipe.
+- **Allocation Progress Hero Card:** Komponen prominent di atas budget page yang menunjukkan berapa % income sudah di-assign. Progress bar besar dengan percentage, stats row (Income/Budgeted/Unassigned), contextual nudge messages, dan confetti celebration saat mencapai 100%. Tombol "Move Funds" langsung di card jika masih ada unassigned cash.
 - **Move Money (Rule 3):**
     - Users can easily move funds from **Unassigned Cash** or **Other Categories** to cover overspending or assign funds.
-    - **Smart Drawer:** Budget drawer features "Set Limit" with quick-adjust preset buttons and real-time preview of remaining balance. **Move Funds** has its own dedicated drawer accessible via the "Move Funds" button in the budget page action bar, supporting transfers between categories and Unassigned Cash with real-time preview of remaining budgets.
+    - **Smart Drawer:** Budget drawer features "Set Limit" with quick-adjust preset buttons and real-time preview of remaining balance. **Move Funds** has its own dedicated drawer accessible via the "Move Funds" button in the Allocation Progress Card, supporting transfers between categories and Unassigned Cash with real-time preview of remaining budgets.
 - **Real-time Tracking:** Visual progress bars synced with Dashboard.
-    - **Expense Budget:** Tracks `Spent / Limit`.
+    - **Expense Budget:** Tracks `Spent / Limit` with days remaining and daily burn rate.
     - **Savings/Goals Budget:** Tracks `Monthly Contribution / Monthly Target`. Shows a **"Monthly Goal Met"** celebration badge when the monthly saving target is reached.
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
-    - **Budget Transparency:** The system distinguishes between **New Planned (Assigned)** money for the current month and **Effective Spending Power** (which includes adjustments like rollovers).
+    - **Visual Motivation:** Allocation Progress Card menggunakan Goal Gradient Effect dan Completion Bias untuk mendorong user mencapai 0 unassigned.
     - **Settlement Integrity:** Income categorized into an expense category (reimbursements/settlements) acts as **Negative Spending**, accurately increasing the available budget for that category.
     - **Strict Rule:** Ideally, Unassigned Cash should be 0.
     - **Flexible Overspending:** Overspending in a category results in a **Negative Available** balance. 
