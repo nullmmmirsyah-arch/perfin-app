@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import confetti from 'canvas-confetti'
-import type { Id } from '../../convex/_generated/dataModel'
+import type { Id } from '../convex/_generated/dataModel'
 
 const celebratedIds = new Set<string>()
 
