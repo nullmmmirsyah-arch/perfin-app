@@ -51,7 +51,7 @@ async function getUnassignedCash(
 
     if (targetMonth === currentMonth && targetYear === currentYear) {
         const cache = await getCache(ctx, userId, householdId ?? undefined);
-        return cache?.unassignedCash ?? 0;
+        if (cache) return cache.unassignedCash;
     }
 
     // Non-current month: calculate directly with spending data
