@@ -592,7 +592,7 @@ export default function BudgetsPage() {
                     ) : (
                         <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4" variants={staggerContainer} initial="hidden" animate="visible">
                             {expenses.map(item => (
-                                <motion.div key={item.category._id} variants={fadeInUp}>
+                                <motion.div key={item.category._id} variants={fadeInUp} className="min-w-0">
                                     <BudgetCard 
                                         item={item}
                                         daysRemaining={calculatedDaysRemaining}
@@ -651,7 +651,7 @@ export default function BudgetsPage() {
                     ) : (
                         <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4" variants={staggerContainer} initial="hidden" animate="visible">
                             {savings.map(item => (
-                                <motion.div key={item.category._id} variants={fadeInUp}>
+                                <motion.div key={item.category._id} variants={fadeInUp} className="min-w-0">
                                     <BudgetCard 
                                         item={item}
                                         daysRemaining={calculatedDaysRemaining}

@@ -83,7 +83,7 @@ export default function BudgetCard({
   return (
     <Card
       className={cn(
-        "p-5 flex flex-col justify-between shadow-sm h-full min-h-[150px] transition-all cursor-pointer",
+        "p-5 flex flex-col justify-between shadow-sm h-full min-h-[150px] min-w-0 transition-all cursor-pointer",
         "hover:shadow-md active:scale-[0.99]",
         isOverBudget && "border-destructive/30"
       )}
