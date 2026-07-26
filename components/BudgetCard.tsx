@@ -3,7 +3,7 @@
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Edit2, Trash2, CheckCircle2 } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, CheckCircle2, ArrowRightLeft } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
 import { calculateBudgetPace, calculateGoalStrategy, getFiscalDateDetails } from '@/lib/finance-utils'
+import { useGoalCelebration } from '@/hooks/useGoalCelebration'
+import { useRouter } from 'next/navigation'
 
 interface BudgetStatusItem {
   category: any;
@@ -35,8 +37,6 @@ interface BudgetCardProps {
   onClickGoal?: (id: any) => void;
 }
 
-import { useRouter } from 'next/navigation'
-
 export default function BudgetCard({
   item,
   daysRemaining,
@@ -50,17 +50,17 @@ export default function BudgetCard({
 }: BudgetCardProps) {
   const router = useRouter()
   const { category, budget, spent, accumulated } = item;
-  
+
   const isGoal = category.type === 'saving' && category.targetAmount;
   const targetAmount = isGoal ? parseFloat(category.targetAmount!.replace(/,/g, '')) : 0;
-  
+
   const limit = budget ? parseFloat(budget.amount) : 0;
   const carryover = budget?.carryoverAmount ? parseFloat(budget.carryoverAmount) : 0;
   const swept = budget?.sweptAmount ? parseFloat(budget.sweptAmount) : 0;
-  
+
   const effectiveLimit = limit + carryover;
   const remaining = effectiveLimit - spent - swept;
-  
+
   const percentage = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 100;
   const isOverBudget = effectiveLimit <= 0 || spent > effectiveLimit;
 
@@ -69,45 +69,57 @@ export default function BudgetCard({
     ? calculateBudgetPace(spent, effectiveLimit, fiscalYear, fiscalMonth, budgetStartDay)
     : null;
 
-  const strategy = isGoal && !isPastMonth 
-    ? calculateGoalStrategy(accumulated, targetAmount, category.targetDate, budgetStartDay) 
+  const strategy = isGoal && !isPastMonth
+    ? calculateGoalStrategy(accumulated, targetAmount, category.targetDate, budgetStartDay)
     : null;
 
   const monthlyTarget = budget && effectiveLimit > 0 ? effectiveLimit : (strategy?.monthly || 0);
   const monthlyProgress = monthlyTarget > 0 ? (spent / monthlyTarget) * 100 : 0;
   const isMonthlyGoalMet = monthlyTarget > 0 && spent >= monthlyTarget;
 
+  // Peak-End Rule: confetti when goal is met
+  useGoalCelebration(category._id, isGoal && isMonthlyGoalMet)
+
   return (
-    <Card 
+    <Card
       className={cn(
-        "p-5 flex flex-col justify-between shadow-sm h-full min-h-[150px] transition-all cursor-pointer hover:shadow-md active:scale-[0.99]"
+        "p-5 flex flex-col justify-between shadow-sm h-full min-h-[150px] transition-all cursor-pointer",
+        "hover:shadow-md active:scale-[0.99]",
+        isOverBudget && "border-destructive/30"
       )}
       onClick={() => {
         if (isGoal && onClickGoal) {
-            onClickGoal(category._id)
+          onClickGoal(category._id)
         } else {
-            router.push(`/categories/${category._id}`)
+          router.push(`/categories/${category._id}`)
         }
       }}
     >
       <div>
+        {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-base flex items-center gap-2 truncate">
               {category.name}
               {isGoal && isMonthlyGoalMet && (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
               )}
               {pacing && (
                 <Badge
                   variant="outline"
                   className={cn(
-                    "text-[9px] px-1.5 py-0 h-4 font-medium border shrink-0 pointer-events-none",
-                    pacing.status === 'safe' ? "border-success/30 text-success bg-success/5" :
-                    pacing.status === 'warning' ? "border-yellow-500/30 text-yellow-600 dark:text-yellow-400 bg-yellow-500/5" :
-                    "border-destructive/30 text-destructive bg-destructive/5"
+                    "text-[12px] px-2 py-0 h-5 font-medium border shrink-0 pointer-events-none gap-1.5",
+                    pacing.status === 'safe' && "border-success/30 text-success bg-success/5",
+                    pacing.status === 'warning' && "border-yellow-500/30 text-yellow-600 dark:text-yellow-400 bg-yellow-500/5",
+                    pacing.status === 'danger' && "border-destructive/30 text-destructive bg-destructive/5"
                   )}
                 >
+                  <span className={cn(
+                    "h-1.5 w-1.5 rounded-full shrink-0",
+                    pacing.status === 'safe' && "bg-success",
+                    pacing.status === 'warning' && "bg-yellow-500",
+                    pacing.status === 'danger' && "bg-destructive"
+                  )} />
                   {pacing.status === 'safe' ? "On Track" :
                    pacing.status === 'warning' ? "Watch" :
                    "Too Fast"}
@@ -142,7 +154,7 @@ export default function BudgetCard({
                   onEdit(category, budget?.amount || suggestedAmount);
                 }}>
                   <Edit2 className="mr-2 h-4 w-4" />
-                  {isGoal ? 'Set Monthly Contribution' : (budget ? 'Edit Budget' : 'Set Budget')}
+                  {isGoal ? 'Set Monthly Contribution' : (isOverBudget ? 'Adjust Budget' : (budget ? 'Edit Budget' : 'Set Budget'))}
                 </DropdownMenuItem>
                 {budget && (
                   <DropdownMenuItem
@@ -161,6 +173,7 @@ export default function BudgetCard({
           )}
         </div>
 
+        {/* Content */}
         <div className="space-y-3">
           {isGoal ? (
             <>
@@ -172,18 +185,24 @@ export default function BudgetCard({
                   of {formatCurrency(monthlyTarget)}
                 </span>
               </div>
-              <Progress 
-                value={Math.min(monthlyProgress, 100)} 
+              <Progress
+                value={Math.min(monthlyProgress, 100)}
                 className={cn("h-2 bg-muted", isMonthlyGoalMet ? "[&>div]:bg-success" : "[&>div]:bg-primary")}
               />
               <div className="flex justify-between items-center text-xs text-muted-foreground">
                 {isMonthlyGoalMet ? (
-                    <span className="text-success font-medium">Monthly Target Met</span>
+                  <span className="text-success font-medium">Monthly Target Met</span>
                 ) : (
-                    <span>{Math.round(monthlyProgress)}% of target</span>
+                  <span>{Math.round(monthlyProgress)}% of target</span>
                 )}
-                <span>Total: {formatCurrency(accumulated, { notation: 'compact' })}</span>
+                <span>{formatCurrency(accumulated, { notation: 'compact' })} accumulated</span>
               </div>
+              {strategy && !strategy.isDone && strategy.months > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">{formatCurrency(strategy.monthly)}/mo</span>
+                  {' · '}{strategy.months} months to target
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -198,11 +217,11 @@ export default function BudgetCard({
 
               {budget && (
                 <>
-                  <Progress 
-                    value={Math.min(percentage, 100)} 
+                  <Progress
+                    value={Math.min(percentage, 100)}
                     className={cn(
-                      "h-2 bg-muted",
-                      isOverBudget ? "[&>div]:bg-destructive" : 
+                      "h-2.5 bg-muted",
+                      isOverBudget ? "[&>div]:bg-destructive" :
                       pacing?.status === 'warning' ? "[&>div]:bg-yellow-500" :
                       pacing?.status === 'danger' ? "[&>div]:bg-destructive" : "[&>div]:bg-primary"
                     )}
@@ -214,20 +233,50 @@ export default function BudgetCard({
                       isOverBudget ? "text-destructive" : "text-foreground"
                     )}>
                       {isOverBudget
-                          ? `-${formatCurrency(spent - effectiveLimit)} over`
-                          : `${formatCurrency(remaining)} left`
+                        ? `-${formatCurrency(spent - effectiveLimit)} over`
+                        : `${formatCurrency(remaining)} left`
                       }
                     </p>
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round(percentage)}%
-                    </span>
+                    {pacing && pacing.dailyLimit > 0 && !isOverBudget && (
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(pacing.dailyLimit)}/day safe
+                      </p>
+                    )}
+                    {pacing && isOverBudget && (
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(percentage)}%
+                      </span>
+                    )}
+                    {!pacing && (
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(percentage)}%
+                      </span>
+                    )}
                   </div>
+
+                  {isOverBudget && pacing && pacing.dailyLimit > 0 && (
+                    <p className="text-[11px] text-destructive">
+                      Cut to {formatCurrency(pacing.dailyLimit)}/day to recover
+                    </p>
+                  )}
+
+                  {isOverBudget && isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full border-destructive/30 text-destructive hover:bg-destructive/5 text-xs h-8"
+                      onClick={(e) => { e.stopPropagation(); onEdit(category, budget?.amount); }}
+                    >
+                      <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />
+                      Adjust Budget
+                    </Button>
+                  )}
                 </>
               )}
 
               {isAdmin && !budget && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="w-full border-dashed text-xs h-8"
                   onClick={(e) => { e.stopPropagation(); onEdit(category); }}
