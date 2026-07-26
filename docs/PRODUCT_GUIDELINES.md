@@ -112,6 +112,13 @@ This document outlines the design philosophy and user experience patterns used i
     - **Visuals:** Use colored dots (Green/Yellow/Red) next to category names to indicate spending velocity.
     - **Interaction:** Clicking the dot reveals a **Popover** with detailed context ("Time Passed: 30%, Budget Used: 60%") and specific advice ("Reduce spending to 50k/day").
     - **Prioritization:** In Dashboard, sort budget items by urgency (Danger > Warning > Safe) so users see critical issues first.
+- **BudgetCard Emotional Design (Peak-End Rule):**
+    - **Pacing Badge:** Enlarged (12px) with colored bullet dot (●) — instant visual status without reading text.
+    - **Daily Safe Spend:** `Rp X/day safe` displayed inline below progress bar — actionable, not just informational.
+    - **Over-Budget Coaching:** Red border tint + `Cut to Rp X/day to recover` nudge + "Adjust Budget" CTA in thumb zone.
+    - **Goal Celebration:** Confetti fires once per category ID (module-level Set prevents re-fire on remount) when monthly target is met. Checkmark icon + "Monthly Target Met" text.
+    - **Goal Timeline:** `Rp X/mo · X months to target` with Clock icon — Future Self Continuity principle.
+    - **Progress Bar:** Thicker (`h-2.5`) for better visual weight on mobile.
 - **On-Demand Details:** Use interactive elements (like clicking a budget row or a goal) to reveal granular insights and full transaction history by navigating to their respective detail pages.
 - **Contextual Summary:** Place summary cards (Total Remaining, Total Saved) directly within their relevant tabs/slides, not in global headers.
 - **Wealth Dashboard:** Provide "Required Saving" insights (e.g., "+1.2M/mo") directly on the Wealth Card to guide user behavior.
@@ -121,6 +128,7 @@ This document outlines the design philosophy and user experience patterns used i
     - **Motivation:** Uses Goal Gradient Effect (more motivation as you approach 100%) and Completion Bias (unfinished progress creates tension). Confetti celebration at 100%.
     - **Mobile-First:** Card stacks gracefully on small screens with `flex-wrap` stats row.
     - **Transparency:** Expenses Summary Card focuses on spending performance (spent/remaining with days left and daily burn rate), separate from allocation progress.
+- **Mobile Grid Clipping Prevention:** BudgetCard grid wrappers and Card component use `min-w-0` to reset CSS Grid's default `min-width: auto` — prevents card overflow on narrow viewports (~400px).
 - **Receivables & Striped Bar:**
     - **Problem:** User lent money, making the budget bar red/full, but it's not their actual expense.
     - **Solution:** Use a **Striped (Arsir) Bar** pattern.

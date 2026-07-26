@@ -21,16 +21,22 @@ Format:
   - "Complete" badge dan green styling saat unassigned = 0
   - "Move Funds" button prominent (hanya muncul saat unassigned > 0)
 - **`lib/allocation-nudge.ts`:** Helper function yang return contextual motivational messages berdasarkan allocation percentage dan remaining amount.
+- **BudgetCard emotional redesign:** Pacing badge enlarged (12px) dengan colored bullet dot, progress bar lebih tebal (h-2.5), daily safe spend display (`Rp X/day safe`), over-budget coaching nudge, "Adjust Budget" CTA di thumb zone, goal strategy timeline (`Rp X/mo · X months to target`), confetti celebration saat goal monthly target tercapai via `useGoalCelebration` hook.
+- **`hooks/useGoalCelebration.ts`:** Confetti hook yang fire 1x per category ID menggunakan module-level Set untuk prevent re-fire pada remount. Respects `prefers-reduced-motion`.
 
 ### Changed
 - **Budgets page header — removed redundant "Move Funds" button:** Tombol "Move Funds" standalone di mobile header (Row 3) dan desktop header dihapus. AllocationProgressCard sudah menyediakan tombol dengan konteks yang lebih baik.
 - **Expenses Summary Card simplified:** Hapus stat blocks "New Planned" dan "Adjustments" (allocation info sudah ada di AllocationProgressCard). Tambah "days left" dan "daily burn rate" di bawah spending progress bar.
+- **BudgetCard over-budget dropdown label:** Dropdown menu sekarang tampilkan "Adjust Budget" saat over-budget, "Edit Budget" saat normal — membedakan shortcut button dari menu action.
 
 ### Removed
 - **Old "Unassigned" pill from budgets page header:** Pill kecil "Unassigned: {amount}" dengan Info icon dan Popover breakdown dihapus dari both mobile dan desktop layouts. Digantikan oleh AllocationProgressCard yang lebih prominent dan actionable.
+- **`lib/budget-card-nudge.ts`:** Dihapus karena tidak terpakai, copy di-inline langsung di BudgetCard.
 
 ### Fixed
 - **AllocationProgressCard lint errors:** Hapus `showCelebration` state yang tidak terpakai dan `react-hooks/set-state-in-effect` warning.
+- **BudgetCard mobile clipping:** Tambah `min-w-0` ke Card component dan motion.div grid wrappers untuk reset CSS Grid `min-width: auto` — mencegah card overflow pada mobile viewport (~400px).
+- **useGoalCelebration import path:** Fix `../../convex/_generated/dataModel` → `../convex/_generated/dataModel` (hooks/ hanya 1 level dari root).
 
 ## 2026-07-26
 
