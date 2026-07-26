@@ -574,25 +574,6 @@ export default function BudgetsPage() {
                                     <span className="text-sm text-muted-foreground font-medium">remaining</span>
                                 </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                <div className="flex-1 min-w-[120px] bg-muted/40 px-3 py-2 rounded-lg border border-muted/50">
-                                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-tight mb-0.5">New Planned</p>
-                                    <p className="text-sm font-bold tracking-tight">{formatCurrency(budgetSummary?.totalAssigned ?? 0)}</p>
-                                </div>
-                                {(budgetSummary?.totalCarryover ?? 0) !== 0 && (
-                                    <div className={cn(
-                                        "flex-1 min-w-[120px] px-3 py-2 rounded-lg border",
-                                        (budgetSummary?.totalCarryover ?? 0) > 0 
-                                            ? "bg-success/5 border-success/20 text-success" 
-                                            : "bg-destructive/5 border-destructive/20 text-destructive"
-                                    )}>
-                                        <p className="text-[9px] font-bold uppercase tracking-tight mb-0.5 opacity-80">Adjustments</p>
-                                        <p className="text-sm font-bold tracking-tight">
-                                            {(budgetSummary?.totalCarryover ?? 0) > 0 ? '+' : ''}{formatCurrency(budgetSummary?.totalCarryover ?? 0)}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
                             <div className="space-y-2 pt-1">
                                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
                                     <span className="text-muted-foreground">Spending Progress</span>
@@ -607,6 +588,14 @@ export default function BudgetsPage() {
                                         <Info className="h-3 w-3" />
                                         <span>{formatCurrency(budgetSummary?.totalSwept ?? 0)} swept back to wallet</span>
                                     </div>
+                                )}
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span>{calculatedDaysRemaining} days left</span>
+                                {(budgetSummary?.totalEffective ?? 0) > 0 && calculatedDaysRemaining > 0 && (
+                                    <span>
+                                        {formatCurrency((budgetSummary?.totalRemaining ?? 0) / calculatedDaysRemaining)}/day avg
+                                    </span>
                                 )}
                             </div>
                         </div>
