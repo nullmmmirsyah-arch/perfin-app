@@ -10,6 +10,11 @@ Format:
 ### Docs
 -->
 
+## 2026-07-26
+
+### Fixed
+- **`getUnassignedCash` returns 0 when `userCaches` entry is missing:** `moveBudgetFunds`, `getBudgetAssistance`, dan `upsertBudget` membaca unassigned cash dari cache. Jika cache entry belum ada (user lama belum di-seed, atau `recomputeUserCache` belum pernah dipanggil), fallback `?? 0` mengembalikan 0 — padahal UI menampilkan nilai asli dari `getBudgetStatus` (direct computation). Fix: jika cache null, fall through ke direct computation (sama seperti non-current month path).
+
 ## 2026-07-25
 
 ### Fixed

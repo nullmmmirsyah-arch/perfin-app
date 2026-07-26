@@ -140,10 +140,11 @@ const recent = await ctx.db.query("transactions")
 **Fix:** Buat helper `getUnassignedCash` yang:
 - Bulan sekarang → baca dari `userCaches` (1 DB read)
 - Bulan lain → hitung langsung dengan spending data (fallback)
+- **Cache null → fall through ke direct computation** (bukan return 0)
 
 **DB I/O impact:**
-| Function | Sebelum (buggy) | Sesudah (current month) | Sesudah (other month) |
-|----------|-----------------|------------------------|----------------------|
+| Function | Sebelum (buggy) | Sesudah (current month, cache ada) | Sesudah (cache missing / other month) |
+|----------|-----------------|------------------------------------|---------------------------------------|
 | moveBudgetFunds | 3-4 queries, no spending | 1 query (cache) | 4 queries + spending |
 | getBudgetAssistance | 1 query, no spending | 1 query (cache) | 4 queries + spending |
 | upsertBudget | 2 queries, no spending | 2 queries (cache) | 5 queries + spending |
