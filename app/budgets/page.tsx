@@ -253,16 +253,6 @@ export default function BudgetsPage() {
 
 
         </div>
-
-        {/* Row 3: Move Funds Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setMoveFundsOpen(true)}
-          className="w-full h-9 text-xs"
-        >
-          Move Funds
-        </Button>
       </motion.div>
 
       {/* Allocation Progress Hero Card - Mobile */}
@@ -327,15 +317,6 @@ export default function BudgetsPage() {
               </Button>
            </div>
            
-           <Button
-             variant="outline"
-             size="sm"
-             onClick={() => setMoveFundsOpen(true)}
-             className="h-9 text-xs px-3"
-           >
-             Move Funds
-           </Button>
-
 
         </div>
       </div>
