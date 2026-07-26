@@ -15,11 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+
 import BudgetDrawer from '@/components/BudgetDrawer'
 import MoveFundsDrawer from '@/components/MoveFundsDrawer'
 import { Doc, Id } from '../../convex/_generated/dataModel'
@@ -30,6 +26,7 @@ import { useHousehold } from '@/components/HouseholdProvider'
 import { BudgetListSkeleton } from '@/components/skeletons'
 import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails, getFiscalMonthRange, calculateFiscalDaysRemaining } from '@/lib/finance-utils'
 import BudgetCard from '@/components/BudgetCard'
+import AllocationProgressCard from '@/components/budgets/AllocationProgressCard'
 
 import {
   Tooltip,
@@ -254,48 +251,7 @@ export default function BudgetsPage() {
             </Button>
           </div>
 
-          {isAdmin && !isPastMonth && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <div className={cn(
-                  "px-3 py-2 rounded-md border font-medium text-xs flex items-center gap-1.5 cursor-help whitespace-nowrap",
-                  unassignedCash < 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/5 text-primary border-primary/10"
-                )}>
-                  <span className="text-[10px] text-muted-foreground">Unassigned:</span>
-                  <span className="font-bold">{unassignedCash < 0 ? '-' : ''}{Math.abs(unassignedCash).toLocaleString()}</span>
-                  <Info className="h-3 w-3 opacity-50" />
-                </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm border-b pb-2">Cash Allocation Breakdown</h4>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Past Surplus (Carry Over)</span>
-                      <span className="font-medium text-success">+{breakdown?.pastSurplus.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">This Month&apos;s Income</span>
-                      <span className="font-medium text-success">+{breakdown?.thisMonthIncome.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">This Month&apos;s Budgeted</span>
-                      <span className="font-medium text-destructive">-{breakdown?.thisMonthBudgeted.toLocaleString()}</span>
-                    </div>
-                    <div className="border-t pt-1.5 flex justify-between text-sm font-bold">
-                      <span>Unassigned Total</span>
-                      <span className={unassignedCash < 0 ? "text-destructive" : "text-primary"}>
-                        {unassignedCash.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground italic">
-                    *Calculated as Total Global Income minus Total Global Budget.
-                  </p>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
+
         </div>
 
         {/* Row 3: Move Funds Button */}
@@ -308,6 +264,19 @@ export default function BudgetsPage() {
           Move Funds
         </Button>
       </motion.div>
+
+      {/* Allocation Progress Hero Card - Mobile */}
+      {isAdmin && !isPastMonth && (
+        <div className="mb-4 md:hidden">
+          <AllocationProgressCard
+            unassignedCash={unassignedCash}
+            breakdown={breakdown}
+            onMoveFunds={() => setMoveFundsOpen(true)}
+            isAdmin={isAdmin}
+            isPastMonth={isPastMonth}
+          />
+        </div>
+      )}
 
       {/* Desktop Header Layout */}
       <div className="hidden md:flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -367,49 +336,22 @@ export default function BudgetsPage() {
              Move Funds
            </Button>
 
-           {isAdmin && !isPastMonth && (
-             <Popover>
-               <PopoverTrigger asChild>
-                 <div className={cn(
-                     "px-4 py-2 rounded-md border font-medium text-sm flex items-center gap-2 cursor-help",
-                     unassignedCash < 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/5 text-primary border-primary/10"
-                 )}>
-                     Unassigned: {unassignedCash.toLocaleString()}
-                     <Info className="h-3.5 w-3.5 opacity-50" />
-                 </div>
-               </PopoverTrigger>
-               <PopoverContent className="w-80">
-                 <div className="space-y-3">
-                   <h4 className="font-semibold text-sm border-b pb-2">Cash Allocation Breakdown</h4>
-                   <div className="space-y-1.5">
-                     <div className="flex justify-between text-xs">
-                       <span className="text-muted-foreground">Past Surplus (Carry Over)</span>
-                       <span className="font-medium text-success">+{breakdown?.pastSurplus.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between text-xs">
-                       <span className="text-muted-foreground">This Month&apos;s Income</span>
-                       <span className="font-medium text-success">+{breakdown?.thisMonthIncome.toLocaleString()}</span>
-                     </div>
-                     <div className="flex justify-between text-xs">
-                       <span className="text-muted-foreground">This Month&apos;s Budgeted</span>
-                       <span className="font-medium text-destructive">-{breakdown?.thisMonthBudgeted.toLocaleString()}</span>
-                     </div>
-                     <div className="border-t pt-1.5 flex justify-between text-sm font-bold">
-                       <span>Unassigned Total</span>
-                       <span className={unassignedCash < 0 ? "text-destructive" : "text-primary"}>
-                         {unassignedCash.toLocaleString()}
-                       </span>
-                     </div>
-                   </div>
-                   <p className="text-[10px] text-muted-foreground italic">
-                     *Calculated as Total Global Income minus Total Global Budget.
-                   </p>
-                 </div>
-               </PopoverContent>
-             </Popover>
-           )}
+
         </div>
       </div>
+
+      {/* Allocation Progress Hero Card - Desktop */}
+      {isAdmin && !isPastMonth && (
+        <div className="hidden md:block mb-6">
+          <AllocationProgressCard
+            unassignedCash={unassignedCash}
+            breakdown={breakdown}
+            onMoveFunds={() => setMoveFundsOpen(true)}
+            isAdmin={isAdmin}
+            isPastMonth={isPastMonth}
+          />
+        </div>
+      )}
 
       {/* Month-End Review button - show only when user hasn't processed this period yet */}
       {showMonthEndReview && !isPastMonth && (
