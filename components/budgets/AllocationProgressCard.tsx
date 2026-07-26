@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { PieChart, ArrowRight } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
@@ -30,7 +30,6 @@ export default function AllocationProgressCard({
   isPastMonth,
 }: AllocationProgressCardProps) {
   const prevPercentRef = useRef<number | null>(null)
-  const [showCelebration, setShowCelebration] = useState(false)
 
   const totalIncome = (breakdown?.pastSurplus ?? 0) + (breakdown?.thisMonthIncome ?? 0)
   const totalBudgeted = breakdown?.thisMonthBudgeted ?? 0
@@ -47,7 +46,6 @@ export default function AllocationProgressCard({
   useEffect(() => {
     const prev = prevPercentRef.current
     if (prev !== null && prev < 100 && allocationPercent >= 100) {
-      setShowCelebration(true)
       const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (!prefersReduced) {
         confetti({
@@ -56,8 +54,6 @@ export default function AllocationProgressCard({
           origin: { y: 0.6 },
         })
       }
-      const timer = setTimeout(() => setShowCelebration(false), 3000)
-      return () => clearTimeout(timer)
     }
     prevPercentRef.current = allocationPercent
   }, [allocationPercent])
