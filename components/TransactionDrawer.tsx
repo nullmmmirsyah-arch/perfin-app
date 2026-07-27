@@ -1032,7 +1032,7 @@ const TransactionFormFields = ({
                         <MobileInputCard 
                           label="Merchant" 
                           icon={Store} 
-                          valueDisplay={selectedMerchant ? `${selectedMerchant.icon} ${selectedMerchant.name}` : undefined}
+                          valueDisplay={selectedMerchant ? (selectedMerchant.icon.startsWith('http') ? selectedMerchant.name : `${selectedMerchant.icon} ${selectedMerchant.name}`) : undefined}
                         />
                       </button>
                     ) : undefined}
