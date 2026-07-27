@@ -115,6 +115,15 @@
         - 🟡 **Warning:** Spending pace is matching time (+10% tolerance).
         - 🔴 **Danger:** Spending is significantly faster than time.
     - **Opt-In:** Users can enable/disable this per category.
+- **Budget Allowance:**
+    - **Concept:** Per-category spending recommendation that works alongside the budget, not as part of it. Pure recommendation layer — never affects budget allocation, remaining budget, or month-end processing.
+    - **Types:**
+        - **Budget Period (Daily):** Evenly divides the budget across the fiscal period. Shows daily allowance and days remaining.
+        - **Weekly:** Fixed weekly spending limit with configurable reset day (Sun-Sat). Shows weekly allowance with week date range.
+    - **Home Screen:** Tabs removed. Each category card shows allowance amount as primary ("Rp X for today" / "Rp X for this week") with days remaining or week range on the right.
+    - **BudgetCard:** Remaining is primary, allowance is secondary.
+    - **Configuration:** Via BudgetDrawer — RadioGroup for type selection, conditional Select for weekly reset day.
+    - **Category Detail:** Shows daily/weekly breakdown with spending pace relative to allowance.
 
 ### 6. Households & Collaboration
 - **Multi-User:** Support for shared financial tracking (e.g., couples, families).

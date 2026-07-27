@@ -10,6 +10,22 @@ Format:
 ### Docs
 -->
 
+## 2026-07-27
+
+### Added
+- **Budget Allowance Feature:** Allowance configuration per category — pure recommendation layer, never affects budget allocation or month-end processing.
+  - **Schema:** Added `allowanceType` (`"budget_period"` | `"weekly"`) and `weeklyResetDay` (0-6) to `categories` table.
+  - **AllowanceCalculator:** Pure TypeScript module (`lib/allowance-calculator.ts`) — computes allowance amount, daily/weekly remaining, and pace status. No React/Convex dependencies, no UI labels, no transaction queries inside.
+  - **`updateAllowanceConfig` mutation:** Updates `allowanceType` and `weeklyResetDay` on a category.
+  - **Home screen (`MobileBudgetToday`):** Removed tabs. Each card shows allowance amount as primary (Rp X for today / for this week) with days remaining or week date range on the right. Layout mimics Budget Tracker summary style (progress bar on top, info row below).
+  - **BudgetCard:** Remaining is primary display, allowance is secondary.
+  - **BudgetDrawer:** Allowance config UI with RadioGroup (Budget Period / Weekly) + conditional weekly reset day Select.
+  - **BudgetCategorySheet:** Dynamic allowance details based on type (daily vs weekly).
+  - **Category Detail:** Allowance section with daily/weekly breakdown. `weeklySpent` computed in backend `getCategoryDetails` query using fiscal period filter (consistent with `getDashboardSummary`).
+
+### Fixed
+- **`weeklySpent` inconsistency between Home and Category Detail:** `getCategoryDetails` now filters transactions by fiscal period (same as `getDashboardSummary`), ensuring both pages show identical weeklySpent values.
+
 ## 2026-07-26
 
 ### Added

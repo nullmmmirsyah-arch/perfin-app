@@ -57,6 +57,7 @@
 3.  **Centralized Logic (Important):**
     - To maintain data consistency across Dashboard, Budget, and Transactions, core business logic is centralized in `convex/lib/`.
     - **`convex/lib/finance.ts`:** Contains pure functions for calculating Spending, Unassigned Cash, and Transaction Analysis. **ALWAYS** use these helpers instead of re-writing logic in queries.
+    - **`lib/allowance-calculator.ts`:** Pure TypeScript module for computing allowance amounts, daily/weekly remaining, and pace status. No React/Convex dependencies, no UI labels, no transaction queries inside. Used by both Home screen and Category Detail page.
     - **`calculateMonthlyBudgetLeft` (Centralized Rule):** 
         - The single source of truth for "Monthly Budget Left" and "Effective Spending Power".
         - Formula: `Assigned + Carryover - Swept - Spent`.

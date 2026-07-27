@@ -73,6 +73,12 @@ To support partial settlements (installments), we use a self-referential relatio
     Effective Limit = amount + carryoverAmount
     Remaining = Effective Limit - sweptAmount - spent
     ```
+- **Allowance Configuration (Categories):**
+    - `allowanceType`: `"budget_period"` (daily pacing across the entire fiscal period) or `"weekly"` (weekly spending limit).
+    - `weeklyResetDay`: 0=Sunday, 1=Monday, ..., 6=Saturday. Only used when `allowanceType === "weekly"`.
+    - **Allowance is a recommendation layer only** — it never affects budget allocation, remaining budget, or month-end processing.
+    - `enablePacing` is independent — it controls the pace indicator (safe/warning/danger).
+    - Computed via `AllowanceCalculator` (`lib/allowance-calculator.ts`), a pure TypeScript module with no Convex/React dependencies.
 - **Set Limit Action:**
     - When user edits budget (via BudgetDrawer or QuickAdjust), both `amount` and `initialAmount` are set to the new value.
     - `totalAdjustments` remains unchanged.
