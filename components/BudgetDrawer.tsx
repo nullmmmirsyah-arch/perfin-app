@@ -31,12 +31,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
 const BudgetFormSchema = z.object({
   categoryId: z.string().min(1, 'Category is required'),
   amount: z.string().min(1, 'Amount is required'),
+  allowanceType: z.enum(["budget_period", "weekly"]).optional(),
+  weeklyResetDay: z.number().optional(),
 });
 
 type BudgetFormValues = z.infer<typeof BudgetFormSchema>;
@@ -60,6 +63,7 @@ const formatAmount = (value: string) => {
 const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year, month }: BudgetDrawerProps) => {
   const { householdId } = useHousehold();
   const upsertBudget = useMutation(api.budgets.upsertBudget);
+  const updateAllowanceConfig = useMutation(api.categories.updateAllowanceConfig);
   
   const categories = useQuery(api.categories.get, { type: 'expense', householdId: householdId ?? undefined });
   
@@ -77,11 +81,14 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
     defaultValues: {
       categoryId: '',
       amount: '',
+      allowanceType: 'budget_period',
+      weeklyResetDay: 1,
     },
   });
 
   const categoryId = useWatch({ control: form.control, name: 'categoryId' });
   const amountValue = useWatch({ control: form.control, name: 'amount' });
+  const watchedAllowanceType = useWatch({ control: form.control, name: 'allowanceType' });
 
   // Fetch assistance data when category is selected
   const assistanceData = useQuery(api.budgets.getBudgetAssistance, 
@@ -96,6 +103,8 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
       form.reset({
         categoryId: defaultCategory?._id ?? '',
         amount: currentAmount ? formatAmount(currentAmount) : '',
+        allowanceType: (defaultCategory?.allowanceType as "budget_period" | "weekly") ?? "budget_period",
+        weeklyResetDay: defaultCategory?.weeklyResetDay ?? 1,
       });
     }
   }, [open, defaultCategory, currentAmount, form]);
@@ -114,6 +123,15 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
         year,
         month,
       });
+
+      if (data.categoryId) {
+        await updateAllowanceConfig({
+          categoryId: data.categoryId as Id<'categories'>,
+          allowanceType: data.allowanceType ?? "budget_period",
+          weeklyResetDay: data.weeklyResetDay,
+        });
+      }
+
       toast.success("Budget updated");
       onOpenChange(false);
     } catch (error) {
@@ -205,6 +223,73 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                   </FormItem>
                   )}
               />
+
+              {/* Allowance Config */}
+              {categoryId && (
+                <div className="space-y-3">
+                  <FormField
+                    control={form.control}
+                    name="allowanceType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Allowance</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            value={field.value ?? "budget_period"}
+                            onValueChange={field.onChange}
+                            className="flex flex-col space-y-1"
+                          >
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                              <FormControl><RadioGroupItem value="budget_period" /></FormControl>
+                              <FormLabel className="font-normal">
+                                Budget Period
+                                <span className="text-xs text-muted-foreground block">
+                                  Recommended spending is spread across the remaining budget period.
+                                </span>
+                              </FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                              <FormControl><RadioGroupItem value="weekly" /></FormControl>
+                              <FormLabel className="font-normal">
+                                Weekly
+                                <span className="text-xs text-muted-foreground block">
+                                  Your allowance resets every week.
+                                </span>
+                              </FormLabel>
+                            </FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  {watchedAllowanceType === "weekly" && (
+                    <FormField
+                      control={form.control}
+                      name="weeklyResetDay"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reset Every</FormLabel>
+                          <Select onValueChange={(v) => field.onChange(parseInt(v))} value={field.value?.toString() ?? "1"}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="0">Sunday</SelectItem>
+                              <SelectItem value="1">Monday</SelectItem>
+                              <SelectItem value="2">Tuesday</SelectItem>
+                              <SelectItem value="3">Wednesday</SelectItem>
+                              <SelectItem value="4">Thursday</SelectItem>
+                              <SelectItem value="5">Friday</SelectItem>
+                              <SelectItem value="6">Saturday</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+              )}
 
               {/* Breakdown Card */}
               {categoryId && (
