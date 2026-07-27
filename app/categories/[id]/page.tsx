@@ -16,7 +16,8 @@ import { useState, useMemo } from 'react'
 import { DateRange } from 'react-day-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import { getFiscalDate, getFiscalMonthRange, calculateBudgetPace } from '@/lib/finance-utils'
+import { getFiscalDate, getFiscalDateDetails, getFiscalMonthRange, calculateBudgetPace } from '@/lib/finance-utils'
+import { calculateAllowance } from '@/lib/allowance-calculator'
 import { Badge } from '@/components/ui/badge'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
@@ -70,6 +71,32 @@ export default function CategoryDetailPage() {
   if (!data) return <LoadingScreen />
 
   const { category, historyData, recentTransactions } = data
+
+  // Compute allowance
+  const allowanceNow = new Date()
+  const { year: fy, month: fm } = getFiscalDateDetails(allowanceNow.toISOString(), budgetStartDay)
+  const fiscalRange = getFiscalMonthRange(fy, fm, budgetStartDay)
+
+  // Get effective limit from historyData for current month
+  const currentMonthData = historyData.find(d => d.year === fy && d.month === fm)
+  const effectiveLimit = currentMonthData
+    ? currentMonthData.budgetAmount + currentMonthData.carryoverAmount
+    : 0
+  const categorySpent = currentMonthData?.spent ?? 0
+
+  // Compute weeklySpent (simplified — use 0 for now since we don't have week-scoped data on this page)
+  const weekSpent = 0
+
+  const allowance = category.allowanceType ? calculateAllowance({
+    allowanceType: category.allowanceType ?? "budget_period",
+    weeklyResetDay: category.weeklyResetDay,
+    budgetAmount: effectiveLimit,
+    spent: categorySpent,
+    weeklySpent: weekSpent,
+    fiscalPeriodStart: new Date(fiscalRange.start),
+    fiscalPeriodEnd: new Date(fiscalRange.end),
+    now: allowanceNow,
+  }) : null
 
   const handleEdit = (transaction: TransactionWithDetails) => {
     setSelectedTransaction(transaction)
@@ -246,6 +273,54 @@ export default function CategoryDetailPage() {
             </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Allowance Section */}
+      {allowance && category.allowanceType && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              Allowance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Mode</span>
+                <span className="text-sm font-medium">
+                  {category.allowanceType === 'weekly' ? 'Weekly' : 'Budget Period'}
+                </span>
+              </div>
+              {category.allowanceType === 'weekly' && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Reset Day</span>
+                    <span className="text-sm font-medium">
+                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][category.weeklyResetDay ?? 1]}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Week</span>
+                    <span className="text-sm font-medium">{allowance.weekNumber}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Remaining</span>
+                <span className="text-sm font-semibold">{formatCurrency(allowance.remaining)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {category.allowanceType === 'weekly' ? 'This Week' : 'Today'}
+                </span>
+                <span className="text-sm font-semibold text-primary">
+                  {formatCurrency(allowance.allowance)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Monthly Breakdown Table */}
       <Card>
