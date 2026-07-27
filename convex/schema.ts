@@ -137,6 +137,13 @@ export default defineSchema({
     )),
     lastResetDate: v.optional(v.string()),
     hideAmount: v.optional(v.boolean()),
+    // --- Allowance Configuration ---
+    // Allowance is ONLY a recommendation layer. It NEVER affects budget allocation,
+    // remaining budget calculations, or month-end processing.
+    // enablePacing is independent — it controls the pace indicator (safe/warning/danger).
+    allowanceType: v.optional(v.union(v.literal("budget_period"), v.literal("weekly"))),
+    // 0=Sunday, 1=Monday, ..., 6=Saturday. Only used when allowanceType === "weekly".
+    weeklyResetDay: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_householdId", ["householdId"]),
