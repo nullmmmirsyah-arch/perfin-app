@@ -13,7 +13,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { cn, formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
-import { calculateBudgetPace, calculateGoalStrategy, getFiscalDateDetails } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateGoalStrategy, getFiscalDateDetails, getFiscalMonthRange } from '@/lib/finance-utils'
+import { calculateAllowance } from '@/lib/allowance-calculator'
 import { useGoalCelebration } from '@/hooks/useGoalCelebration'
 import { useRouter } from 'next/navigation'
 
@@ -23,6 +24,7 @@ interface BudgetStatusItem {
   spent: number;
   accumulated: number;
   pendingReceivables?: number;
+  weeklySpent?: number;
 }
 
 interface BudgetCardProps {
@@ -60,6 +62,21 @@ export default function BudgetCard({
 
   const effectiveLimit = limit + carryover;
   const remaining = effectiveLimit - spent - swept;
+
+  const now = new Date()
+  const { year: fy, month: fm } = getFiscalDateDetails(now.toISOString(), budgetStartDay)
+  const fiscalRange = getFiscalMonthRange(fy, fm, budgetStartDay)
+
+  const allowance = category.allowanceType ? calculateAllowance({
+    allowanceType: category.allowanceType ?? "budget_period",
+    weeklyResetDay: category.weeklyResetDay,
+    budgetAmount: effectiveLimit,
+    spent,
+    weeklySpent: item.weeklySpent ?? 0,
+    fiscalPeriodStart: new Date(fiscalRange.start),
+    fiscalPeriodEnd: new Date(fiscalRange.end),
+    now,
+  }) : null
 
   const percentage = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 100;
   const isOverBudget = effectiveLimit <= 0 || spent > effectiveLimit;
@@ -237,7 +254,12 @@ export default function BudgetCard({
                         : `${formatCurrency(remaining)} left`
                       }
                     </p>
-                    {pacing && pacing.dailyLimit > 0 && !isOverBudget && (
+                    {allowance && allowance.allowance > 0 && !isOverBudget && (
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(allowance.allowance)}/{allowance.type === 'weekly' ? 'week' : 'day'} safe
+                      </p>
+                    )}
+                    {!allowance && pacing && pacing.dailyLimit > 0 && !isOverBudget && (
                       <p className="text-xs text-muted-foreground">
                         {formatCurrency(pacing.dailyLimit)}/day safe
                       </p>
