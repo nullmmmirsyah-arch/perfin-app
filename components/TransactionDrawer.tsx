@@ -79,6 +79,7 @@ import LabelCombobox from './LabelCombobox';
 import { MobileAmountInput } from './mobile-amount-input';
 import { MobileDatePicker } from '@/components/ui/mobile-date-picker';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
+import { getFiscalDateDetails } from '@/lib/finance-utils';
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -442,7 +443,7 @@ const TransactionForm = ({
     setSplitDrawerOpen: (open: boolean) => void,
     onDirtyChange: (isDirty: boolean) => void
 }) => {
-  const { householdId } = useHousehold();
+  const { householdId, households } = useHousehold();
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
   
@@ -491,9 +492,11 @@ const TransactionForm = ({
   const transactionType = useWatch({ control: form.control, name: 'type' });
   const transactionDate = useWatch({ control: form.control, name: 'date' });
   
-  // Dynamic Month/Year for Budget Status (Consistent with Dashboard)
-  const selectedMonth = transactionDate ? transactionDate.getMonth() : new Date().getMonth();
-  const selectedYear = transactionDate ? transactionDate.getFullYear() : new Date().getFullYear();
+  // Dynamic Month/Year for Budget Status (Fiscal-aware, consistent with Dashboard)
+  const activeHousehold = households?.find(h => h._id === householdId);
+  const budgetStartDay = activeHousehold?.budgetStartDay || 1;
+  const dateStr = transactionDate ? transactionDate.toISOString() : new Date().toISOString();
+  const { month: selectedMonth, year: selectedYear } = getFiscalDateDetails(dateStr, budgetStartDay);
 
   // Use EXISTING budget status query
   const budgetStatus = useQuery(api.budgets.getBudgetStatus, { 

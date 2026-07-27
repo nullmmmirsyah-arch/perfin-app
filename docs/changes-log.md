@@ -12,6 +12,10 @@ Format:
 
 ## 2026-07-27
 
+### Fixed
+- **Merchant icon URL displaying as text in mobile transaction drawer:** `TransactionDrawer` was always concatenating `selectedMerchant.icon` into `valueDisplay` text. When merchant uses an Iconify URL as icon, the entire URL appeared as text. Fix: only include icon character for non-URL icons (emoji/letter), skip for URL icons.
+- **Category "Available" preview showing wrong budget period:** `TransactionDrawer` used calendar `getMonth()`/`getFullYear()` to fetch budget status, ignoring the household's `budgetStartDay`. When `budgetStartDay` is e.g. 25, a transaction on Jan 20th fetched January's budget instead of December's fiscal period. Fix: use `getFiscalDateDetails()` from `lib/finance-utils` to compute fiscal month/year, consistent with all other budget-aware components (`BudgetCard`, `CategoryDrawer`, dashboard widgets).
+
 ### Changed
 - **`MobileHeroSummary` daily allowance now respects per-category `allowanceType`:** Replaced simple `remainingBudget / daysRemaining` with aggregated per-category `calculateAllowance()` that honors each category's `allowanceType` (budget_period/weekly). Filters to `expense` categories with `enablePacing !== false`. Categories using weekly mode now contribute their weekly-calculated allowance instead of flat monthly average.
 - **`DailyOperationsCard.BudgetRow` now respects per-category `allowanceType`:** Replaced hardcoded `safeSpend = remaining / daysRemaining` with `calculateAllowance()` to honor each category's allowance setting (budget_period/weekly). Removed unused `daysRemaining` prop from `BudgetRow`.
