@@ -26,6 +26,9 @@ Format:
 ### Fixed
 - **`weeklySpent` inconsistency between Home and Category Detail:** `getCategoryDetails` now filters transactions by fiscal period (same as `getDashboardSummary`), ensuring both pages show identical weeklySpent values.
 
+### Changed
+- **Mobile home: overall budget info removed from BudgetToday card.** `MobileBudgetToday` no longer shows the overall progress bar (spent vs budget) and status badge ("On Track / Spending Faster / Slow Down") — this info was redundant with the `MobileHeroSummary` card above it, which already displays remaining budget, daily allowance, and fiscal day. BudgetToday now focuses purely on per-category pacing breakdown and today's spending.
+
 ## 2026-07-26
 
 ### Added
