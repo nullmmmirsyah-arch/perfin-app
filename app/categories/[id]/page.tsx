@@ -70,7 +70,7 @@ export default function CategoryDetailPage() {
 
   if (!data) return <LoadingScreen />
 
-  const { category, historyData, recentTransactions } = data
+  const { category, historyData, recentTransactions, weeklySpent } = data
 
   // Compute allowance
   const allowanceNow = new Date()
@@ -84,15 +84,12 @@ export default function CategoryDetailPage() {
     : 0
   const categorySpent = currentMonthData?.spent ?? 0
 
-  // Compute weeklySpent (simplified — use 0 for now since we don't have week-scoped data on this page)
-  const weekSpent = 0
-
   const allowance = category.allowanceType ? calculateAllowance({
     allowanceType: category.allowanceType ?? "budget_period",
     weeklyResetDay: category.weeklyResetDay,
     budgetAmount: effectiveLimit,
     spent: categorySpent,
-    weeklySpent: weekSpent,
+    weeklySpent: weeklySpent,
     fiscalPeriodStart: new Date(fiscalRange.start),
     fiscalPeriodEnd: new Date(fiscalRange.end),
     now: allowanceNow,

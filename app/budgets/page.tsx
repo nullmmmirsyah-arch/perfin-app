@@ -344,7 +344,7 @@ export default function BudgetsPage() {
         >
           <button
             onClick={() => router.push('/budgets/month-end')}
-            className="w-full p-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/15 transition-all group"
+            className="w-full p-3 rounded-xl border border-primary/20 bg-linear-to-r from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/15 transition-all group"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -380,7 +380,7 @@ export default function BudgetsPage() {
         >
           <button
             onClick={() => router.push(`/budgets/month-end?reprocess=true&month=${fiscalMonth}&year=${fiscalYear}`)}
-            className="w-full p-3 rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-amber-500/10 hover:from-amber-500/10 hover:to-amber-500/15 transition-all group"
+            className="w-full p-3 rounded-xl border border-amber-500/20 bg-linear-to-r from-amber-500/5 to-amber-500/10 hover:from-amber-500/10 hover:to-amber-500/15 transition-all group"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">

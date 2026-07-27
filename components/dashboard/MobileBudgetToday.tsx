@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BudgetCategorySheet } from './BudgetCategorySheet'
+import { format } from 'date-fns'
 
 export type BudgetBreakdownItem = {
   categoryId: string
@@ -186,19 +187,24 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
             </span>
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+        <div className="space-y-1">
+          <div className="h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
             <div
               className={cn('h-full rounded-full transition-all', getPaceBarColor(item.pace.status))}
               style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }}
             />
           </div>
-          <span className="text-xs font-semibold tabular-nums shrink-0">
-            {formatCurrency(item.remaining, { isPrivacyMode })}
-          </span>
-          <span className="text-[10px] text-muted-foreground shrink-0">
-            {allowance.type === 'weekly' ? 'this week' : 'today'}
-          </span>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">
+              {formatCurrency(allowance.allowance, { isPrivacyMode })} {allowance.type === 'weekly' ? 'for this week' : 'for today'}
+            </span>
+            <span className="text-muted-foreground tabular-nums">
+              {allowance.type === 'weekly' && allowance.weekStart && allowance.weekEnd
+                ? `${format(allowance.weekStart, 'd MMM')} - ${format(allowance.weekEnd, 'd MMM')}`
+                : `${item.pace.daysRemaining}d left`
+              }
+            </span>
+          </div>
         </div>
       </button>
     )

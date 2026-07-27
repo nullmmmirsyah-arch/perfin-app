@@ -226,6 +226,29 @@ export const getCategoryDetails = query({
     const accountsMap: AccountMap = new Map(accounts.map((a: Doc<"accounts">) => [String(a._id), a]));
     const categoriesMap = new Map(categories.map((c: Doc<"categories">) => [String(c._id), c]));
 
+    // Compute weeklySpent for this category (if weekly allowance)
+    let weeklySpent = 0;
+    if (category.allowanceType === "weekly") {
+        const resetDay = category.weeklyResetDay ?? 1;
+        const dayOfWeek = now.getDay();
+        let weekStart = new Date(now);
+        const daysSinceReset = (dayOfWeek - resetDay + 7) % 7;
+        weekStart.setDate(weekStart.getDate() - daysSinceReset);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekStartStr = weekStart.toISOString();
+        const nowStr = now.toISOString();
+
+        // Get fiscal period date range (same as getDashboardSummary)
+        const { start: fiscalStart, end: fiscalEnd } = getFiscalMonthRange(currentYear, currentMonth, startDay);
+
+        // Filter current fiscal period transactions within the current week
+        const weekTransactions = allTransactions.filter((t: any) => {
+            return t.date >= weekStartStr && t.date <= nowStr && t.date >= fiscalStart && t.date <= fiscalEnd;
+        });
+        const weekSpending = calculateSpendingByCategory(weekTransactions, accountsMap, categoriesMap);
+        weeklySpent = weekSpending[String(id)] || 0;
+    }
+
     const historyData = [];
     
     for (let i = 11; i >= 0; i--) {
@@ -380,7 +403,8 @@ export const getCategoryDetails = query({
     return {
         category,
         historyData,
-        recentTransactions
+        recentTransactions,
+        weeklySpent,
     };
   }
 });
@@ -423,8 +447,8 @@ export const get = query({
             transactions = await ctx.db.query("transactions").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
             accounts = await ctx.db.query("accounts").withIndex("by_userId", q => q.eq("userId", identity.subject)).collect();
         }
-        const accountsMap: AccountMap = new Map(accounts.map((a: Doc<"accounts">) => [String(a._id), a]));
-        const categoriesMap = new Map(categories.map((c: Doc<"categories">) => [String(c._id), c]));
+    const accountsMap: AccountMap = new Map(accounts.map((a: Doc<"accounts">) => [String(a._id), a]));
+    const categoriesMap = new Map(categories.map((c: Doc<"categories">) => [String(c._id), c]));
         
         let startDay = 1;
         let timezone: string | null = null;
