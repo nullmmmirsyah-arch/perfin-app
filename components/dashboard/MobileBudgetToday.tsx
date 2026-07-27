@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatCurrency, parseAmount } from '@/lib/utils'
-import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails, type PacingStatus } from '@/lib/finance-utils'
+import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails, getFiscalMonthRange, type PacingStatus } from '@/lib/finance-utils'
+import { calculateAllowance } from '@/lib/allowance-calculator'
 import Link from 'next/link'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -23,6 +24,9 @@ export type BudgetBreakdownItem = {
   targetAmount?: number
   targetDate?: string
   goalType?: string
+  allowanceType?: "budget_period" | "weekly"
+  weeklyResetDay?: number
+  weeklySpent?: number
 }
 
 type SplitDetail = {
@@ -102,8 +106,6 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
   const startDay = budgetStartDay ?? 1
   const [showSafe, setShowSafe] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'remaining'>('daily')
-
   const daysRemaining = calculateFiscalDaysRemaining(startDay)
   const totalBudget = summary?.budgetBreakdown?.reduce((acc, item) => acc + item.limit, 0) || 0
   const totalSpent = summary?.budgetBreakdown?.reduce((acc, item) => acc + item.spent, 0) || 0
@@ -151,15 +153,22 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
   }
 
   const renderCategoryRow = (item: typeof pacedItems[number]) => {
-    const weeklyLimit = item.pace.daysRemaining >= 7
-      ? item.pace.dailyLimit * 7
-      : item.remaining
+    const now = new Date()
+    const { year: fy, month: fm } = getFiscalDateDetails(now.toISOString(), startDay)
+    const fiscalRange = getFiscalMonthRange(fy, fm, startDay)
+    const fiscalStart = new Date(fiscalRange.start)
+    const fiscalEnd = new Date(fiscalRange.end)
 
-    const displayValue = viewMode === 'daily'
-      ? { value: item.pace.dailyLimit, suffix: '/hari' }
-      : viewMode === 'weekly'
-      ? { value: weeklyLimit, suffix: '/minggu' }
-      : { value: item.remaining, suffix: 'sisa' }
+    const allowance = calculateAllowance({
+      allowanceType: item.allowanceType ?? "budget_period",
+      weeklyResetDay: item.weeklyResetDay,
+      budgetAmount: item.limit,
+      spent: item.spent,
+      weeklySpent: item.weeklySpent ?? 0,
+      fiscalPeriodStart: fiscalStart,
+      fiscalPeriodEnd: fiscalEnd,
+      now,
+    })
 
     return (
       <button
@@ -184,10 +193,12 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
               style={{ width: `${Math.min(100, item.pace.spendProgress)}%` }}
             />
           </div>
-          <span className="text-xs font-medium tabular-nums shrink-0">
-            {formatCurrency(displayValue.value, { isPrivacyMode })}
+          <span className="text-xs font-semibold tabular-nums shrink-0">
+            {formatCurrency(item.remaining, { isPrivacyMode })}
           </span>
-          <span className="text-xs text-muted-foreground shrink-0">{displayValue.suffix}</span>
+          <span className="text-[10px] text-muted-foreground shrink-0">
+            {allowance.type === 'weekly' ? 'this week' : 'today'}
+          </span>
         </div>
       </button>
     )
@@ -221,23 +232,6 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-tighter">
               Budget per Category
             </p>
-            <div className="flex items-center gap-0.5 bg-muted-foreground/10 rounded-lg p-0.5 w-full">
-              {(['daily', 'weekly', 'remaining'] as const).map(mode => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setViewMode(mode)}
-                  className={cn(
-                    'text-[11px] px-2 py-0.5 rounded-md font-medium transition-colors flex-1 text-center',
-                    viewMode === mode
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground/60 hover:text-muted-foreground'
-                  )}
-                >
-                  {mode === 'daily' ? 'Harian' : mode === 'weekly' ? 'Mingguan' : 'Sisa'}
-                </button>
-              ))}
-            </div>
             {[...dangerItems, ...warningItems].map(renderCategoryRow)}
             {safeItems.length > 0 && (
               <Button
@@ -288,6 +282,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
             item={selectedItem}
             pace={selectedPace}
             isPrivacyMode={isPrivacyMode}
+            budgetStartDay={startDay}
             open={selectedCategoryId !== null}
             onOpenChange={(open) => {
               if (!open) setSelectedCategoryId(null)
