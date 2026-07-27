@@ -51,10 +51,11 @@ next-env.d.ts
 # clerk configuration (can include secrets)
 /.clerk/
 
-# Brainstorming mockups.superpowers/
+# Brainstorming mockups
 
 # Data 
 snapshot*
 allowance_feat
-docs/superpowers/plans/2026-07-27-budget-allowance.md
-docs/superpowers/specs/2026-07-27-budget-allowance-design.md
+
+# Superpowers (local workspace — not pushed)
+docs/superpowers/

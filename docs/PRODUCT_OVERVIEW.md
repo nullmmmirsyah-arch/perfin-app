@@ -14,6 +14,71 @@
     - **Context-Aware Fields:** When Split mode is active, global fields (Category, Label, Description) are hidden to prevent redundancy, replaced by a "Split Summary Card" that shows item count and total allocated funds.
 - **Filtering:** Powerful **Multi-Select Filtering** allows users to combine multiple Accounts, Categories, Types, and Merchants simultaneously. All filters are consolidated inside a single filter popover, including **Date Range**.
 
+#### Transaction Input Flow
+
+**Entry Points:**
+- **Mobile:** Floating Action Button (FAB) "+" on Transactions page and Dashboard.
+- **Desktop:** FAB "+" (tablet), Sidebar link, or "Add Transaction" button.
+- **Edit Mode:** Tap transaction item → "Edit" action → opens the same drawer pre-filled.
+
+**Container:**
+- **Mobile:** `Drawer` (vaul) — slides up from bottom, max height 96dvh.
+- **Desktop:** `Sheet` (Radix) — slides in from right, max width 500px.
+- Both use the same `TransactionDrawer` component with platform-specific rendering.
+
+**Flow — Expense / Income:**
+
+| Step | Field | Mobile | Desktop | Required | Notes |
+|------|-------|--------|---------|----------|-------|
+| 1 | **Type Tab** | Segmented control (Expense / Income / Transfer) | Tabs row | Yes | Default: Expense. Color-coded: red (expense), green (income), blue (transfer). |
+| 2 | **Amount** | Tap to open `MobileAmountInput` numpad (bottom sheet) | Direct numeric `Input` | Yes | Auto-focused on open. Shows "Insufficient Balance" warning if amount > account balance. |
+| 3 | **Merchant** | `MobileInputCard` → `MerchantCombobox` | `MerchantCombobox` (inline) | No | Searchable. Inline "Create [name]" option — no separate drawer for quick create. |
+| 4 | **Account** | `MobileSelectionDrawer` (card tap) | `Select` dropdown | Yes | Shows account balance. Private accounts hide balance from other household members. |
+| 5 | **Category** | `MobileSelectionDrawer` (card tap) | `Select` dropdown | Yes | Expense categories show `Available: Rp X` (remaining budget). Contains "🔀 Split Transaction" action item at top. |
+| 5a | → *Split mode* | Opens nested `SplitEditorDrawer` | Opens nested `SplitEditorDrawer` | — | See *Split Transaction Flow* below. |
+| 6 | **Date** | `MobileDatePicker` | `DatePicker` (with year/month nav) | Yes | Default: today. Disabled: future dates. Normalized to 12:00 PM on submit. |
+| 7 | **Labels** | `LabelCombobox` (grid popover) | `LabelCombobox` (grid popover) | No | Multi-select. Optional tagging for cross-category tracking. |
+| 8 | **Description** | `Textarea` card | `Input` | No | Free-text note. |
+| 9 | **Reimbursement** | `Switch` toggle card | `Switch` toggle | No | "To be reimbursed?" — if enabled, shows "Owed By" text input + status badge. |
+
+**Flow — Transfer:**
+
+| Step | Field | Mobile | Desktop | Required | Notes |
+|------|-------|--------|---------|----------|-------|
+| 1 | **Type Tab** | Select "Transfer" tab | Select "Transfer" tab | Yes | — |
+| 2 | **Amount** | `MobileAmountInput` numpad | Direct numeric `Input` | Yes | Label changes: "Total Cost" (buy asset) or "Total Sale Value" (sell asset). |
+| 3 | **From Account** | `MobileSelectionDrawer` | `Select` dropdown | Yes | Shows balance. |
+| 4 | **To Account** | `MobileSelectionDrawer` | `Select` dropdown | Yes | Must differ from From Account. |
+| 5 | **Category** | `MobileSelectionDrawer` | `Select` dropdown | Conditional | Required if either account is Saving/Asset (Special). Auto-selected if destination has `linkedCategoryId`. |
+| 6 | **Quantity/Weight** | Numeric `Input` card | `Input` | Conditional | Required if either account is Asset type. Shows implied unit price. |
+| 7 | **Date** | `MobileDatePicker` | `DatePicker` | Yes | Same as Expense. |
+| 8 | **Labels** | `LabelCombobox` | `LabelCombobox` | No | — |
+| 9 | **Description** | `Textarea` card | `Input` | No | — |
+
+**Split Transaction Flow:**
+1. User selects "🔀 Split Transaction" from Category selector.
+2. Parent form hides: Category selector, Label, Description — replaced by **Split Summary Card** (item count + total allocated).
+3. `SplitEditorDrawer` (nested drawer) opens with:
+   - Per-item rows: Category selector + Amount input + optional Description + optional Labels.
+   - "Add Item" button to append rows.
+   - Swipe-to-delete on mobile for each row.
+4. Validation: total of all split amounts must equal the transaction amount.
+5. Close sub-drawer → parent form re-validates splits → shows error badge if mismatch.
+6. "Revert to Single Category" link to exit split mode.
+
+**Submit & Safety:**
+- **Double-Click Prevention:** `useRef` lock + `isProcessing` state — button disabled during save.
+- **Haptic Feedback:** `navigator.vibrate(10)` on submit (mobile).
+- **Date Normalization:** Selected date is set to 12:00 PM local time before sending to backend to prevent UTC timezone shifts.
+- **Backend:** Calls `api.transactions.create` (or `api.transactions.update` in edit mode). Mutations trigger `recomputeUserCache` for real-time dashboard sync.
+- **Success:** Toast notification + drawer closes.
+
+**Navigation Safety (Dirty State):**
+- Back button / backdrop click / Cancel with unsaved changes → `AlertDialog` ("Discard changes?").
+- "Keep Editing" → dismisses dialog, locks close attempts for 500ms.
+- "Discard" → resets form and closes drawer.
+- Split sub-drawer has its own history stack — back button closes split drawer first, then main drawer.
+
 ### 2. Accounts (Funds Storage)
 - **Types:**
   - **Liquid (Cash/Bank):** Used for daily spending.
