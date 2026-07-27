@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus, Check, Settings, UserPlus } from "lucide-react"
+import { ChevronsUpDown, Plus, Check, Settings, UserPlus } from '@/components/ui/icons'
 
 import {
   DropdownMenu,

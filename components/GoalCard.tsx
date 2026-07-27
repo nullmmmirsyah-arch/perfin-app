@@ -9,7 +9,7 @@ import { Doc } from '../convex/_generated/dataModel'
 import { format } from 'date-fns'
 import { cn, formatCurrency } from '@/lib/utils'
 import { calculateGoalStrategy } from '@/lib/finance-utils'
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { MoreVertical, Pencil, Trash2 } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {

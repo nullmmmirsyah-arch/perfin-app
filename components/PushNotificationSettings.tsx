@@ -2,7 +2,7 @@
 
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { Switch } from '@/components/ui/switch';
-import { Bell, BellOff, Loader2 } from 'lucide-react';
+import { Bell, BellOff, Loader2 } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { useState } from 'react';
 

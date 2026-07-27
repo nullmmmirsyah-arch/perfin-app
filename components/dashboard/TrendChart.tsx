@@ -7,7 +7,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from 'recharts';
-import { FileBarChart } from 'lucide-react';
+import { FileBarChart } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatCurrency } from '@/lib/utils';
 

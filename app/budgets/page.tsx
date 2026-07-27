@@ -8,7 +8,7 @@ import { api as convexApi } from '../../convex/_generated/api'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { MoreHorizontal, Edit2, Trash2, ChevronLeft, ChevronRight, CheckCircle2, Info, Target, Wallet, RefreshCw } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, ChevronLeft, ChevronRight, CheckCircle2, Info, Target, Wallet, RefreshCw } from '@/components/ui/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,

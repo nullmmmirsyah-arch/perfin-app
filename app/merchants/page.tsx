@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal as MoreIcon, Trash2 as TrashIcon, Edit as EditIcon } from 'lucide-react'
+import { MoreHorizontal as MoreIcon, Trash2 as TrashIcon, Edit as EditIcon } from '@/components/ui/icons'
 import MerchantDrawer from '@/components/MerchantDrawer'
 import {
   AlertDialog,

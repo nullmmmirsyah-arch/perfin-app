@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, PartyPopper } from 'lucide-react';
+import { Loader2, PartyPopper } from '@/components/ui/icons';
 import confetti from 'canvas-confetti';
 import { useGoalWizard } from '@/hooks/useGoalWizard';
 import { GoalWizardStepIndicator } from './GoalWizardStepIndicator';

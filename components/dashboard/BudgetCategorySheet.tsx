@@ -7,7 +7,7 @@ import { type BudgetBreakdownItem } from './MobileBudgetToday'
 import type { PacingResult } from '@/lib/finance-utils'
 import { getFiscalDateDetails, getFiscalMonthRange } from '@/lib/finance-utils'
 import { calculateAllowance } from '@/lib/allowance-calculator'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from '@/components/ui/icons'
 import Link from 'next/link'
 import { format } from 'date-fns'
 

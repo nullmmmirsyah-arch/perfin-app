@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useHousehold } from '@/components/HouseholdProvider'
 import { parseAmount, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
-import { ArrowRightLeft, PiggyBank, Wallet } from 'lucide-react'
+import { ArrowRightLeft, PiggyBank, Wallet } from '@/components/ui/icons'
 import { ACCOUNT_TYPES, TRANSACTION_TYPES } from '@/convex/lib/constants'
 
 type ActionType = 'deposit' | 'withdraw'

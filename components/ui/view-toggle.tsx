@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { BarChart3, Table2 } from 'lucide-react';
+import { BarChart3, Table2 } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 
 type ViewMode = 'table' | 'chart';

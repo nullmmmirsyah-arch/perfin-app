@@ -14,7 +14,7 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import {
   Filter, X,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { Label } from './ui/label'

@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2 } from '@/components/ui/icons';
 import { format, addMonths } from 'date-fns';
 import { cn, formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';

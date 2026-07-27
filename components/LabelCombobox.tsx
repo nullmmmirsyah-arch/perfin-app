@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Check, PlusCircle, Search, Tag, Loader2 } from 'lucide-react';
+import { Check, PlusCircle, Search, Tag, Loader2 } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';

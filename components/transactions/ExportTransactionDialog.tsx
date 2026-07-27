@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Download, Loader2, FileSpreadsheet } from "lucide-react"
+import { Download, Loader2, FileSpreadsheet } from '@/components/ui/icons'
 import { format } from "date-fns"
 import { convertTransactionsToCSV, downloadCSV } from "@/lib/export-utils"
 import { toast } from "sonner"

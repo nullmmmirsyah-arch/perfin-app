@@ -33,6 +33,13 @@ Format:
 ### Changed
 - **Mobile home: overall budget info removed from BudgetToday card.** `MobileBudgetToday` no longer shows the overall progress bar (spent vs budget) and status badge ("On Track / Spending Faster / Slow Down") — this info was redundant with the `MobileHeroSummary` card above it, which already displays remaining budget, daily allowance, and fiscal day. BudgetToday now focuses purely on per-category pacing breakdown and today's spending.
 
+### Changed
+- **Icon library migration: `lucide-react` → HeroIcons via `@iconify-icon/react`.** Semua icon (~96) diganti dengan HeroIcons (outline default, solid untuk emphasis). Wrapper `components/ui/icons.tsx` mengekspor icon dengan nama yang sama persis dengan lucide-react — 93 file hanya perlu ganti import path. `lucide-react` dihapus dari dependencies.
+
+### Docs
+- **`TECH_STACK_AND_WORKFLOW.md`:** Update icon stack dari Lucide ke HeroIcons (Iconify).
+- **`CODE_STYLE_GUIDE.md`:** Update contoh import icon ke `@/components/ui/icons`.
+
 ## 2026-07-26
 
 ### Added

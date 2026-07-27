@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import {
   MoreHorizontal, Trash2, Edit, ChevronDown, GitBranch,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 
 import { TransactionWithDetails } from './transactions/types'
 

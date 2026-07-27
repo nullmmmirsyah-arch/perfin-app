@@ -1,4 +1,4 @@
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw } from '@/components/ui/icons'
 import { Button } from '@/components/ui/button'
 
 interface ErrorStateProps {

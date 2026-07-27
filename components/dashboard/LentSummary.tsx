@@ -1,6 +1,6 @@
 'use client'
 
-import { HandCoins, Check, Ban } from 'lucide-react';
+import { HandCoins, Check, Ban } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, parseAmount } from '@/lib/utils';
 import { Button } from '@/components/ui/button';

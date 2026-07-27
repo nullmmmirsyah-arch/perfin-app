@@ -4,7 +4,7 @@ import { SignInButton } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Logo } from '@/components/Logo'
-import { PieChart, TrendingUp, ShieldCheck } from 'lucide-react'
+import { PieChart, TrendingUp, ShieldCheck } from '@/components/ui/icons'
 import { ThemeToggle } from './ThemeToggle'
 
 export default function LandingPage() {

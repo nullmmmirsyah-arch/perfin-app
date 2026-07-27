@@ -18,7 +18,7 @@ import { TransactionWithDetails } from '@/components/transactions/types'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { List, PieChart, Search, X } from 'lucide-react'
+import { List, PieChart, Search, X } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
 import { useDebounce } from '@/hooks/use-debounce'
 import { TransactionAnalytics } from '@/components/transactions/TransactionAnalytics'

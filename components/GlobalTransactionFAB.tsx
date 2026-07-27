@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus } from '@/components/ui/icons'
 import { Button } from '@/components/ui/button'
 import TransactionDrawer from '@/components/TransactionDrawer'
 

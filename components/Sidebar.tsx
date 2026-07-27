@@ -13,7 +13,7 @@ import {
   FileBarChart,
   CalendarClock,
   Settings
-} from 'lucide-react'
+} from '@/components/ui/icons'
 
 import {
   Sidebar as SidebarComponent,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { PieChart, ArrowRight } from 'lucide-react'
+import { PieChart, ArrowRight } from '@/components/ui/icons'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { cn, formatCurrency } from '@/lib/utils'

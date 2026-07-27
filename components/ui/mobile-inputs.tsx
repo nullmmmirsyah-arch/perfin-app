@@ -9,7 +9,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { Check, ChevronDown, PlusCircle } from 'lucide-react';
+import { Check, ChevronDown, PlusCircle } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 export const MobileSelectionDrawer = ({ 

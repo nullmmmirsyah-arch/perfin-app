@@ -10,7 +10,7 @@ import {
   PiggyBank,
   FileBarChart,
   Plus,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import TransactionDrawer from '@/components/TransactionDrawer'
 
 export function BottomNav() {

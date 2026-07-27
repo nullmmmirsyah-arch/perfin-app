@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, parseAmount } from '@/lib/utils';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Receipt, CheckCircle2, AlertCircle, CalendarClock, Loader2 } from 'lucide-react';
+import { Receipt, CheckCircle2, AlertCircle, CalendarClock, Loader2 } from '@/components/ui/icons';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useState } from 'react';

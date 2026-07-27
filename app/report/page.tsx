@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { BudgetReportFilters, BudgetReportSummary, BudgetReportTable, BudgetReportChart } from '@/components/report';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { FileBarChart } from 'lucide-react';
+import { FileBarChart } from '@/components/ui/icons';
 
 type ViewMode = 'table' | 'chart';
 

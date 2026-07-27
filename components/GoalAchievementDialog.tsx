@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { PartyPopper, ArrowRight, CalendarClock, TrendingUp } from 'lucide-react'
+import { PartyPopper, ArrowRight, CalendarClock, TrendingUp } from '@/components/ui/icons'
 import { toast } from 'sonner'
 import { useHousehold } from './HouseholdProvider'
 import confetti from 'canvas-confetti'

@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from '@/components/ui/icons';
 import MerchantIconPicker from './MerchantIconPicker';
 
 const MerchantFormSchema = z.object({

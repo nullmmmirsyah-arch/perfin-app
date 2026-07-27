@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, parseAmount } from '@/lib/utils';
 import { RecurringForm } from './RecurringForm';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Receipt, CheckCircle2, AlertCircle, CalendarClock, Pencil, Trash2 } from 'lucide-react';
+import { Receipt, CheckCircle2, AlertCircle, CalendarClock, Pencil, Trash2 } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { useHousehold } from '@/components/HouseholdProvider';
 import { useState } from 'react';

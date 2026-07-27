@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp, ChevronRight, Landmark } from 'lucide-react';
+import { ArrowRight, ShieldCheck, CalendarClock, Sparkles, TrendingUp, ChevronRight, Landmark } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatCurrency } from '@/lib/utils';

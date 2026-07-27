@@ -6,7 +6,7 @@ import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails
 import { calculateAllowance } from '@/lib/allowance-calculator'
 import Link from 'next/link'
 import { useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { Button } from '@/components/ui/button'
 import { BudgetCategorySheet } from './BudgetCategorySheet'
 import { format } from 'date-fns'

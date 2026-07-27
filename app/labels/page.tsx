@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   MoreHorizontal as MoreIcon, Trash2 as TrashIcon, Edit as EditIcon,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 
 import LabelDrawer from '@/components/LabelDrawer'
 import {

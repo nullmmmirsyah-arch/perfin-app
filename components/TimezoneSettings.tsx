@@ -7,7 +7,7 @@ import { useHousehold } from '@/components/HouseholdProvider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Globe, Smartphone } from 'lucide-react'
+import { Globe, Smartphone } from '@/components/ui/icons'
 
 const TIMEZONES = [
   { value: 'Asia/Jakarta', label: 'WIB (UTC+7)', desc: 'Jakarta, Bandung, Surabaya' },

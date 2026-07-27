@@ -3,7 +3,7 @@
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Edit2, Trash2, CheckCircle2, ArrowRightLeft } from 'lucide-react'
+import { MoreHorizontal, Edit2, Trash2, CheckCircle2, ArrowRightLeft } from '@/components/ui/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,

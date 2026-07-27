@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import {
   PlusCircle, Trash2, ArrowLeft, LayoutGrid, Tag, FileText,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban, ChevronRight, Landmark } from 'lucide-react';
+import { Wallet, Info, CalendarClock, ChevronDown, ChevronUp, CheckCircle2, HandCoins, User2, ArrowRightLeft, Check, Trash2, Ban, ChevronRight, Landmark } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import Link from 'next/link';

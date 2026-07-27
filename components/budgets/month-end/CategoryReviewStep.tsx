@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { formatCurrency, cn } from '@/lib/utils'
-import { CheckCircle2, AlertTriangle, XCircle, Wallet, Target } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, XCircle, Wallet, Target } from '@/components/ui/icons'
 
 type CategoryHealth = {
   name: string

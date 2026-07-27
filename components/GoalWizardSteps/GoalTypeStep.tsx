@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { ShieldCheck, CalendarClock, Sparkles } from 'lucide-react';
+import { ShieldCheck, CalendarClock, Sparkles } from '@/components/ui/icons';
 import { GoalType } from '@/hooks/useGoalWizard';
 
 interface GoalTypeStepProps {

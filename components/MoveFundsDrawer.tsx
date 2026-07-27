@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, ArrowRightFromLine, Banknote } from 'lucide-react';
+import { Loader2, ArrowRight, ArrowRightFromLine, Banknote } from '@/components/ui/icons';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileAmountInput } from './mobile-amount-input';
 

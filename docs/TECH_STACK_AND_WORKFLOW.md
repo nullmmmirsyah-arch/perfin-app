@@ -8,7 +8,7 @@
 - **Styling:** [Tailwind CSS v4](https://tailwindcss.com/) (CSS-first configuration).
 - **UI Library:** [shadcn/ui](https://ui.shadcn.com/) (based on Radix UI).
 - **Charts:** [Recharts](https://recharts.org/) (via shadcn/ui Charts).
-- **Icons:** [Lucide React](https://lucide.dev/).
+- **Icons:** [HeroIcons](https://heroicons.com/) via [Iconify](https://iconify.design/) (`@iconify-icon/react`), wrapped in `@/components/ui/icons`.
 - **Forms:** `react-hook-form` + `zod`.
 - **Drawer/Dialog:** `vaul` (Drawer) for mobile-friendly sheets.
 - **Carousel:** `embla-carousel-react` (via shadcn/ui Carousel) for swipeable tabs.

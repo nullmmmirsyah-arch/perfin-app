@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Trash2, Edit, Archive } from 'lucide-react'
+import { MoreHorizontal, Trash2, Edit, Archive } from '@/components/ui/icons'
 import AccountDrawer from '@/components/AccountDrawer'
 import {
   AlertDialog,
@@ -30,7 +30,7 @@ import { useHousehold } from '@/components/HouseholdProvider'
 import { AccountsListSkeleton } from '@/components/skeletons'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 
 import { PageHeader } from '@/components/PageHeader'
 

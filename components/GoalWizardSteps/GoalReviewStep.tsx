@@ -1,5 +1,5 @@
 import { GoalWizardState } from '@/hooks/useGoalWizard';
-import { ShieldCheck, CalendarClock, Sparkles } from 'lucide-react';
+import { ShieldCheck, CalendarClock, Sparkles } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 

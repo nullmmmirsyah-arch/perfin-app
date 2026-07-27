@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/utils'
-import { Wallet, TrendingUp, PiggyBank, Heart } from 'lucide-react'
+import { Wallet, TrendingUp, PiggyBank, Heart } from '@/components/ui/icons'
 
 interface MonthSummaryStepProps {
   totalSpent: number

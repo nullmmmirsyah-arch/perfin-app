@@ -33,7 +33,7 @@ import {
 import { toast } from 'sonner';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from '@/components/ui/icons';
 
 const BudgetFormSchema = z.object({
   categoryId: z.string().min(1, 'Category is required'),

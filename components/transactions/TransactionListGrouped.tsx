@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { Receipt } from 'lucide-react';
+import { Receipt } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TransactionWithDetails } from './types';
 import { TransactionItem } from '@/components/TransactionItem';

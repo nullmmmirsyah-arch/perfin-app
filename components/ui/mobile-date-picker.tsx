@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarDays } from "lucide-react"
+import { CalendarDays } from '@/components/ui/icons'
 import { Calendar } from "@/components/ui/calendar"
 import { MobileInputCard, MobileSelectionDrawer } from "@/components/ui/mobile-inputs"
 

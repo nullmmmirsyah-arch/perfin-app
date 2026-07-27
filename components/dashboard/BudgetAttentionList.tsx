@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, Wallet } from 'lucide-react';
+import { ChevronDown, ChevronRight, Wallet } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';

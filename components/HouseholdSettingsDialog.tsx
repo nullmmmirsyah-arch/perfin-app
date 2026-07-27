@@ -10,7 +10,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } f
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, Copy, Plus, User, Shield, Calendar, Users, Mail } from 'lucide-react'
+import { Trash2, Copy, Plus, User, Shield, Calendar, Users, Mail } from '@/components/ui/icons'
 import { toast } from 'sonner'
 import { useUser } from '@clerk/nextjs'
 import { useHousehold } from './HouseholdProvider'

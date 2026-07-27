@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight } from '@/components/ui/icons'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { useHousehold } from '@/components/HouseholdProvider'

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { Target, FolderTree, Tags, Landmark, Store, Settings, ChevronRight } from 'lucide-react'
+import { Target, FolderTree, Tags, Landmark, Store, Settings, ChevronRight } from '@/components/ui/icons'
 
 const settingsLinks = [
   { href: '/goals', label: 'Goals', icon: Target },

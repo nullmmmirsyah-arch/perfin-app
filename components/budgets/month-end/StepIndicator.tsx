@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { ChevronLeft, X } from 'lucide-react'
+import { ChevronLeft, X } from '@/components/ui/icons'
 import { Button } from '@/components/ui/button'
 
 interface StepIndicatorProps {

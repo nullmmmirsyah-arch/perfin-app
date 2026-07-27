@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { formatCurrency, parseAmount, cn } from '@/lib/utils';
 import { calculateFiscalDaysRemaining, getFiscalDateDetails } from '@/lib/finance-utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
-import { RotateCcw, Loader2 } from 'lucide-react';
+import { RotateCcw, Loader2 } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 type SummaryData = {

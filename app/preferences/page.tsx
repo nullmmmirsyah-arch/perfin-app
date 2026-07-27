@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { ThemeTogglePreferences } from '@/components/ThemeTogglePreferences'
 import { PushNotificationSettings } from '@/components/PushNotificationSettings'
 import { TimezoneSettings } from '@/components/TimezoneSettings'
-import { Globe } from 'lucide-react'
+import { Globe } from '@/components/ui/icons'
 
 export default function PreferencesPage() {
   return (

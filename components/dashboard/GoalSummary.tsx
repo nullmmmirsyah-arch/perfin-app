@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn, formatCurrency } from '@/lib/utils';
 import { calculateGoalStrategy } from '@/lib/finance-utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
-import { Sparkles, ShieldCheck, CalendarClock, Flag } from 'lucide-react';
+import { Sparkles, ShieldCheck, CalendarClock, Flag } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
 
 type SummaryData = {

@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { formatCurrency, cn } from '@/lib/utils'
-import { TrendingUp, TrendingDown, Lightbulb, Award, Star, Flame } from 'lucide-react'
+import { TrendingUp, TrendingDown, Lightbulb, Award, Star, Flame } from '@/components/ui/icons'
 
 interface InsightsStepProps {
   monthComparison: {

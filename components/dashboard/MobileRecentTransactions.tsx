@@ -7,7 +7,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { cn, formatCurrency, parseAmount } from '@/lib/utils'
 import { isToday, isYesterday, format } from 'date-fns'
 import { TransactionWithDetails } from '@/components/transactions/types'
-import { ArrowRight, ChevronDown, Edit, Trash2, GitBranch } from 'lucide-react'
+import { ArrowRight, ChevronDown, Edit, Trash2, GitBranch } from '@/components/ui/icons'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 

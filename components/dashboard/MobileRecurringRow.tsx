@@ -6,7 +6,7 @@ import { Id } from '@/convex/_generated/dataModel'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, parseAmount } from '@/lib/utils'
-import { Receipt, AlertCircle, CalendarClock, CheckCircle2 } from 'lucide-react'
+import { Receipt, AlertCircle, CalendarClock, CheckCircle2 } from '@/components/ui/icons'
 import { toast } from 'sonner'
 import Link from 'next/link'
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/use-debounce';
 

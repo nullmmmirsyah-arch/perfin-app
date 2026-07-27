@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Trash2, Edit, Archive, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
+import { MoreHorizontal, Trash2, Edit, Archive, RotateCcw, ChevronDown, ChevronRight } from '@/components/ui/icons'
 import CategoryDrawer from '@/components/CategoryDrawer'
 import {
   AlertDialog,

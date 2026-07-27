@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { formatCurrency, cn } from '@/lib/utils'
-import { CheckCircle2, ArrowRight, ArrowLeftRight, CircleArrowRight, CircleArrowDown, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, ArrowRight, ArrowLeftRight, CircleArrowRight, CircleArrowDown, AlertTriangle } from '@/components/ui/icons'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/components/ui/icons'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 
 type ProposalType = 'sweep' | 'rollover'

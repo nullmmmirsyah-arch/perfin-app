@@ -63,7 +63,7 @@ import {
   Tag,
   Store,
   Loader2,
-} from 'lucide-react';
+} from '@/components/ui/icons';
 import { cn, formatCurrency, parseAmount } from '@/lib/utils';
 import { Doc, Id } from '../convex/_generated/dataModel';
 import { toast } from 'sonner';
