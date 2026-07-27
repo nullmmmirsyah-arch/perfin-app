@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails } from '@/lib/finance-utils';
+import { calculateBudgetPace, calculateFiscalDaysRemaining, getFiscalDateDetails, getFiscalMonthRange } from '@/lib/finance-utils';
+import { calculateAllowance } from '@/lib/allowance-calculator';
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +32,9 @@ export type BudgetBreakdownItem = {
   spent: number;
   remaining: number;
   pendingReceivables?: number;
+  allowanceType?: "budget_period" | "weekly"
+  weeklyResetDay?: number
+  weeklySpent?: number
 };
 
 type SummaryData = {
@@ -59,15 +63,26 @@ type Props = {
   budgetStartDay?: number;
 };
 
-const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1, onCategoryClick, isActive }: { item: BudgetBreakdownItem, daysRemaining: number, isPrivacyMode?: boolean, budgetStartDay?: number, onCategoryClick?: (categoryId: string, categoryName: string) => void, isActive?: boolean }) => {
+const BudgetRow = ({ item, isPrivacyMode, budgetStartDay = 1, onCategoryClick, isActive }: { item: BudgetBreakdownItem, isPrivacyMode?: boolean, budgetStartDay?: number, onCategoryClick?: (categoryId: string, categoryName: string) => void, isActive?: boolean }) => {
     const percentage = item.limit > 0 ? (item.spent / item.limit) * 100 : 0;
     const isOver = item.spent > item.limit;
-    const safeSpend = Math.max(0, item.remaining) / daysRemaining;
 
     // Pacing Logic
     const now = new Date();
     // FIX: Use Fiscal Month to ensure isCurrentFiscalMonth is TRUE in helper
     const { year, month } = getFiscalDateDetails(now.toISOString(), budgetStartDay);
+
+    const fiscalRange = getFiscalMonthRange(year, month, budgetStartDay)
+    const allowance = calculateAllowance({
+      allowanceType: item.allowanceType ?? "budget_period",
+      weeklyResetDay: item.weeklyResetDay,
+      budgetAmount: item.limit,
+      spent: item.spent,
+      weeklySpent: item.weeklySpent ?? 0,
+      fiscalPeriodStart: fiscalRange.start,
+      fiscalPeriodEnd: fiscalRange.end,
+      now,
+    })
     
     const pacing = item.enablePacing && item.limit > 0
         ? calculateBudgetPace(item.spent, item.limit, year, month, budgetStartDay)
@@ -114,9 +129,9 @@ const BudgetRow = ({ item, daysRemaining, isPrivacyMode, budgetStartDay = 1, onC
                     
                     <div className="flex items-center gap-1">
                         {/* Safe Daily Badge - Always Visible if applicable */}
-                        {!isOver && item.remaining > 0 && safeSpend > 0 ? (
+                        {!isOver && item.remaining > 0 && allowance.allowance > 0 ? (
                             <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-medium text-primary border-primary/20 shrink-0 whitespace-nowrap">
-                                {formatCurrency(safeSpend, { isPrivacyMode })}/day
+                                {formatCurrency(allowance.allowance, { isPrivacyMode })}/day
                             </Badge>
                         ) : isOver ? (
                             <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 font-medium shrink-0 whitespace-nowrap">
@@ -396,10 +411,10 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     Over Budget ({overBudget.length})
                   </p>
                   {overBudget.map((item, i) => (
-                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
-                  ))}
-                </div>
-              )}
+<BudgetRow key={i} item={item} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
+            ))}
+                  </div>
+                )}
 
               {/* Watch */}
               {warningItems.length > 0 && (
@@ -409,7 +424,7 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     Watch ({warningItems.length})
                   </p>
                   {warningItems.map((item, i) => (
-                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
+                    <BudgetRow key={i} item={item} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
                   ))}
                 </div>
               )}
@@ -430,11 +445,11 @@ export function DailyOperationsCard({ summary, isPrivacyMode, budgetStartDay = 1
                     )}
                   </div>
                   {safeItems.slice(0, 3).map((item, i) => (
-                    <BudgetRow key={i} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
+                    <BudgetRow key={i} item={item} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
                   ))}
                   <CollapsibleContent className="space-y-1">
                     {safeItems.slice(3).map((item, i) => (
-                      <BudgetRow key={i + 3} item={item} daysRemaining={daysRemaining} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
+                      <BudgetRow key={i + 3} item={item} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} onCategoryClick={handleCategoryClick} isActive={item.categoryId === activeCategoryId} />
                     ))}
                   </CollapsibleContent>
                 </Collapsible>

@@ -12,6 +12,10 @@ Format:
 
 ## 2026-07-27
 
+### Changed
+- **`MobileHeroSummary` daily allowance now respects per-category `allowanceType`:** Replaced simple `remainingBudget / daysRemaining` with aggregated per-category `calculateAllowance()` that honors each category's `allowanceType` (budget_period/weekly). Filters to `expense` categories with `enablePacing !== false`. Categories using weekly mode now contribute their weekly-calculated allowance instead of flat monthly average.
+- **`DailyOperationsCard.BudgetRow` now respects per-category `allowanceType`:** Replaced hardcoded `safeSpend = remaining / daysRemaining` with `calculateAllowance()` to honor each category's allowance setting (budget_period/weekly). Removed unused `daysRemaining` prop from `BudgetRow`.
+
 ### Added
 - **Budget Allowance Feature:** Allowance configuration per category — pure recommendation layer, never affects budget allocation or month-end processing.
   - **Schema:** Added `allowanceType` (`"budget_period"` | `"weekly"`) and `weeklyResetDay` (0-6) to `categories` table.

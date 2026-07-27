@@ -1,12 +1,25 @@
 'use client'
 
 import { formatCurrency } from '@/lib/utils'
-import { calculateFiscalDaysRemaining, getFiscalDate, getFiscalMonthRange } from '@/lib/finance-utils'
+import { getFiscalDate, getFiscalMonthRange } from '@/lib/finance-utils'
+import { calculateAllowance } from '@/lib/allowance-calculator'
 import { differenceInCalendarDays } from 'date-fns'
+
+type BudgetBreakdownItem = {
+  categoryId: string
+  categoryType: string
+  enablePacing?: boolean
+  limit: number
+  spent: number
+  allowanceType?: "budget_period" | "weekly"
+  weeklyResetDay?: number
+  weeklySpent?: number
+}
 
 type SummaryData = {
   liquidCash: number
   remainingBudget: number
+  budgetBreakdown?: BudgetBreakdownItem[]
 }
 
 type Props = {
@@ -17,15 +30,29 @@ type Props = {
 
 export function MobileHeroSummary({ summary, isPrivacyMode, budgetStartDay }: Props) {
   const startDay = budgetStartDay ?? 1
-  const daysRemaining = calculateFiscalDaysRemaining(startDay)
   const now = new Date()
   const fiscalDate = getFiscalDate(now, startDay)
   const { start, end } = getFiscalMonthRange(fiscalDate.getFullYear(), fiscalDate.getMonth(), startDay)
   const totalFiscalDays = differenceInCalendarDays(end, start) + 1
   const fiscalDayNumber = differenceInCalendarDays(now, start) + 1
-  const dailyAllowance = daysRemaining > 0
-    ? Math.max(0, (summary?.remainingBudget || 0) / daysRemaining)
-    : 0
+
+  // Aggregated daily allowance from per-category calculations (respects allowanceType)
+  const dailyAllowance = (summary?.budgetBreakdown ?? []).reduce((sum, item) => {
+    if (item.categoryType !== 'expense') return sum
+    if (item.enablePacing === false) return sum
+    if (item.limit <= 0) return sum
+    const a = calculateAllowance({
+      allowanceType: item.allowanceType ?? "budget_period",
+      weeklyResetDay: item.weeklyResetDay,
+      budgetAmount: item.limit,
+      spent: item.spent,
+      weeklySpent: item.weeklySpent ?? 0,
+      fiscalPeriodStart: start,
+      fiscalPeriodEnd: end,
+      now,
+    })
+    return sum + a.allowance
+  }, 0)
 
   return (
     <div className="w-full rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground p-5 shadow-lg">
