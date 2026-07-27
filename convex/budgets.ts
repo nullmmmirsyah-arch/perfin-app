@@ -283,6 +283,8 @@ export const getBudgetStatus = query({
                     budget,
                     spent,
                     accumulated,
+                    allowanceType: category.allowanceType,
+                    weeklyResetDay: category.weeklyResetDay,
                     pendingReceivables: pendingReceivablesByCategory[category._id] || 0,
                 };
         })

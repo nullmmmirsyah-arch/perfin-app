@@ -342,6 +342,8 @@ export const getDashboardSummary = query({
                 targetDate: cat?.targetDate,
                 enablePacing: cat?.enablePacing,
                 goalType: cat?.goalType,
+                allowanceType: cat?.allowanceType,
+                weeklyResetDay: cat?.weeklyResetDay,
                 accumulated,
                 limit,
                 carryover,
