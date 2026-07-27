@@ -907,3 +907,38 @@ export const resetNegativeGoalBalances = mutation({
     };
   },
 });
+
+export const updateAllowanceConfig = mutation({
+  args: {
+    categoryId: v.id("categories"),
+    allowanceType: v.union(v.literal("budget_period"), v.literal("weekly")),
+    weeklyResetDay: v.optional(v.number()),
+  },
+  handler: async (ctx, { categoryId, allowanceType, weeklyResetDay }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
+
+    const category = await ctx.db.get(categoryId);
+    if (!category) throw new Error("Category not found");
+
+    // Auth check
+    if (category.householdId) {
+      const member = await ctx.db
+        .query("householdMembers")
+        .withIndex("by_householdId_userId", (q) =>
+          q.eq("householdId", category.householdId!).eq("userId", userId)
+        )
+        .first();
+      if (!member) throw new Error("Unauthorized");
+    } else {
+      if (category.userId !== userId) throw new Error("Unauthorized");
+    }
+
+    // Only patch allowance config — never touches budget amounts or spending
+    await ctx.db.patch(categoryId, {
+      allowanceType,
+      weeklyResetDay: allowanceType === "weekly" ? (weeklyResetDay ?? 1) : undefined,
+    });
+  },
+});
