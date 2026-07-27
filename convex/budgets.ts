@@ -227,6 +227,29 @@ export const getBudgetStatus = query({
         }
     });
 
+    // 7.2 Calculate Weekly Spent Per Category (for weekly allowance)
+    const weeklySpentByCategory: Record<string, number> = {};
+    const nowDayOfWeek = now.getDay();
+
+    for (const cat of categories) {
+      if (cat.allowanceType !== "weekly") continue;
+      
+      const resetDay = cat.weeklyResetDay ?? 1;
+      let weekStart = new Date(now);
+      const daysSinceReset = (nowDayOfWeek - resetDay + 7) % 7;
+      weekStart.setDate(weekStart.getDate() - daysSinceReset);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekStartStr = weekStart.toISOString();
+      const nowStr = now.toISOString();
+      const weekTransactions = currentMonthTransactions.filter(t => {
+        return t.date >= weekStartStr && t.date <= nowStr;
+      });
+      
+      const weekSpending = calculateSpendingByCategory(weekTransactions, accountsMap, categoriesMap);
+      weeklySpentByCategory[cat._id] = weekSpending[cat._id] || 0;
+    }
+
     // 8. Accumulated from cache (all-time per category, no full scan)
     const accumulatedByCategoryMap = new Map(
         (cache?.accumulatedByCategory ?? []).map((item) => [item.categoryId, item.amount])
@@ -286,6 +309,7 @@ export const getBudgetStatus = query({
                     allowanceType: category.allowanceType,
                     weeklyResetDay: category.weeklyResetDay,
                     pendingReceivables: pendingReceivablesByCategory[category._id] || 0,
+                    weeklySpent: weeklySpentByCategory[category._id] ?? 0,
                 };
         })
     );

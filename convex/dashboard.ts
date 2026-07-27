@@ -313,6 +313,31 @@ export const getDashboardSummary = query({
         }
     });
 
+    // 2.0.2 Calculate Weekly Spent Per Category (for weekly allowance)
+    const weeklySpentByCategory: Record<string, number> = {};
+    const nowDayOfWeek = now.getDay();
+
+    for (const cat of categories) {
+      if (cat.allowanceType !== "weekly") continue;
+      
+      const resetDay = cat.weeklyResetDay ?? 1;
+      // Find the start of the current week based on resetDay
+      let weekStart = new Date(now);
+      const daysSinceReset = (nowDayOfWeek - resetDay + 7) % 7;
+      weekStart.setDate(weekStart.getDate() - daysSinceReset);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      // Filter transactions within the current week
+      const weekStartStr = weekStart.toISOString();
+      const nowStr = now.toISOString();
+      const weekTransactions = currentMonthTransactions.filter(t => {
+        return t.date >= weekStartStr && t.date <= nowStr;
+      });
+      
+      const weekSpending = calculateSpendingByCategory(weekTransactions, accountsMap, categoriesMap);
+      weeklySpentByCategory[cat._id] = weekSpending[cat._id] || 0;
+    }
+
     // 2.1 Categories Info
     // Categories already fetched above
     const budgetMap = new Map(budgets.map(b => [b.categoryId, b]));
@@ -350,6 +375,7 @@ export const getDashboardSummary = query({
                 spent,
                 remaining: Math.max(0, limit - spent),
                 pendingReceivables: pendingReceivablesByCategory[cat._id] || 0,
+                weeklySpent: weeklySpentByCategory[cat._id] ?? 0,
             };
     });
 
