@@ -10,6 +10,15 @@ Format:
 ### Docs
 -->
 
+## 2026-07-28
+
+### Fixed
+- **`daysRemaining` and `daysRemainingInWeek` off-by-one error in `AllowanceCalculator`:** Both used `Math.round(diffMs / msPerDay) + 1` which overcounted by 1 when the remaining time was less than 0.5 days but still the same calendar day. Example: user at 09:51 on the last day of a week → `Math.round(0.589) + 1 = 2` instead of correct `1`. Fix: `Math.round` → `Math.floor`. `Math.floor(0.589) + 1 = 1` ✅.
+- **`segment.days` inflation in `splitIntoWeekSegments`:** Same `Math.round(...) + 1` bug caused segment day counts to be inflated by 1 (e.g., 5-day week computed as 6). This inflated `weeklyAllowance` and daily allowance shown to users. Fix: `Math.round` → `Math.floor` at lines 63 and 78.
+
+### Docs
+- Updated `DATABASE_AND_RELATIONSHIPS.md`: Added "Days Remaining Calculation" section documenting the `Math.floor` formula and why `Math.round` was incorrect.
+
 ## 2026-07-27
 
 ### Fixed

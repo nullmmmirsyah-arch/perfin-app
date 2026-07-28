@@ -100,6 +100,11 @@ The `AllowanceCalculator` (`lib/allowance-calculator.ts`) provides two pacing st
 - Returns: `allowance` (daily rate within week), `weeklyRemaining` (actual weekly amount), `weekStart`, `weekEnd`, `weekNumber`, `daysRemainingInWeek`
 - Use case: Users who prefer weekly spending limits with a configurable reset day.
 
+**Days Remaining Calculation:**
+- Both `daysRemaining` (fiscal period), `daysRemainingInWeek`, and `segment.days` (week segment length) use `Math.floor(diffMs / msPerDay) + 1` to count calendar days inclusively (including today).
+- `Math.floor` is used instead of `Math.round` to avoid off-by-one errors — `Math.round` would round up partial days (e.g., 0.589 days → 1) and then `+1` would double-count, yielding 2 instead of 1 when today is the last day. The same issue applied to `segment.days` where boundaries are `00:00:00` to `23:59:59.999`, producing `N - 0.000...001` days for N calendar days.
+- `+1` makes the count inclusive: if `now` and `end` are the same calendar day, result is 1.
+
 **Important: Display Rules**
 - `allowance.allowance` is **always a daily rate** — even for weekly type (it's `weeklyRemaining / daysRemainingInWeek`).
 - When displaying "for this week" / "/week", use `allowance.weeklyRemaining` (the actual weekly remaining amount).

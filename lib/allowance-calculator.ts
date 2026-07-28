@@ -60,7 +60,7 @@ function splitIntoWeekSegments(
     firstEnd.setHours(23, 59, 59, 999);
     
     if (firstEnd <= end) {
-      const days = Math.round((firstEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const days = Math.floor((firstEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       segments.push({ start: new Date(segStart), end: new Date(firstEnd), days });
       segStart = new Date(firstEnd);
       segStart.setDate(segStart.getDate() + 1);
@@ -75,7 +75,7 @@ function splitIntoWeekSegments(
     weekEnd.setHours(23, 59, 59, 999);
     
     const actualEnd = weekEnd > end ? end : weekEnd;
-    const days = Math.round((actualEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const days = Math.floor((actualEnd.getTime() - segStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     segments.push({ start: new Date(segStart), end: new Date(actualEnd), days });
     
@@ -129,7 +129,7 @@ export function calculateAllowance(input: AllowanceInput): AllowanceResult {
   
   // Days remaining in fiscal period (inclusive of today)
   const msPerDay = 1000 * 60 * 60 * 24;
-  const daysRemaining = Math.max(1, Math.round((fiscalPeriodEnd.getTime() - now.getTime()) / msPerDay) + 1);
+  const daysRemaining = Math.max(1, Math.floor((fiscalPeriodEnd.getTime() - now.getTime()) / msPerDay) + 1);
 
   if (allowanceType === "budget_period") {
     return {
@@ -159,7 +159,7 @@ export function calculateAllowance(input: AllowanceInput): AllowanceResult {
   const weeklyAllowance = dailyAllowance * segment.days;
   const weeklyRemaining = Math.max(0, weeklyAllowance - weeklySpent);
   
-  const daysRemainingInWeek = Math.max(1, Math.round((segment.end.getTime() - now.getTime()) / msPerDay) + 1);
+  const daysRemainingInWeek = Math.max(1, Math.floor((segment.end.getTime() - now.getTime()) / msPerDay) + 1);
   const allowance = daysRemainingInWeek > 0 ? weeklyRemaining / daysRemainingInWeek : 0;
 
   return {
