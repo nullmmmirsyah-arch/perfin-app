@@ -212,6 +212,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                       <Input 
                           placeholder="e.g., 500.00" 
                           inputMode="decimal"
+                          className="h-11 text-base"
                           {...field} 
                           onChange={(e) => {
                               const value = e.target.value;
@@ -219,6 +220,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                           }}
                       />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">Enter the budget limit for this category this month.</p>
                       <FormMessage />
                   </FormItem>
                   )}
@@ -237,26 +239,26 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                           <RadioGroup
                             value={field.value ?? "budget_period"}
                             onValueChange={field.onChange}
-                            className="flex flex-col space-y-1"
+                            className="flex flex-col gap-2 items-stretch"
                           >
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl><RadioGroupItem value="budget_period" /></FormControl>
-                              <FormLabel className="font-normal">
+                            <label className="flex items-center rounded-lg border border-border p-3 cursor-pointer transition-colors hover:bg-muted/50 has-[input:checked]:border-primary has-[input:checked]:bg-primary/5 has-[input:checked]:shadow-sm">
+                              <FormControl><RadioGroupItem value="budget_period" className="sr-only" /></FormControl>
+                              <span className="font-normal text-sm">
                                 Budget Period
                                 <span className="text-xs text-muted-foreground block">
                                   Recommended spending is spread across the remaining budget period.
                                 </span>
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl><RadioGroupItem value="weekly" /></FormControl>
-                              <FormLabel className="font-normal">
+                              </span>
+                            </label>
+                            <label className="flex items-center rounded-lg border border-border p-3 cursor-pointer transition-colors hover:bg-muted/50 has-[input:checked]:border-primary has-[input:checked]:bg-primary/5 has-[input:checked]:shadow-sm">
+                              <FormControl><RadioGroupItem value="weekly" className="sr-only" /></FormControl>
+                              <span className="font-normal text-sm">
                                 Weekly
                                 <span className="text-xs text-muted-foreground block">
                                   Your allowance resets every week.
                                 </span>
-                              </FormLabel>
-                            </FormItem>
+                              </span>
+                            </label>
                           </RadioGroup>
                         </FormControl>
                       </FormItem>
@@ -293,72 +295,81 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
 
               {/* Breakdown Card */}
               {categoryId && (
-                  <div className="p-4 rounded-xl bg-muted/30 border border-dashed border-border flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-sm">
-                          <span className="text-muted-foreground">Starting Balance (Rollover)</span>
-                          <span className={cn(
-                              "font-medium",
-                              carryover > 0 ? "text-success" : carryover < 0 ? "text-destructive" : ""
-                          )}>
-                              {carryover > 0 ? `+${carryover.toLocaleString()}` : carryover.toLocaleString()}
-                          </span>
+                  <div className="p-4 rounded-xl bg-muted/50 border border-border/50 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-tight">Budget Breakdown</p>
+                      <div className="space-y-2">
+                          <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground">Starting Balance (Rollover)</span>
+                              <span className={cn(
+                                  "font-medium tabular-nums",
+                                  carryover > 0 ? "text-success" : carryover < 0 ? "text-destructive" : ""
+                              )}>
+                                  {carryover > 0 ? `+${carryover.toLocaleString()}` : carryover.toLocaleString()}
+                              </span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground">New Allocation</span>
+                              <span className="font-medium tabular-nums">+{newAllocation.toLocaleString()}</span>
+                          </div>
                       </div>
-                      <div className="flex justify-between items-center text-sm">
-                          <span className="text-muted-foreground">New Allocation</span>
-                          <span className="font-medium">+{newAllocation.toLocaleString()}</span>
-                      </div>
-                      <div className="border-t pt-2 mt-1 flex justify-between items-center">
-                          <span className="font-semibold text-sm">Total Available to Spend</span>
-                          <span className="font-bold text-primary">{totalEffective.toLocaleString()}</span>
+                      <div className="border-t border-border/50 pt-3 flex justify-between items-center">
+                          <span className="text-sm font-semibold">Total Available to Spend</span>
+                          <span className="text-base font-bold text-primary tabular-nums">{totalEffective.toLocaleString()}</span>
                       </div>
                   </div>
               )}
               
               {assistanceData && (
-                  <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground font-medium">Quick Suggestions:</p>
-                      <div className="flex flex-wrap gap-2">
+                  <div className="space-y-2.5">
+                      <p className="text-xs text-muted-foreground font-medium">Quick Suggestions</p>
+                      <div className={cn(
+                          "gap-2",
+                          [assistanceData.lastMonthBudget, assistanceData.lastMonthSpent > 0, assistanceData.averageSpent > 0].filter(Boolean).length >= 3
+                            ? "grid grid-cols-3"
+                            : "flex flex-wrap"
+                      )}>
                           {assistanceData.lastMonthBudget && (
-                              <Button type="button" variant="outline" size="sm" className="h-auto py-1 px-2 text-xs flex flex-col items-start gap-0.5" onClick={() => applySuggestion(assistanceData.lastMonthBudget!)}>
+                              <Button type="button" variant="outline" size="sm" className="h-auto py-2.5 px-2 text-xs flex flex-col items-center gap-0.5" onClick={() => applySuggestion(assistanceData.lastMonthBudget!)}>
                                   <span className="font-semibold">{parseFloat(assistanceData.lastMonthBudget).toLocaleString()}</span>
-                                  <span className="text-[10px] opacity-70">Last Budget</span>
+                                  <span className="text-[10px] text-muted-foreground">Last Budget</span>
                               </Button>
                           )}
                           {assistanceData.lastMonthSpent > 0 && (
-                              <Button type="button" variant="outline" size="sm" className="h-auto py-1 px-2 text-xs flex flex-col items-start gap-0.5" onClick={() => applySuggestion(assistanceData.lastMonthSpent)}>
+                              <Button type="button" variant="outline" size="sm" className="h-auto py-2.5 px-2 text-xs flex flex-col items-center gap-0.5" onClick={() => applySuggestion(assistanceData.lastMonthSpent)}>
                                   <span className="font-semibold">{assistanceData.lastMonthSpent.toLocaleString()}</span>
-                                  <span className="text-[10px] opacity-70">Last Spent</span>
+                                  <span className="text-[10px] text-muted-foreground">Last Spent</span>
                               </Button>
                           )}
                           {assistanceData.averageSpent > 0 && (
-                              <Button type="button" variant="outline" size="sm" className="h-auto py-1 px-2 text-xs flex flex-col items-start gap-0.5" onClick={() => applySuggestion(assistanceData.averageSpent)}>
+                              <Button type="button" variant="outline" size="sm" className="h-auto py-2.5 px-2 text-xs flex flex-col items-center gap-0.5" onClick={() => applySuggestion(assistanceData.averageSpent)}>
                                   <span className="font-semibold">{assistanceData.averageSpent.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                                  <span className="text-[10px] opacity-70">3-Mo Avg</span>
+                                  <span className="text-[10px] text-muted-foreground">3-Mo Avg</span>
                               </Button>
                           )}
                       </div>
                   </div>
               )}
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 pt-2">
                   <Button 
                     type="submit" 
                     disabled={isProcessing}
+                    className="h-11 text-base font-semibold"
                     onClick={() => {
                       if (navigator.vibrate) navigator.vibrate(10);
                     }}
                   >
                       {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving Budget...
-                        </>
+                          <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving Budget...
+                          </>
                       ) : (
-                        'Save Budget'
+                          'Save Budget'
                       )}
                   </Button>
                   <DrawerClose asChild>
-                      <Button variant="outline" disabled={isProcessing}>Cancel</Button>
+                      <Button variant="ghost" disabled={isProcessing} className="h-11 text-base">Cancel</Button>
                   </DrawerClose>
               </div>
               </form>
