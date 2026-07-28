@@ -29,8 +29,11 @@
 - **Integration:** Convex + Clerk integration via JWT.
 
 ### PWA (Progressive Web App)
-- **Manifest:** `app/manifest.ts`.
+- **Manifest:** `app/manifest.ts`. Must include `display_override: ['window-controls-overlay', 'standalone']` and `scope: '/'` so the OS correctly associates push notifications with the installed PWA rather than the browser tab.
 - **Service Worker:** `public/custom-sw.js` (for Push Notifications).
+  - **Notification Click Behavior:** The `notificationclick` handler must use `clients.matchAll({ type: 'window', includeUncontrolled: true })` to find an existing PWA client window first. If found, `focus()` it then `navigate()` to the target URL. Fall back to `clients.openWindow()` only if no PWA window exists. This ensures clicking a notification opens the installed PWA instead of spawning a new browser tab.
+  - **Deep Linking:** The push payload includes a `url` field (e.g., `/dashboard`). The service worker passes it through notification data and navigates to it on click.
+  - **Push Data Flow:** `transactions.ts` → `push.ts:sendNotification(title, body, url)` → service worker push event (stores `url` in `notification.data`) → notification click handler (focus existing PWA + navigate or openWindow).
 - **Library:** `@ducanh2912/next-pwa`.
 - **Push:** `web-push` library for VAPID notifications.
 

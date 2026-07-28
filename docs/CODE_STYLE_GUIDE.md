@@ -235,6 +235,12 @@ useEffect(() => { if (displayAmount) triggerPulse() }, [displayAmount])
 4.  **Notifications:**
     - **In-App:** Use `sonner` (`toast.success(...)`).
     - **Push:** Use `web-push` logic via Convex Actions.
+    - **Notification Click Handler (`custom-sw.js`):**
+      - Always use `clients.matchAll({ type: 'window', includeUncontrolled: true })` to find an existing PWA window.
+      - Focus the existing window with `client.focus()` then navigate with `client.navigate(url)`.
+      - Only fall back to `clients.openWindow(url)` when no PWA window is open.
+      - Always return the navigate promise from the `.then()` callback so `event.waitUntil()` properly waits for navigation.
+      - The push payload must include a `url` field for deep linking; store it in `notification.data`.
 
 5.  **Refactoring & Reusability (New):**
     - **Complex Logic:** Move heavy calculation or state logic (like Goal Projections) into custom hooks in `@/hooks` (e.g., `useGoalCalculator`).

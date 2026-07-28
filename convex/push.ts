@@ -18,14 +18,13 @@ export const sendNotification = internalAction({
     userId: v.string(),
     title: v.string(),
     body: v.string(),
+    url: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // 1. Ambil data langganan user dari database (menggunakan query internal)
     const subscriptions = (await ctx.runQuery(internal.notifications.getSubscriptions, {
       userId: args.userId,
     })) as Subscription[];
 
-    // 2. Siapkan konfigurasi Web Push
     const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
     const webPushEmail = process.env.WEB_PUSH_EMAIL || "mailto:admin@perfin.app";
@@ -40,6 +39,7 @@ export const sendNotification = internalAction({
     const payload = JSON.stringify({
       title: args.title,
       body: args.body,
+      url: args.url,
     });
 
     // 3. Kirim notifikasi ke semua device user secara paralel

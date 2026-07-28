@@ -16,6 +16,16 @@ Format:
 - **`daysRemaining` and `daysRemainingInWeek` off-by-one error in `AllowanceCalculator`:** Both used `Math.round(diffMs / msPerDay) + 1` which overcounted by 1 when the remaining time was less than 0.5 days but still the same calendar day. Example: user at 09:51 on the last day of a week → `Math.round(0.589) + 1 = 2` instead of correct `1`. Fix: `Math.round` → `Math.floor`. `Math.floor(0.589) + 1 = 1` ✅.
 - **`segment.days` inflation in `splitIntoWeekSegments`:** Same `Math.round(...) + 1` bug caused segment day counts to be inflated by 1 (e.g., 5-day week computed as 6). This inflated `weeklyAllowance` and daily allowance shown to users. Fix: `Math.round` → `Math.floor` at lines 63 and 78.
 
+### Fixed
+- **`custom-sw.js` notification click opens browser tab instead of installed PWA:** `notificationclick` handler used `clients.openWindow()` which always opens a new browser tab. Fix: use `clients.matchAll({ type: 'window' })` to find existing PWA client window, `focus()` it, then `navigate()` to target URL. Falls back to `openWindow()` if no PWA window is open.
+- **`custom-sw.js` unreturned navigate promise:** `client.navigate()` was not returned from the `.then()` callback, so `event.waitUntil()` resolved before navigation completed. Fix: added `return` keyword.
+- **`custom-sw.js` redundant `'focus' in client` guard:** Removed — `clients.matchAll({ type: 'window' })` only returns `WindowClient` instances which always have `focus()`.
+
+### Changed
+- **`app/manifest.ts`:** Added `scope: '/'` and `display_override: ['window-controls-overlay', 'standalone']` so the OS correctly associates push notifications with the installed PWA rather than the browser.
+- **`convex/push.ts` — `sendNotification`:** Added optional `url` parameter in args and payload, enabling deep-linking from notification clicks.
+- **`convex/transactions.ts`:** Household transaction push notifications now include `url: '/dashboard'` for deep-linking.
+
 ### Docs
 - Updated `DATABASE_AND_RELATIONSHIPS.md`: Added "Days Remaining Calculation" section documenting the `Math.floor` formula and why `Math.round` was incorrect.
 

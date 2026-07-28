@@ -1178,6 +1178,7 @@ export const create = mutation({
             userId: member.userId,
             title: `New Transaction: ${householdName}`,
             body: `${txType}: ${args.amount} - ${args.description || 'No description'}`,
+            url: '/dashboard',
           });
         }
       }

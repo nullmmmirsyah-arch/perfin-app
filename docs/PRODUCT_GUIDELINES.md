@@ -80,14 +80,19 @@ This document outlines the design philosophy and user experience patterns used i
   - **Categories Page:** Separated into "Goals", "Expenses", "Income", and "Archived".
 - **Closed Items:** Always hide archived/closed items inside a `Collapsible` section or filter them out by default.
 
-### 6. Goal Achievement UX
+### 6. PWA Notification Click Behavior
+- **Focus Existing App:** When a user clicks a push notification, the service worker must first look for an already-open PWA window via `clients.matchAll`. If found, **focus** that window instead of opening a new browser tab — this preserves the user's session and prevents duplicate windows.
+- **Deep Linking:** Each notification should carry a `url` field (e.g., `/dashboard`, `/budgets`) so clicking navigates to the relevant page within the PWA, not just the home screen.
+- **Fallback:** Only use `clients.openWindow()` when no PWA window is currently open.
+
+### 7. Goal Achievement UX
 - **Passive Trigger:** Don't force the user to check progress. Send a **Notification** (Bell Icon).
 - **Dynamic Wizard:** When clicking the notification, launch a **Context-Aware Wizard**:
     - **Investment:** Celebrates milestone. Offers to **Increase Target** to keep growing wealth.
     - **Bill (Sinking Fund):** Prompts to **Pay Bill** (Disburse), then asks for **Next Due Date** to reset the cycle without closing the account.
     - **Purchase:** Prompts to **Spend Funds** and **Archive** the goal.
 
-### 7. Merchant & Payee UX
+### 8. Merchant & Payee UX
 - **Searchable Combobox:** Use `MerchantCombobox` in transaction forms for quick merchant selection.
   - **Auto-Create:** Type a new name and select "Create [name]" to instantly create a merchant with first-letter icon.
   - **No Drawer for Quick Create:** Creating from combobox bypasses the drawer — uses first letter as icon automatically.
@@ -105,7 +110,7 @@ This document outlines the design philosophy and user experience patterns used i
 - **Delete Guard:** UI prevents deletion of merchants that are referenced by transactions (shows error).
 - **Haptic Feedback:** `navigator.vibrate(10)` on merchant create/edit/delete operations.
 
-### 8. Actionable Insights
+### 9. Actionable Insights
 - **Safe Daily Spend:** Provide actionable daily limits (e.g., "~Rp 50k/day") instead of just static remaining budgets.
 - **Monthly Saving Performance:** In Goal Details, display a **Visual Bar Chart** (list view) showing contribution history per month vs the required monthly target.
 - **Smart Budget Pace Indicators:**
@@ -151,7 +156,7 @@ This document outlines the design philosophy and user experience patterns used i
         | Mar 26 | 500.000 |   +50.000  |  +25.000  |575.000|450.000| 125.000 |
     - **Chart View:** Stacked bar chart showing Initial + Adjustment + Carryover, with Spent as line overlay.
 
-### 8. Category Detail Page
+### 10. Category Detail Page
 - **Performance Trend:** A 12-month bar chart visualizing **Effective Budget** (Planned + Carryover) vs. Actual Spending. 
 - **Monthly History:** A detailed list showing Budget (Effective), Spent, Carryover, and Swept amounts for each fiscal month.
 - **Grouped & Actionable Transactions:** A list of recent transactions grouped by date with **daily totals**. Users can directly Edit or Delete transactions from this view.

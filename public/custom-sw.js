@@ -9,6 +9,7 @@ self.addEventListener('push', function (event) {
       data: {
         dateOfArrival: Date.now(),
         primaryKey: '2',
+        url: data.url || '/',
       },
     };
     event.waitUntil(self.registration.showNotification(data.title, options));
@@ -16,9 +17,20 @@ self.addEventListener('push', function (event) {
 });
 
 self.addEventListener('notificationclick', function (event) {
-  console.log('Notification click received.');
   event.notification.close();
+  const urlToOpen = new URL(event.notification.data?.url || '/', self.location.origin).href;
+
   event.waitUntil(
-    clients.openWindow('https://perfin-app.vercel.app') // Replace with your URL or generic logic
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      const existingClient = windowClients.find((client) =>
+        client.url.startsWith(self.location.origin)
+      );
+      if (existingClient) {
+        return existingClient.focus().then((client) =>
+          client.navigate(urlToOpen)
+        );
+      }
+      return clients.openWindow(urlToOpen);
+    })
   );
 });

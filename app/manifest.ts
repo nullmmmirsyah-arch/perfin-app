@@ -6,7 +6,9 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Perfin',
     description: 'Personal finance tracker',
     start_url: '/',
+    scope: '/',
     display: 'standalone',
+    display_override: ['window-controls-overlay', 'standalone'],
     background_color: '#ffffff',
     theme_color: '#3b82f6',
     icons: [
