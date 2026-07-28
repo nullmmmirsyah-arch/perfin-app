@@ -256,7 +256,7 @@ export default function BudgetCard({
                     </p>
                     {allowance && allowance.allowance > 0 && !isOverBudget && (
                       <p className="text-xs text-muted-foreground">
-                        {formatCurrency(allowance.allowance)}/{allowance.type === 'weekly' ? 'week' : 'day'} safe
+                        {formatCurrency(allowance.type === 'weekly' ? (allowance.weeklyRemaining ?? allowance.allowance) : allowance.allowance)}/{allowance.type === 'weekly' ? 'week' : 'day'} safe
                       </p>
                     )}
                     {!allowance && pacing && pacing.dailyLimit > 0 && !isOverBudget && (

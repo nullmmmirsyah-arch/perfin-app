@@ -311,7 +311,7 @@ export default function CategoryDetailPage() {
                   {category.allowanceType === 'weekly' ? 'This Week' : 'Today'}
                 </span>
                 <span className="text-sm font-semibold text-primary">
-                  {formatCurrency(allowance.allowance)}
+                  {formatCurrency(category.allowanceType === 'weekly' ? (allowance.weeklyRemaining ?? allowance.allowance) : allowance.allowance)}
                 </span>
               </div>
             </div>

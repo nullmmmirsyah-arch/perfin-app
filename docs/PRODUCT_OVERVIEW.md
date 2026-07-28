@@ -190,6 +190,18 @@
     - **Configuration:** Via BudgetDrawer — RadioGroup for type selection, conditional Select for weekly reset day.
     - **Category Detail:** Shows daily/weekly breakdown with spending pace relative to allowance.
 
+    **User Flow — Configuring Allowance Type:**
+    1. User opens **BudgetDrawer** (via "Set Limit" on Budget page or category action).
+    2. After selecting a category and entering monthly allocation, the **Allowance** section appears.
+    3. User chooses between two options via **RadioGroup**:
+        - **Budget Period** (default) — Recommended spending is spread evenly across the remaining budget period.
+        - **Weekly** — Allowance resets every week on a chosen day.
+    4. If **Weekly** is selected, a **Reset Every** dropdown appears (Sunday–Saturday, default: Monday).
+    5. User saves — `upsertBudget` mutation saves the budget amount, then `updateAllowanceConfig` mutation saves the allowance type and reset day to the category.
+    6. **Display behavior changes immediately:**
+        - Budget Period: Home shows "{amount} for today" with "{days}d left".
+        - Weekly: Home shows "{amount} for this week" with "{start} - {end}" date range.
+
 ### 6. Households & Collaboration
 - **Multi-User:** Support for shared financial tracking (e.g., couples, families).
 - **Roles:**

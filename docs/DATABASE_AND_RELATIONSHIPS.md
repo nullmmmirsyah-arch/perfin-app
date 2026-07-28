@@ -79,6 +79,33 @@ To support partial settlements (installments), we use a self-referential relatio
     - **Allowance is a recommendation layer only** — it never affects budget allocation, remaining budget, or month-end processing.
     - `enablePacing` is independent — it controls the pace indicator (safe/warning/danger).
     - Computed via `AllowanceCalculator` (`lib/allowance-calculator.ts`), a pure TypeScript module with no Convex/React dependencies.
+
+#### Allowance Calculation Details
+
+The `AllowanceCalculator` (`lib/allowance-calculator.ts`) provides two pacing strategies:
+
+**1. Budget Period (Daily) — `allowanceType: "budget_period"`**
+- Evenly divides the remaining budget across all remaining days in the fiscal period.
+- Formula: `allowance = remaining / daysRemaining`
+- Returns: `allowance` (daily rate), `remaining`, `daysRemaining`
+- Use case: Standard daily spending guidance.
+
+**2. Weekly — `allowanceType: "weekly"`**
+- Allocates a proportional weekly share based on the current week's size, then deducts spending within that week.
+- Formula:
+  1. `dailyAllowance = remaining / daysRemaining` (budget-period daily rate)
+  2. `weeklyAllowance = dailyAllowance × segment.days` (proportional weekly share)
+  3. `weeklyRemaining = max(0, weeklyAllowance - weeklySpent)` (what's left this week)
+  4. `allowance = weeklyRemaining / daysRemainingInWeek` (daily rate within current week)
+- Returns: `allowance` (daily rate within week), `weeklyRemaining` (actual weekly amount), `weekStart`, `weekEnd`, `weekNumber`, `daysRemainingInWeek`
+- Use case: Users who prefer weekly spending limits with a configurable reset day.
+
+**Important: Display Rules**
+- `allowance.allowance` is **always a daily rate** — even for weekly type (it's `weeklyRemaining / daysRemainingInWeek`).
+- When displaying "for this week" / "/week", use `allowance.weeklyRemaining` (the actual weekly remaining amount).
+- When displaying "for today" / "/day", use `allowance.allowance` (the daily rate).
+- `MobileHeroSummary` always shows aggregated daily allowance (correct behavior).
+- `BudgetCard` and `MobileBudgetToday` must check `allowance.type` to decide which value to display.
 - **Set Limit Action:**
     - When user edits budget (via BudgetDrawer or QuickAdjust), both `amount` and `initialAmount` are set to the new value.
     - `totalAdjustments` remains unchanged.

@@ -58,6 +58,10 @@
     - To maintain data consistency across Dashboard, Budget, and Transactions, core business logic is centralized in `convex/lib/`.
     - **`convex/lib/finance.ts`:** Contains pure functions for calculating Spending, Unassigned Cash, and Transaction Analysis. **ALWAYS** use these helpers instead of re-writing logic in queries.
     - **`lib/allowance-calculator.ts`:** Pure TypeScript module for computing allowance amounts, daily/weekly remaining, and pace status. No React/Convex dependencies, no UI labels, no transaction queries inside. Used by both Home screen and Category Detail page.
+        - **Two Modes:** `budget_period` (daily pacing) and `weekly` (weekly spending limit).
+        - **Key Fields:** `allowance` is always a daily rate. For weekly mode, `weeklyRemaining` holds the actual weekly amount. Frontend must check `allowance.type` to display the correct value.
+        - **Week Segmentation:** Weekly mode splits the fiscal period into week segments based on `weeklyResetDay`. Short weeks at period boundaries receive proportional allowance.
+        - **Display Rule:** Use `weeklyRemaining` when showing "for this week" labels, use `allowance` when showing "for today" labels.
     - **`calculateMonthlyBudgetLeft` (Centralized Rule):** 
         - The single source of truth for "Monthly Budget Left" and "Effective Spending Power".
         - Formula: `Assigned + Carryover - Swept - Spent`.

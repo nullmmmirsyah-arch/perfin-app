@@ -168,7 +168,7 @@ export function MobileBudgetToday({ summary, isPrivacyMode, budgetStartDay }: Pr
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">
-              {formatCurrency(allowance.allowance, { isPrivacyMode })} {allowance.type === 'weekly' ? 'for this week' : 'for today'}
+              {formatCurrency(allowance.type === 'weekly' ? (allowance.weeklyRemaining ?? allowance.allowance) : allowance.allowance, { isPrivacyMode })} {allowance.type === 'weekly' ? 'for this week' : 'for today'}
             </span>
             <span className="text-muted-foreground tabular-nums">
               {allowance.type === 'weekly' && allowance.weekStart && allowance.weekEnd
