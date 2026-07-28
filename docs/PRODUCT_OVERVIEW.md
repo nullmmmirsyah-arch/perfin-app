@@ -71,7 +71,26 @@
 - **Haptic Feedback:** `navigator.vibrate(10)` on submit (mobile).
 - **Date Normalization:** Selected date is set to 12:00 PM local time before sending to backend to prevent UTC timezone shifts.
 - **Backend:** Calls `api.transactions.create` (or `api.transactions.update` in edit mode). Mutations trigger `recomputeUserCache` for real-time dashboard sync.
-- **Success:** Toast notification + drawer closes.
+- **Success — Expense Create:** Drawer/sheet transitions to **success view** (`TransactionSuccessView`) — form is replaced with:
+  - Green checkmark + "Expense recorded" confirmation text.
+  - Hero "Remaining Budget" amount with count-up animation (500ms eased cubic via `requestAnimationFrame`).
+  - Affected category's remaining budget (secondary, only if category has budget).
+  - Transaction summary (amount + category name).
+  - Contextual budget feedback message, color-coded by spending health:
+    - **Green (Healthy):** Over 50% remaining.
+    - **Yellow (Moderate):** Over 25% remaining.
+    - **Orange (Low):** Remaining but ≤25%.
+    - **Red (Exceeded):** Over budget (negative remaining).
+  - Auto-dismiss after 3 seconds — returns to home screen.
+  - Categories without a budget entry: skipped from overall remaining calculation, no category row shown, no feedback.
+- **Success — Income/Transfer/Edit:** Existing toast notification + drawer closes.
+
+**Navigation Safety (Dirty State):**
+- Back button / backdrop click / Cancel with unsaved changes → `AlertDialog` ("Discard changes?").
+- "Keep Editing" → dismisses dialog, locks close attempts for 500ms.
+- "Discard" → resets form and closes drawer.
+- On save success, `isDirty` is reset to prevent the discard dialog from appearing on dismiss.
+- Split sub-drawer has its own history stack — back button closes split drawer first, then main drawer.
 
 **Navigation Safety (Dirty State):**
 - Back button / backdrop click / Cancel with unsaved changes → `AlertDialog` ("Discard changes?").

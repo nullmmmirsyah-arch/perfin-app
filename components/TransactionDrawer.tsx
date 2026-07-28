@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { z } from 'zod';
 import { useForm, useFieldArray, useWatch, UseFormReturn } from 'react-hook-form';
@@ -80,6 +80,7 @@ import { MobileAmountInput } from './mobile-amount-input';
 import { MobileDatePicker } from '@/components/ui/mobile-date-picker';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
 import { getFiscalDateDetails } from '@/lib/finance-utils';
+import TransactionSuccessView from './TransactionSuccessView';
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -289,6 +290,26 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
   // Defensive lock to prevent re-triggering the dialog after choosing "Keep Editing"
   const [isLocked, setIsLocked] = useState(false);
 
+  type SuccessStep = "form" | "success";
+  const [step, setStep] = useState<SuccessStep>("form");
+  const [savedData, setSavedData] = useState<{
+    amount: number;
+    categoryName: string;
+    overallRemaining: number | null;
+    categoryRemaining: number | null;
+    categoryBudgetTotal: number | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      const timer = setTimeout(() => {
+        setStep("form");
+        setSavedData(null);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   // History Management
   useEffect(() => {
     if (open) {
@@ -347,15 +368,29 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
       onOpenChange(false);
   };
 
-  const Content = (
+  const handleDismiss = useCallback(() => {
+    if (isLocked) return;
+    onOpenChange(false);
+  }, [isLocked, onOpenChange]);
+
+  const Content = step === "success" && savedData ? (
+    <TransactionSuccessView
+      {...savedData}
+      onDismiss={handleDismiss}
+    />
+  ) : (
       <div className="flex-1 overflow-y-auto px-4 pb-4">
          <TransactionForm 
             {...props} 
             isMobile={isMobile} 
-            // Pass lifted props
             splitDrawerOpen={splitDrawerOpen}
             setSplitDrawerOpen={setSplitDrawerOpen}
             onDirtyChange={setIsDirty}
+            onSaveSuccess={(data) => {
+              setIsDirty(false);
+              setSavedData(data);
+              setStep("success");
+            }}
          />
       </div>
   );
@@ -387,13 +422,25 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
                 <SheetTitle>{title}</SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto p-6 pt-2">
+                 {step === "success" && savedData ? (
+                   <TransactionSuccessView
+                     {...savedData}
+                     onDismiss={handleDismiss}
+                   />
+                 ) : (
                  <TransactionForm 
                     {...props} 
                     isMobile={false} 
                     splitDrawerOpen={splitDrawerOpen}
                     setSplitDrawerOpen={setSplitDrawerOpen}
                     onDirtyChange={setIsDirty}
+                    onSaveSuccess={(data) => {
+                      setIsDirty(false);
+                      setSavedData(data);
+                      setStep("success");
+                    }}
                  />
+                 )}
             </div>
             </SheetContent>
         </Sheet>
@@ -436,12 +483,14 @@ const TransactionForm = ({
     isMobile,
     splitDrawerOpen,
     setSplitDrawerOpen,
-    onDirtyChange
+    onDirtyChange,
+    onSaveSuccess
 }: TransactionDrawerProps & { 
     isMobile: boolean,
     splitDrawerOpen: boolean,
     setSplitDrawerOpen: (open: boolean) => void,
-    onDirtyChange: (isDirty: boolean) => void
+    onDirtyChange: (isDirty: boolean) => void,
+    onSaveSuccess: (data: { amount: number; categoryName: string; overallRemaining: number | null; categoryRemaining: number | null; categoryBudgetTotal: number | null }) => void,
 }) => {
   const { householdId, households } = useHousehold();
   const createTransaction = useMutation(api.transactions.create);
@@ -670,6 +719,7 @@ const TransactionForm = ({
               reimbursementStatus: data.reimbursementStatus,
             });
             toast.success("Transaction updated");
+            onOpenChange(false);
           } else {
             await createTransaction({
               householdId: householdId ?? undefined,
@@ -691,9 +741,33 @@ const TransactionForm = ({
               reimbursementStatus: data.reimbursementStatus,
               parentTransactionId: initialData?.parentTransactionId as Id<'transactions'> | undefined,
             });
-            toast.success("Transaction created");
+
+            const isExpenseCreate = data.type === TRANSACTION_TYPES.EXPENSE && !editingTransactionId.current;
+            if (!isExpenseCreate) {
+              toast.success("Transaction created");
+              onOpenChange(false);
+            } else {
+              const parsedAmount = parseAmount(data.amount);
+              const cat = categories.find(c => c._id === data.categoryId);
+              const categoryName = cat?.name || "Uncategorized";
+
+              const totalRemaining = (categories || []).reduce((sum, c) => sum + (c.remaining || 0), 0);
+              const catRemaining = cat?.remaining != null ? cat.remaining - parsedAmount : null;
+              const catBudgetTotal = cat?.budgetLimit != null ? cat.budgetLimit : null;
+              const newOverallRemaining = totalRemaining - parsedAmount;
+
+              onSaveSuccess({
+                amount: parsedAmount,
+                categoryName,
+                overallRemaining: newOverallRemaining,
+                categoryRemaining: catRemaining,
+                categoryBudgetTotal: catBudgetTotal,
+              });
+
+              setIsProcessing(false);
+              submitLock.current = false;
+            }
           }
-          onOpenChange(false);
     } catch (error) {
         console.error(error);
         toast.error("Failed to save transaction");

@@ -94,6 +94,40 @@ export default function ComponentName({ open, onOpenChange }: Props) {
 }
 ```
 
+### Pattern: Step State for Success View (Expense Create)
+For expense creation flows, the drawer uses a `step` state to transition from form to success view instead of closing immediately:
+
+```tsx
+const [step, setStep] = useState<"form" | "success">("form")
+const [savedData, setSavedData] = useState<SuccessData | null>(null)
+
+// In submit handler — on success:
+setSavedData({ category, remaining, ... })
+setStep("success")
+setIsProcessing(false)
+submitLock.current = false
+// Don't reset isDirty here — it was already reset after successful save
+
+// handleDismiss wrapped in useCallback for stable timer reference
+const handleDismiss = useCallback(() => {
+  onOpenChange(false)
+}, [onOpenChange])
+
+// Auto-dismiss via useEffect watching step
+useEffect(() => {
+  if (step === "success") {
+    const timer = setTimeout(handleDismiss, 3000)
+    return () => clearTimeout(timer)
+  }
+}, [step, handleDismiss])
+```
+
+**Rules:**
+- Reset `isDirty` on save success (prevents discard dialog on dismiss).
+- Use `useCallback` for `handleDismiss` to stabilize `useEffect` timer reference.
+- Categories without budget entries: skip from overall remaining, no category row.
+- Budget feedback computed via `computeBudgetStatus()` from `lib/budget-feedback.ts`.
+
 ## Reusable Components
 
 Certain UI patterns are standardized to ensure consistency.

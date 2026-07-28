@@ -44,6 +44,7 @@ This document outlines the design philosophy and user experience patterns used i
     - **Unsaved Changes Confirmation (Dirty Check):** For complex forms, use `form.formState.isDirty` to detect changes. 
         - If the user attempts to close a "dirty" form (via Back button, backdrop click, or Cancel), intercept the action and show an **AlertDialog** for confirmation.
     - **State Reset:** Ensure processing states and locks are reset when the drawer/dialog opens to prevent UI from getting stuck in a loading state if a previous attempt was interrupted or failed silently.
+    - **Step State Pattern:** For expense creation, the drawer uses a `step` state (`"form"` → `"success"`) instead of immediately closing. On save success, the form is replaced by `TransactionSuccessView`. `isDirty` is reset so dismiss doesn't show discard dialog. `handleDismiss` (wrapped in `useCallback`) handles auto-dismiss after 3s.
     - **Visual Feedback:** Buttons must show a "Loading/Saving..." state with a Spinner (`Loader2`) and be disabled during processing.
     - **Haptic Feedback:** Trigger a small vibration (`navigator.vibrate(10)`) on submit for tactile confirmation (Mobile).
 - **Date Handling:**
@@ -63,7 +64,8 @@ This document outlines the design philosophy and user experience patterns used i
 - **Double-Click Prevention:** Use `useRef` lock + `isProcessing` state to prevent duplicate submissions.
 
 ### 4. Feedback System
-- **Toasts:** Use `sonner` for all success/error feedback.
+- **Toasts:** Use `sonner` for all success/error feedback (income, transfer, edit operations).
+- **Success View (Expense Create):** After saving a new expense, the form is replaced with `TransactionSuccessView` — a contextual success screen showing the remaining budget, category breakdown, and color-coded feedback message. Auto-dismisses after 3 seconds. Prioritizes actionable information (remaining budget, spending health) over generic confirmation.
 - **Skeletons:** Always show Skeleton loaders (`components/skeletons.tsx`) while data is fetching. Never show a blank screen.
 - **Empty States:** Provide clear "No data" states with a Call to Action (e.g., "No accounts found. Create one?").
 - **Over-Budget Warnings:** Use Red/Destructive colors immediately when a budget is exceeded (Negative Remaining).

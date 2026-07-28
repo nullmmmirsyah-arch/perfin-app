@@ -10,6 +10,31 @@ Format:
 ### Docs
 -->
 
+## 2026-07-29
+
+### Added
+- **Transaction success view (Sprint 1 — Confidence-Driven UX):** After saving a new expense, the form inside `TransactionDrawer`/`Sheet` is replaced with a success view showing:
+  - Green checkmark + "Expense recorded" confirmation
+  - "Remaining Budget" hero number with count-up animation (500ms eased cubic via `requestAnimationFrame`)
+  - Affected category's remaining budget (secondary, only if category has budget)
+  - Transaction summary (amount at category name)
+  - Contextual budget feedback message (color-coded: green=healthy, yellow=moderate, orange=low, red=exceeded)
+  - Auto-dismiss after 3s, returning to home
+- **`lib/budget-feedback.ts`:** `computeBudgetStatus()` helper with thresholds (>50% healthy, >25% moderate, >0% low, ≤0 exceeded) and `BUDGET_FEEDBACK_MESSAGES` map
+- **`components/TransactionSuccessView.tsx`:** Success view component with entry animation (`fadeIn` + `scale 0.95→1`), checkmark pop animation, and count-up effect
+- **Step state management in `TransactionDrawer`:** `"form"` → `"success"` step transition, `savedData` state, `handleDismiss` with `useCallback` for stable auto-dismiss timer
+
+### Changed
+- **`components/TransactionDrawer.tsx`:**
+  - Submit handler now distinguishes expense creates from other types — expense creates compute optimistic budget data and show success view; income/transfer/edits keep existing toast behavior
+  - Budget data computed optimistically from existing `budgetStatus` query (`categories.reduce` with `|| []` guard)
+  - `isDirty` reset on save success to prevent "Discard changes?" dialog on dismiss
+  - `handleDismiss` routes through `handleOpenChangeWrapper` with `isLocked` guard
+- **Auto-dismiss timing:** 3000ms (was 1500ms in initial implementation)
+
+### Fixed
+- **`lib/budget-feedback.ts`:** `remaining <= 0` → `remaining < 0` — exact budget spend (`remaining === 0`) now correctly shows "low" instead of "exceeded"
+
 ## 2026-07-28
 
 ### Fixed
