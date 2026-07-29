@@ -104,6 +104,7 @@ The `AllowanceCalculator` (`lib/allowance-calculator.ts`) provides two pacing st
 - Both `daysRemaining` (fiscal period), `daysRemainingInWeek`, and `segment.days` (week segment length) use `Math.floor(diffMs / msPerDay) + 1` to count calendar days inclusively (including today).
 - `Math.floor` is used instead of `Math.round` to avoid off-by-one errors — `Math.round` would round up partial days (e.g., 0.589 days → 1) and then `+1` would double-count, yielding 2 instead of 1 when today is the last day. The same issue applied to `segment.days` where boundaries are `00:00:00` to `23:59:59.999`, producing `N - 0.000...001` days for N calendar days.
 - `+1` makes the count inclusive: if `now` and `end` are the same calendar day, result is 1.
+- **`now` must be normalized to start-of-day (00:00:00) before the calculation.** Reason: `getFiscalMonthRange` returns `end` at midnight (`new Date(year, month, day)`), while `now` can be any time. Without normalization, `diffMs` would be less than full days (e.g., 25.5 days at noon), causing `Math.floor` to drop the partial day and produce 26 instead of 27 remaining days. The `AllowanceCalculator` normalizes via `nowStart.setHours(0, 0, 0, 0)`. Other engines (`calculateFiscalDaysRemaining`, `calculateBudgetPace`) rely on `date-fns`'s `differenceInCalendarDays` which strips time internally.
 
 **Important: Display Rules**
 - `allowance.allowance` is **always a daily rate** — even for weekly type (it's `weeklyRemaining / daysRemainingInWeek`).

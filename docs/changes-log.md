@@ -13,6 +13,8 @@ Format:
 ## 2026-07-29
 
 ### Fixed
+- **`lib/allowance-calculator.ts` — `daysRemaining` inconsistent time-of-day:** `Math.floor((fiscalPeriodEnd - now) / msPerDay) + 1` menggunakan `now` mentah (ex: 12:00 siang), menyebabkan `daysRemaining` undercount 1 hari karena `fiscalPeriodEnd` adalah midnight (`getFiscalMonthRange` return `new Date(year, month, day)` tanpa komponen jam). Contoh: `now = 29 Jul 12:00`, `end = 24 Agt 00:00` → diff = 25,5 → `floor(25,5)+1 = 26` (harusnya 27). Fix: normalize `now` ke start-of-day (`nowStart.setHours(0,0,0,0)`) sebelum hitung. Sama pada `daysRemainingInWeek` line 162.
+- **`lib/allowance-calculator.ts` — `daysRemainingInWeek` inconsistent time-of-day:** Same root cause. Now uses `nowStart` (normalized) instead of raw `now`.
 - **Timezone gap di 4 area non-fiscal:** Semua `new Date().toISOString()` yang sebelumnya lolos audit sekarang pakai `getServerNow(timezone)`:
   - **Initial Balance transaction** (`convex/accounts.ts`) — transaksi awal akun baru pakai timezone user
   - **Goal reset & completion** (`convex/categories.ts`) — `completedDate` dan `lastResetDate` sinkron dengan timezone user

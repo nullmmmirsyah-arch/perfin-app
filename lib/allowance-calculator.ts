@@ -127,9 +127,12 @@ export function calculateAllowance(input: AllowanceInput): AllowanceResult {
 
   const remaining = Math.max(0, budgetAmount - spent);
   
-  // Days remaining in fiscal period (inclusive of today)
+  // Normalize now to start of day so daysRemaining is consistent
+  // regardless of what time of day calculateAllowance is called
   const msPerDay = 1000 * 60 * 60 * 24;
-  const daysRemaining = Math.max(1, Math.floor((fiscalPeriodEnd.getTime() - now.getTime()) / msPerDay) + 1);
+  const nowStart = new Date(now);
+  nowStart.setHours(0, 0, 0, 0);
+  const daysRemaining = Math.max(1, Math.floor((fiscalPeriodEnd.getTime() - nowStart.getTime()) / msPerDay) + 1);
 
   if (allowanceType === "budget_period") {
     return {
@@ -159,7 +162,7 @@ export function calculateAllowance(input: AllowanceInput): AllowanceResult {
   const weeklyAllowance = dailyAllowance * segment.days;
   const weeklyRemaining = Math.max(0, weeklyAllowance - weeklySpent);
   
-  const daysRemainingInWeek = Math.max(1, Math.floor((segment.end.getTime() - now.getTime()) / msPerDay) + 1);
+  const daysRemainingInWeek = Math.max(1, Math.floor((segment.end.getTime() - nowStart.getTime()) / msPerDay) + 1);
   const allowance = daysRemainingInWeek > 0 ? weeklyRemaining / daysRemainingInWeek : 0;
 
   return {
