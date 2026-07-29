@@ -207,18 +207,32 @@ export const processDueSchedules = internalMutation({
         }
 
         // Record Transaction
-        // Use the scheduled date (nextRunAt) instead of current cron execution time
-        // to ensure it matches the user's intended day.
-        // We set it to 12:00 PM UTC to be safe for date-only comparisons.
-        const txDate = new Date(schedule.nextRunAt);
-        txDate.setUTCHours(12, 0, 0, 0);
+        // Use the scheduled date (nextRunAt) normalized to noon in the user's timezone.
+        const autoTz = schedule.householdId
+          ? (await ctx.db.get(schedule.householdId))?.timezone ?? null
+          : null;
+        let txDateStr: string;
+        if (autoTz) {
+          // Compute offset at schedule.nextRunAt (not now) to handle DST transitions
+          const scheduleUtc = new Date(schedule.nextRunAt);
+          const tzStr = scheduleUtc.toLocaleString("en-US", { timeZone: autoTz });
+          const utcStr = scheduleUtc.toLocaleString("en-US", { timeZone: "UTC" });
+          const offset = new Date(tzStr).getTime() - new Date(utcStr).getTime();
+          const userDate = new Date(schedule.nextRunAt + offset);
+          userDate.setUTCHours(12, 0, 0, 0);
+          txDateStr = userDate.toISOString();
+        } else {
+          const d = new Date(schedule.nextRunAt);
+          d.setUTCHours(12, 0, 0, 0);
+          txDateStr = d.toISOString();
+        }
 
         await ctx.db.insert("transactions", {
           userId: schedule.userId,
           householdId: schedule.householdId,
           type: "transfer", // Auto-save is a transfer
           amount: schedule.amount,
-          date: txDate.toISOString(),
+          date: txDateStr,
           description: `${schedule.name} (Auto-Save)`,
           accountId: schedule.fromAccountId,
           toAccountId: schedule.toAccountId,

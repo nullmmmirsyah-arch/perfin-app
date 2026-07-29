@@ -78,8 +78,9 @@
         - `getFiscalConfig(household)`: Extracts `{ startDay, timezone }` from a household document for use in queries.
         - `getFiscalDateDetails(date, startDay)`: Converts a Calendar Date to Fiscal Year/Month. **Always returns 0-indexed months** (0=Jan, 11=Dec) regardless of `startDay`. Database stores months as 0-indexed.
         - `getFiscalMonthRange(year, month, startDay)`: Returns start/end timestamps for a fiscal period.
-        - **Critical:** All budget queries MUST use `getServerNow(timezone)` instead of `new Date()` to ensure period transitions happen at midnight in the user's local timezone, not midnight UTC.
+        - **Critical:** All backend code MUST use `getServerNow(timezone)` instead of `new Date()` whenever creating or comparing dates that represent "now" for a user. This includes fiscal period queries, Initial Balance transactions, goal completion/reset dates, recurring expense overdue logic, and cron auto-save timestamps. Period transitions happen at midnight in the user's local timezone, not midnight UTC.
         - **Timezone Source:** The timezone comes from `household.timezone` (IANA string, e.g. "Asia/Jakarta"). The `timezoneMode` field determines whether it's auto-detected from the device or manually set.
+        - **DST Note:** For cron auto-save (`processDueSchedules`), the timezone offset is computed at `schedule.nextRunAt` (not `Date.now()`) to prevent date shifts across DST transitions.
     - **`convex/lib/auth.ts`:** Centralized authorization checks (`ensureHouseholdAccess`).
     - **`convex/lib/constants.ts`:** Constants for Transaction Types, Category Types, Account Types, etc. **NEVER** use string literals (e.g., "expense") directly; import from constants.
     - **`lib/utils.ts` (Frontend):**

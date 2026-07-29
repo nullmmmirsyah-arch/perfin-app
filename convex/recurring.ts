@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
+import { getServerNow } from "./lib/finance";
 
 export const getRecurringExpenses = query({
   args: { householdId: v.optional(v.id("households")) },
@@ -69,8 +70,21 @@ export const getRecurringSummary = query({
       0
     );
 
-    const now = new Date();
-    const currentDay = now.getDate();
+    let recurringTz: string | null = null;
+    if (householdId) {
+      const h = await ctx.db.get(householdId);
+      recurringTz = h?.timezone ?? null;
+    } else {
+      const member = await ctx.db.query("householdMembers")
+        .withIndex("by_userId", q => q.eq("userId", identity.subject))
+        .first();
+      if (member) {
+        const h = await ctx.db.get(member.householdId);
+        recurringTz = h?.timezone ?? null;
+      }
+    }
+    const recurringNow = getServerNow(recurringTz);
+    const currentDay = recurringNow.getDate();
     const daysInMonth = new Date(year, month, 0).getDate();
 
     const paid = activeExpenses.filter((e) => paidExpenseIds.has(e._id));

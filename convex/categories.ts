@@ -872,11 +872,17 @@ export const resetGoal = mutation({
     const spendingMap = calculateSpendingByCategory(relevantTx, accountsMap, categoriesMap);
     const finalAmount = spendingMap[String(category._id)] || 0;
 
+    const goalTimezone = category.householdId
+        ? (await ctx.db.get(category.householdId))?.timezone ?? null
+        : null;
+    const goalNow = getServerNow(goalTimezone);
+    const goalNowStr = goalNow.toISOString();
+
     await ctx.db.insert("goalHistory", {
         userId: identity.subject,
         householdId: category.householdId,
         categoryId: category._id,
-        completedDate: new Date().toISOString(),
+        completedDate: goalNowStr,
         finalAmount,
         targetAmount: parseFloat(category.targetAmount?.replace(/,/g, '') || '0'),
     });
@@ -884,7 +890,7 @@ export const resetGoal = mutation({
     await ctx.db.patch(args.id, { 
         status: GOAL_STATUS.ACTIVE,
         targetDate: args.newTargetDate,
-        lastResetDate: new Date().toISOString() 
+        lastResetDate: goalNowStr
     });
   },
 });
@@ -892,8 +898,15 @@ export const resetGoal = mutation({
 export const fixStuckCycleTemp = mutation({
   args: { categoryId: v.id("categories") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const cat = await ctx.db.get(args.categoryId);
+    const catTz = cat?.householdId
+        ? (await ctx.db.get(cat.householdId))?.timezone ?? null
+        : null;
+    const catNow = getServerNow(catTz);
     await ctx.db.patch(args.categoryId, {
-        lastResetDate: new Date().toISOString(),
+        lastResetDate: catNow.toISOString(),
         goalType: GOAL_TYPES.BILL,
         status: GOAL_STATUS.ACTIVE
     });

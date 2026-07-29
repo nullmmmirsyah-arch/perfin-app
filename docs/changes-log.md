@@ -12,6 +12,16 @@ Format:
 
 ## 2026-07-29
 
+### Fixed
+- **Timezone gap di 4 area non-fiscal:** Semua `new Date().toISOString()` yang sebelumnya lolos audit sekarang pakai `getServerNow(timezone)`:
+  - **Initial Balance transaction** (`convex/accounts.ts`) — transaksi awal akun baru pakai timezone user
+  - **Goal reset & completion** (`convex/categories.ts`) — `completedDate` dan `lastResetDate` sinkron dengan timezone user
+  - **Recurring overdue/upcoming** (`convex/recurring.ts`) — `currentDay` untuk filter overdue dihitung dari timezone user, bukan UTC
+  - **Cron auto-save** (`convex/automations.ts`) — transaction date di set ke noon timezone user, bukan noon UTC. Offset DST dihitung di `schedule.nextRunAt` bukan `Date.now()`
+
+### Changed
+- **`docs/CODE_STYLE_GUIDE.md`:** Expanded Date Handling section — mencakup semua konteks yang butuh timezone (bukan cuma fiscal period)
+
 ### Added
 - **Transaction success view (Sprint 1 — Confidence-Driven UX):** After saving a new expense, the form inside `TransactionDrawer`/`Sheet` is replaced with a success view showing:
   - Green checkmark + "Expense recorded" confirmation

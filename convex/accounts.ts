@@ -148,7 +148,13 @@ export const create = mutation({
             });
         }
 
-        // 2. Create Transaction
+        // 2. Create Transaction (with timezone-aware date)
+        let tz: string | null = null;
+        if (args.householdId) {
+            const h = await ctx.db.get(args.householdId);
+            tz = h?.timezone ?? null;
+        }
+        const accountNow = getServerNow(tz);
         await ctx.db.insert("transactions", {
             userId: identity.subject,
             householdId: args.householdId,
@@ -156,7 +162,7 @@ export const create = mutation({
             categoryId,
             type: TRANSACTION_TYPES.INCOME,
             amount: args.balance,
-            date: new Date().toISOString(),
+            date: accountNow.toISOString(),
             description: "Initial Balance",
         });
     }

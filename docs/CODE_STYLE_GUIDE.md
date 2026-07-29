@@ -174,8 +174,12 @@ Certain UI patterns are standardized to ensure consistency.
 5.  **Date Handling:**
     - Store dates as ISO Strings (`v.string()`) in the database (e.g., `2023-12-25T10:00:00Z`).
     - Manipulate dates in TS using `Date` object or `date-fns`.
-    - **Budgeting Logic:** Backend uses `getServerNow(timezone)` instead of `new Date()` to compute fiscal periods in the user's local timezone. The timezone comes from `household.timezone` (IANA string). **Never** use `new Date()` directly in backend queries for fiscal period calculations.
-    - **Frontend Date Normalization:** When sending dates to the backend (e.g., Transaction Date), always normalize time to **12:00 PM (Noon)** local time to prevent UTC conversion shifts.
+    - **Timezone Rule:** Backend MUST use `getServerNow(timezone)` instead of `new Date()` whenever creating or comparing dates that represent "now" for a user. The timezone comes from `household.timezone` (IANA string). **Never** use `new Date().toISOString()` or `new Date().getTime()` directly in any backend mutation/query — always route through `getServerNow(timezone)`.
+      - **Fiscal period queries:** `getServerNow(timezone)` → `getFiscalDateDetails` → determine current year/month
+      - **Transaction timestamps** (Initial Balance, goal completion, goal reset dates, cron auto-save): use `getServerNow(timezone).toISOString()`
+      - **Recurring expense overdue logic** (`getRecurringSummary`): use `getServerNow(timezone).getDate()` for `currentDay`
+      - **Cron auto-save** (`processDueSchedules`): compute transaction date by applying the timezone offset at `schedule.nextRunAt` (not `Date.now()`) to handle DST transitions correctly
+    - **Frontend Date Normalization:** When sending dates to the backend (e.g., Transaction Date, Goal Target Date), always normalize time to **12:00 PM (Noon)** local time to prevent UTC conversion shifts.
 
 6.  **Number Handling:**
     - We currently store Amounts as `v.string()` to prevent float precision issues in the DB (Legacy decision).
