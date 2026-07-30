@@ -146,7 +146,7 @@ export default function Dashboard() {
     <div className="p-4 md:p-8 pb-24 md:pb-8">
       <PageHeader 
         title="Dashboard" 
-        description="Overview of your daily operations and wealth."
+        description="Your finances at a glance — track spending, budgets, and goals."
         isPrivacyMode={isPrivacyMode}
         onTogglePrivacy={togglePrivacyMode}
       />
