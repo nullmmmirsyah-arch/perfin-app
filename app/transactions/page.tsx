@@ -15,10 +15,13 @@ import { TransactionsListSkeleton } from '@/components/skeletons'
 import { TransactionListGrouped } from '@/components/transactions/TransactionListGrouped'
 import { DeleteTransactionDialog } from '@/components/transactions/DeleteTransactionDialog'
 import { TransactionWithDetails } from '@/components/transactions/types'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { ErrorState } from '@/components/ui/error-state'
 
 import { PageHeader } from '@/components/PageHeader'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { List, PieChart, Search, X } from '@/components/ui/icons'
+import { List, PieChart, Search, X, Receipt } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
 import { useDebounce } from '@/hooks/use-debounce'
 import { TransactionAnalytics } from '@/components/transactions/TransactionAnalytics'
@@ -163,7 +166,7 @@ export default function TransactionsPage() {
   const handleDeleteConfirm = async () => {
     if (transactionToDelete) {
         await deleteTransaction({ id: transactionToDelete._id });
-        toast.success("Transaction deleted");
+        toast.success("Transaction removed");
         setTransactionToDelete(undefined);
     }
   }
@@ -173,7 +176,7 @@ export default function TransactionsPage() {
       <motion.div variants={fadeInUp} initial="hidden" animate="visible">
         <PageHeader 
           title="Transactions" 
-          description="View and manage your financial history." 
+          description="Review, search, and manage all your transactions." 
         />
       </motion.div>
 
@@ -244,19 +247,29 @@ export default function TransactionsPage() {
         ) : !isSearching && transactions === undefined ? (
             <TransactionsListSkeleton />
         ) : (
+            <ErrorBoundary fallback={<ErrorState />}>
             <Carousel setApi={setApi} opts={{ duration: 30 }}>
                 <CarouselContent>
                     {/* LIST VIEW */}
                     <CarouselItem className="basis-full">
                          <motion.div className="space-y-4" variants={fadeInUp} initial="hidden" animate="visible">
                             {(displayTransactions ?? []).length === 0 && (
-                                <div className="mt-8 p-4 border rounded-md bg-muted/50">
-                                <p className="text-muted-foreground">
-                                    {isSearching
-                                        ? "No transactions matching your search."
-                                        : "No transactions yet. Click \"Create Transaction\" to get started."}
-                                </p>
-                                </div>
+                                isSearching ? (
+                                    <EmptyState
+                                        icon={Search}
+                                        title="No matching transactions"
+                                        description="Try adjusting your search or filters."
+                                        variant="compact"
+                                    />
+                                ) : (
+                                    <EmptyState
+                                        icon={Receipt}
+                                        title="No transactions yet"
+                                        description="Start tracking your spending by adding your first expense."
+                                        action={{ label: "Add Expense", onClick: () => setOpen(true) }}
+                                        variant="illustrated"
+                                    />
+                                )
                             )}
                             
                             <TransactionListGrouped 
@@ -308,6 +321,7 @@ export default function TransactionsPage() {
                     </CarouselItem>
                 </CarouselContent>
             </Carousel>
+            </ErrorBoundary>
         )}
       </div>
     </div>
