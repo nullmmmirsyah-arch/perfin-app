@@ -203,7 +203,7 @@ export default function Dashboard() {
         {summary === undefined ? (
           <DashboardCardSkeleton />
         ) : (
-          <ErrorBoundary key={retryKey} fallback={<ErrorState onRetry={handleRetry} />}>
+          <ErrorBoundary key={retryKey} fallback={<ErrorState title="Something went wrong" action={{ label: "Retry", onClick: handleRetry }} />}>
             <>
               <motion.div variants={fadeInUp}><MobileHeroSummary summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
               <motion.div variants={fadeInUp}><MobileBudgetToday summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
@@ -241,11 +241,11 @@ export default function Dashboard() {
           ) : (
               <>
                   <motion.div variants={fadeInUp} className="flex flex-col gap-6">
-                    <ErrorBoundary key={`dailyops-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <ErrorBoundary key={`dailyops-${retryKey}`} fallback={<ErrorState title="Something went wrong" action={{ label: "Retry", onClick: handleRetry }} />}>
                       <DailyOperationsCard summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} />
                     </ErrorBoundary>
                     {summary?.budgetBreakdown?.some((item: BudgetBreakdownItem) => item.enablePacing !== false && item.limit > 0) && (
-                      <ErrorBoundary key={`quickadj-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                      <ErrorBoundary key={`quickadj-${retryKey}`} fallback={<ErrorState title="Something went wrong" action={{ label: "Retry", onClick: handleRetry }} />}>
                         <QuickAdjust
                           householdId={householdId ?? undefined}
                           summary={summary}
@@ -255,13 +255,13 @@ export default function Dashboard() {
                     )}
                   </motion.div>
                   <motion.div variants={fadeInUp} className="flex flex-col gap-6">
-                    <ErrorBoundary key={`trend-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <ErrorBoundary key={`trend-${retryKey}`} fallback={<ErrorState title="Something went wrong" action={{ label: "Retry", onClick: handleRetry }} />}>
                       <TrendChart householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
                     </ErrorBoundary>
-                    <ErrorBoundary key={`monthly-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <ErrorBoundary key={`monthly-${retryKey}`} fallback={<ErrorState title="Something went wrong" action={{ label: "Retry", onClick: handleRetry }} />}>
                       <MonthlyComparison householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
                     </ErrorBoundary>
-                    <ErrorBoundary key={`recurring-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+                    <ErrorBoundary key={`recurring-${retryKey}`} fallback={<ErrorState title="Something went wrong" action={{ label: "Retry", onClick: handleRetry }} />}>
                       <RecurringSummary householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} />
                     </ErrorBoundary>
                   </motion.div>
@@ -285,7 +285,7 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        <ErrorBoundary key={`txns-${retryKey}`} fallback={<ErrorState onRetry={handleRetry} />}>
+        <ErrorBoundary key={`txns-${retryKey}`} fallback={<ErrorState title="Something went wrong" action={{ label: "Retry", onClick: handleRetry }} />}>
           {summary === undefined ? (
               <RecentTransactionsSkeleton />
           ) : (
