@@ -89,6 +89,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
   const categoryId = useWatch({ control: form.control, name: 'categoryId' });
   const amountValue = useWatch({ control: form.control, name: 'amount' });
   const watchedAllowanceType = useWatch({ control: form.control, name: 'allowanceType' });
+  const watchedWeeklyResetDay = useWatch({ control: form.control, name: 'weeklyResetDay' });
 
   // Fetch assistance data when category is selected
   const assistanceData = useQuery(api.budgets.getBudgetAssistance, 
@@ -220,7 +221,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                           }}
                       />
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">Enter the budget limit for this category this month.</p>
+                      <p className="text-xs text-muted-foreground">Your budget resets at the start of each budget cycle.</p>
                       <FormMessage />
                   </FormItem>
                   )}
@@ -289,6 +290,12 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                         </FormItem>
                       )}
                     />
+                  )}
+                  {watchedAllowanceType === "weekly" && (
+                    <p className="text-xs text-muted-foreground -mt-2">
+                      Your weekly allowance resets every{' '}
+                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][watchedWeeklyResetDay ?? 1]}.
+                    </p>
                   )}
                 </div>
               )}

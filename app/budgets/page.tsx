@@ -25,6 +25,9 @@ import { toast } from 'sonner'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { BudgetListSkeleton } from '@/components/skeletons'
 import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails, getFiscalMonthRange, calculateFiscalDaysRemaining } from '@/lib/finance-utils'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { ErrorState } from '@/components/ui/error-state'
 import BudgetCard from '@/components/BudgetCard'
 import AllocationProgressCard from '@/components/budgets/AllocationProgressCard'
 
@@ -272,7 +275,7 @@ export default function BudgetsPage() {
       <div className="hidden md:flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold">Budgets</h1>
-          <p className="text-muted-foreground">Manage your monthly spending limits by category.</p>
+          <p className="text-muted-foreground">Set spending limits for each category and track your progress.</p>
         </div>
         
         <div className="flex items-center gap-2">
@@ -495,6 +498,7 @@ export default function BudgetsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <ErrorBoundary>
       <div className="space-y-4 overflow-hidden">
         {budgetStatus === undefined ? (
           <BudgetListSkeleton />
@@ -583,12 +587,13 @@ export default function BudgetsPage() {
                     </motion.div>
 
                     {expenses.length === 0 ? (
-                        <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
-                            <div className="space-y-2">
-                                <Wallet className="h-8 w-8 text-muted-foreground mx-auto" />
-                                <p className="text-muted-foreground">No expense categories found.</p>
-                            </div>
-                        </div>
+                        <EmptyState
+                            icon={Wallet}
+                            title="No expense budgets yet"
+                            description="Create a weekly budget to understand how much you can safely spend."
+                            action={{ label: "Create a weekly budget", onClick: () => setOpen(true) }}
+                            variant="illustrated"
+                        />
                     ) : (
                         <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4" variants={staggerContainer} initial="hidden" animate="visible">
                             {expenses.map(item => (
@@ -642,12 +647,12 @@ export default function BudgetsPage() {
                     </motion.div>
 
                     {savings.length === 0 ? (
-                        <div className="text-center py-12 border rounded-xl border-dashed bg-muted/20 h-[200px] flex items-center justify-center">
-                            <div className="space-y-2">
-                                <Target className="h-8 w-8 text-muted-foreground mx-auto" />
-                                <p className="text-muted-foreground">No savings goals set.</p>
-                            </div>
-                        </div>
+                        <EmptyState
+                            icon={Target}
+                            title="No savings goals yet"
+                            description="Set a savings goal to track your progress toward financial targets."
+                            variant="illustrated"
+                        />
                     ) : (
                         <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4" variants={staggerContainer} initial="hidden" animate="visible">
                             {savings.map(item => (
@@ -672,6 +677,7 @@ export default function BudgetsPage() {
           </>
         )}
       </div>
+      </ErrorBoundary>
     </div>
   )
 }
