@@ -11,7 +11,10 @@ import { cn, formatCurrency } from '@/lib/utils'
 import { format, isToday, isYesterday } from 'date-fns'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { Bar, BarChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { LoadingScreen } from '@/components/LoadingScreen'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { ErrorState } from '@/components/ui/error-state'
+import { CategoriesListSkeleton } from '@/components/skeletons'
 import { useState, useMemo } from 'react'
 import { DateRange } from 'react-day-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -68,7 +71,7 @@ export default function CategoryDetailPage() {
     accountIds: selectedAccountIds.length > 0 ? selectedAccountIds : undefined
   })
 
-  if (!data) return <LoadingScreen />
+  if (!data) return <CategoriesListSkeleton />
 
   const { category, historyData, recentTransactions, weeklySpent } = data
 
@@ -159,6 +162,7 @@ export default function CategoryDetailPage() {
   const listHistory = [...chartData].reverse();
 
   return (
+    <ErrorBoundary fallback={<ErrorState title="Something went wrong loading category details" />}>
     <div className="pb-24 p-4 md:p-8 space-y-6">
       {/* Transaction Actions Components */}
       <TransactionDrawer
@@ -330,7 +334,12 @@ export default function CategoryDetailPage() {
         <CardContent>
             <div className="space-y-4">
                 {listHistory.length === 0 ? (
-                    <div className="text-center py-4 text-muted-foreground text-sm">No history data available.</div>
+                    <EmptyState
+                        icon={History}
+                        title="No history yet"
+                        description="Transaction history will appear here once you record expenses in this category."
+                        variant="compact"
+                    />
                 ) : (
                     listHistory.map((month) => (
                     <div key={`${month.year}-${month.month}`} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
@@ -497,14 +506,24 @@ export default function CategoryDetailPage() {
         )}
         
         <div className="mt-4">
-            <TransactionListGrouped 
-                transactions={recentTransactions as TransactionWithDetails[] || []}
-                onEdit={handleEdit}
-                onDelete={setTransactionToDelete}
-                highlightCategoryId={[id]} 
-            />
+            {(recentTransactions ?? []).length === 0 ? (
+                <EmptyState
+                    icon={Wallet}
+                    title="No recent transactions"
+                    description="Transactions in this category will appear here."
+                    variant="compact"
+                />
+            ) : (
+                <TransactionListGrouped 
+                    transactions={recentTransactions as TransactionWithDetails[] || []}
+                    onEdit={handleEdit}
+                    onDelete={setTransactionToDelete}
+                    highlightCategoryId={[id]} 
+                />
+            )}
         </div>
       </div>
     </div>
+    </ErrorBoundary>
   )
 }
