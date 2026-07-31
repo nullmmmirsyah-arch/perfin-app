@@ -10,6 +10,22 @@ Format:
 ### Docs
 -->
 
+## 2026-07-31
+
+### Added
+- **Sprint 2 — UX Foundation: Trust & Clarity:** consistent loading/empty/error/form states across 6 core screens.
+  - **`components/ui/empty-state.tsx`:** new `variant` prop (`default` | `compact` | `illustrated`), `secondaryAction`, `secondaryActionLabel`, backward-compatible `compact` prop mapping.
+  - **`components/ui/error-state.tsx`:** `title` now required, new `description`, `icon` props; `onRetry`/`action`/`secondaryAction` retained. All callers updated (7 dashboard fallbacks + `error-boundary.tsx` default).
+  - **`components/TransactionDrawer.tsx`:** inline submit-error banner (form stays intact, input preserved) with Try Again retry; loading skeletons for categories/accounts; category helper text; EmptyState for no-category/no-account relations; submit label now `Save Changes` / `Save Expense`.
+
+### Changed
+- **Dashboard / Transactions / Budgets / Categories Detail pages:** empty divs → `EmptyState` (illustrated for page-level, compact for widgets), `ErrorBoundary` + `ErrorState` fallbacks with specific titles, PageHeader copy tightened, toast copy "deleted" → "removed".
+- **`components/BudgetDrawer.tsx`:** helper text for budget amount + weekly reset note.
+- **`app/transactions/page.tsx`:** `ErrorState` fallback now includes required `title`/`description`.
+
+### Removed
+- **`hooks/use-content-state.ts`:** deleted during final review — no screen consumed it (screens use `ErrorBoundary` + ad-hoc branching). Reintroduce only if repeated branching patterns emerge.
+
 ## 2026-07-29
 
 ### Fixed

@@ -27,7 +27,6 @@ import { BudgetListSkeleton } from '@/components/skeletons'
 import { calculateBudgetPace, calculateGoalStrategy, getFiscalDate, getFiscalDateDetails, getFiscalMonthRange, calculateFiscalDaysRemaining } from '@/lib/finance-utils'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
-import { ErrorState } from '@/components/ui/error-state'
 import BudgetCard from '@/components/BudgetCard'
 import AllocationProgressCard from '@/components/budgets/AllocationProgressCard'
 
