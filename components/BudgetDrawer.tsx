@@ -6,6 +6,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Doc, Id } from '../convex/_generated/dataModel';
 import { useHousehold } from '@/components/HouseholdProvider';
+import CategoryDrawer from '@/components/CategoryDrawer';
 import {
   Drawer,
   DrawerContent,
@@ -17,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -74,6 +76,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
   });
 
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [categoryDrawerOpen, setCategoryDrawerOpen] = React.useState(false);
   const submitLock = React.useRef(false);
 
   const form = useForm<BudgetFormValues>({
@@ -159,6 +162,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
   const totalEffective = carryover + newAllocation;
 
   return (
+    <>
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-h-[96dvh]">
         <DrawerHeader>
@@ -188,6 +192,18 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                           ))}
                       </SelectContent>
                       </Select>
+                      {categories !== undefined && categories.length === 0 && (
+                        <FormDescription>
+                          No expense categories yet.{' '}
+                          <button
+                            type="button"
+                            className="text-primary underline hover:text-primary/80"
+                            onClick={() => setCategoryDrawerOpen(true)}
+                          >
+                            Create one first
+                          </button>
+                        </FormDescription>
+                      )}
                       <FormMessage />
                   </FormItem>
                   )}
@@ -384,6 +400,12 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
         </div>
       </DrawerContent>
     </Drawer>
+    <CategoryDrawer
+      open={categoryDrawerOpen}
+      onOpenChange={setCategoryDrawerOpen}
+      defaultType="expense"
+    />
+    </>
   );
 };
 
