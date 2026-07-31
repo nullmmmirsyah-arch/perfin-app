@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { GoalActionDrawer } from '@/components/goals/GoalActionDrawer'
 import { Zap, Settings2 } from '@/components/ui/icons'
 import CategoryDrawer from '@/components/CategoryDrawer'
+import { GoalWizardDrawer } from '@/components/GoalWizardDrawer'
 import { toast } from 'sonner'
 import { Switch } from '@/components/ui/switch'
 
@@ -26,6 +27,8 @@ export default function GoalDetailPage() {
   const [actionType, setActionType] = useState<'deposit' | 'withdraw'>('deposit')
   const [suggestionAmount, setSuggestionAmount] = useState<number | undefined>(undefined)
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
+  const [autoSaveWizardOpen, setAutoSaveWizardOpen] = useState(false)
+  const [showAutoSaveCard, setShowAutoSaveCard] = useState(true)
   
   const goalId = params.id as Id<"categories">
 
@@ -225,7 +228,7 @@ export default function GoalDetailPage() {
             )}
         </div>
 
-        {/* 1.5. Auto-Save Status Card */}
+        {/* Auto-Save Status Card */}
         <div className={cn(
             "border rounded-xl p-5 flex flex-col gap-4 transition-all duration-300",
             automation?.isEnabled 
@@ -243,7 +246,7 @@ export default function GoalDetailPage() {
                     <div>
                         <h4 className="font-bold text-sm">Monthly Auto-Save</h4>
                         <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-                            {automation?.isEnabled ? `Next: ${format(new Date(automation.nextRunAt), 'dd MMM')}` : "Paused or Not Set"}
+                            {automation?.isEnabled ? `Next: ${format(new Date(automation.nextRunAt), 'dd MMM')}` : "NOT SET UP"}
                         </p>
                     </div>
                 </div>
@@ -281,26 +284,75 @@ export default function GoalDetailPage() {
                          </div>
                     )}
                 </div>
+            ) : showAutoSaveCard ? (
+                <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        Tabung otomatis setiap bulan. Kamu bisa atur:
+                    </p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Nominal per bulan</li>
+                        <li>• Sumber dana (rekening)</li>
+                        <li>• Tanggal transfer</li>
+                    </ul>
+                    
+                    {/* Recommendation Card */}
+                    {monthlyTarget > 0 && (
+                        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                            <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                                💡 Rekomendasi: Berdasarkan target{' '}
+                                <span className="font-bold">Rp {new Intl.NumberFormat().format(Math.ceil(monthlyTarget))}/bulan</span>,
+                                set auto-save tanggal 25 tiap bulan.
+                            </p>
+                        </div>
+                    )}
+                    
+                    <Button 
+                        className="w-full gap-2"
+                        onClick={() => setAutoSaveWizardOpen(true)}
+                    >
+                        <Zap className="h-4 w-4" />
+                        Set Up Auto-Save Sekarang
+                    </Button>
+                    
+                    <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="w-full text-xs text-muted-foreground"
+                        onClick={() => setShowAutoSaveCard(false)}
+                    >
+                      Nanti saja →
+                    </Button>
+                </div>
             ) : (
                 <div className="py-2">
                     <p className="text-sm text-muted-foreground italic leading-relaxed">
-                        {automation 
-                            ? "Auto-save is currently paused. Switch it on to resume automated saving." 
-                            : "Set up automated monthly transfers to reach this goal faster without thinking about it."
-                        }
+                        Auto-save is currently paused. Switch it on to resume automated saving.
                     </p>
-                    {!automation && (
-                        <Button 
-                            variant="link" 
-                            className="p-0 h-auto text-primary font-bold text-xs mt-2"
-                            onClick={() => setEditDrawerOpen(true)}
-                        >
-                            Set Up Automation &rarr;
-                        </Button>
-                    )}
+                    <Button 
+                        variant="link" 
+                        className="p-0 h-auto text-primary font-bold text-xs mt-2"
+                        onClick={() => setShowAutoSaveCard(true)}
+                    >
+                        Set Up Automation &rarr;
+                    </Button>
                 </div>
             )}
         </div>
+
+        {/* Auto-Save Wizard */}
+        {autoSaveWizardOpen && (
+            <GoalWizardDrawer
+                open={autoSaveWizardOpen}
+                onOpenChange={setAutoSaveWizardOpen}
+                editGoal={{
+                    _id: category._id,
+                    name: category.name,
+                    targetAmount: category.targetAmount,
+                    targetDate: category.targetDate,
+                    goalType: category.goalType,
+                }}
+            />
+        )}
 
         {linkedAccountId && (
             <GoalActionDrawer 
