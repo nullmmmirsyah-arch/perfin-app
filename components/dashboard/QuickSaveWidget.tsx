@@ -5,7 +5,7 @@ import { api } from '../../convex/_generated/api'
 import { Id, Doc } from '../../convex/_generated/dataModel'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { getFiscalDateDetails } from '@/lib/finance-utils'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, parseAmount } from '@/lib/utils'
 import { calculateGoalStrategy } from '@/lib/finance-utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -21,11 +21,7 @@ type EnrichedGoal = Doc<'categories'> & {
   linkedCategoryId?: Id<'accounts'>
 }
 
-interface QuickSaveWidgetProps {
-  onOpenGoalWizard?: () => void
-}
-
-export function QuickSaveWidget({ onOpenGoalWizard }: QuickSaveWidgetProps) {
+export function QuickSaveWidget() {
   const { householdId, households } = useHousehold()
   const router = useRouter()
 
@@ -71,9 +67,9 @@ export function QuickSaveWidget({ onOpenGoalWizard }: QuickSaveWidgetProps) {
 
   const sortedGoals = activeGoals
     .map(goal => {
-      const monthlyLimit = goal.currentBudget ? parseFloat(goal.currentBudget.amount.replace(/,/g, '') || '0') : 0
+      const monthlyLimit = goal.currentBudget ? parseAmount(goal.currentBudget.amount) : 0
       const monthlyContribution = goal.thisMonthContribution || 0
-      const targetAmount = goal.targetAmount ? parseFloat(goal.targetAmount.replace(/,/g, '')) : 0
+      const targetAmount = parseAmount(goal.targetAmount)
       const globalTarget = targetAmount
       const globalCollected = goal.currentAmount || 0
 
@@ -106,11 +102,13 @@ export function QuickSaveWidget({ onOpenGoalWizard }: QuickSaveWidgetProps) {
       <Card className="p-4">
         <div className="text-center space-y-3">
           <p className="text-sm text-muted-foreground">Belum ada goal. Mulai menabung untuk tujuan keuanganmu!</p>
-          {onOpenGoalWizard && (
-            <Button variant="outline" size="sm" onClick={onOpenGoalWizard}>
-              + Buat Goal Pertama
-            </Button>
-          )}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => router.push('/goals')}
+          >
+            + Buat Goal Pertama
+          </Button>
         </div>
       </Card>
     )
@@ -120,9 +118,9 @@ export function QuickSaveWidget({ onOpenGoalWizard }: QuickSaveWidgetProps) {
     <>
       <div className="space-y-3">
         {sortedGoals.map(goal => {
-          const targetAmount = goal.targetAmount ? parseFloat(goal.targetAmount.replace(/,/g, '')) : 0
+          const targetAmount = parseAmount(goal.targetAmount)
           const progress = targetAmount > 0 ? (goal.currentAmount / targetAmount) * 100 : 0
-          const monthlyLimit = goal.currentBudget ? parseFloat(goal.currentBudget.amount.replace(/,/g, '') || '0') : 0
+          const monthlyLimit = goal.currentBudget ? parseAmount(goal.currentBudget.amount) : 0
           const isMonthlyMet = monthlyLimit > 0 && (goal.thisMonthContribution || 0) >= monthlyLimit
 
           return (
