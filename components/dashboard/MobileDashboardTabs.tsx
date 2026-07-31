@@ -6,7 +6,6 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { BalanceSummary } from './BalanceSummary';
 import { LentSummary } from './LentSummary';
 import { GoalSummary } from './GoalSummary';
-import { QuickSaveWidget } from './QuickSaveWidget';
 
 type SummaryData = {
   liquidCash: number;
@@ -78,12 +77,6 @@ export function MobileDashboardTabs({ summary, isPrivacyMode }: Props) {
           </TabsContent>
           <TabsContent value="goals">
             <GoalSummary summary={summary} isPrivacyMode={isPrivacyMode} />
-            <Card className="mt-4">
-              <CardContent className="pt-6">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-4">💰 Quick Save</h3>
-                <QuickSaveWidget />
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </CardContent>

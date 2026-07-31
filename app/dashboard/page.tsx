@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { DailyOperationsCard, BudgetBreakdownItem } from '@/components/dashboard/DailyOperationsCard'
 import { MobileHeroSummary } from '@/components/dashboard/MobileHeroSummary'
 import { MobileBudgetToday } from '@/components/dashboard/MobileBudgetToday'
+import { GoalsProgressCard } from '@/components/dashboard/GoalsProgressCard'
 import { MobileDashboardTabs } from '@/components/dashboard/MobileDashboardTabs'
 import { MobileRecurringRow } from '@/components/dashboard/MobileRecurringRow'
 import { MobileRecentTransactions } from '@/components/dashboard/MobileRecentTransactions'
@@ -207,6 +208,7 @@ export default function Dashboard() {
             <>
               <motion.div variants={fadeInUp}><MobileHeroSummary summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
               <motion.div variants={fadeInUp}><MobileBudgetToday summary={summary} isPrivacyMode={isPrivacyMode} budgetStartDay={budgetStartDay} /></motion.div>
+              <motion.div variants={fadeInUp}><GoalsProgressCard isPrivacyMode={isPrivacyMode} /></motion.div>
               <motion.div variants={fadeInUp}><MobileDashboardTabs summary={summary} isPrivacyMode={isPrivacyMode} /></motion.div>
               <motion.div variants={fadeInUp}><MobileRecurringRow householdId={householdId ?? undefined} isPrivacyMode={isPrivacyMode} /></motion.div>
               <motion.div variants={fadeInUp}>
