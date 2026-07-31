@@ -148,7 +148,7 @@ export function GoalsProgressCard({ isPrivacyMode }: Props) {
                           </span>
                         ) : null}
                       </div>
-                      {goal.linkedCategoryId && (
+                      {goal.linkedCategoryId && !isOverallMet && (
                         <Button
                           size="sm"
                           variant="default"
