@@ -589,8 +589,8 @@ export default function BudgetsPage() {
                         <EmptyState
                             icon={Wallet}
                             title="No expense budgets yet"
-                            description="Create a weekly budget to understand how much you can safely spend."
-                            action={{ label: "Create a weekly budget", onClick: () => setOpen(true) }}
+                            description="Create a budget to understand how much you can safely spend."
+                            action={{ label: "Create a budget", onClick: () => setOpen(true) }}
                             variant="illustrated"
                         />
                     ) : (
