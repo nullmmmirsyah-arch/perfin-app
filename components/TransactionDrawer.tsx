@@ -308,7 +308,6 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
       const timer = setTimeout(() => {
         setStep("form");
         setSavedData(null);
-        setSubmitError(null);
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -612,6 +611,7 @@ const TransactionForm = ({
     if (open) {
       setIsProcessing(false);
       submitLock.current = false;
+      setSubmitError(null);
 
       if (isEditMode && transaction) {
         editingTransactionId.current = transaction._id;

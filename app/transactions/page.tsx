@@ -247,7 +247,7 @@ export default function TransactionsPage() {
         ) : !isSearching && transactions === undefined ? (
             <TransactionsListSkeleton />
         ) : (
-            <ErrorBoundary fallback={<ErrorState />}>
+            <ErrorBoundary fallback={<ErrorState title="Something went wrong" description="We couldn't load your transactions. Please try again." />}>
             <Carousel setApi={setApi} opts={{ duration: 30 }}>
                 <CarouselContent>
                     {/* LIST VIEW */}
