@@ -78,10 +78,12 @@ export function MobileDashboardTabs({ summary, isPrivacyMode }: Props) {
           </TabsContent>
           <TabsContent value="goals">
             <GoalSummary summary={summary} isPrivacyMode={isPrivacyMode} />
-            <div className="space-y-2 mt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">Quick Save</h3>
-              <QuickSaveWidget />
-            </div>
+            <Card className="mt-4">
+              <CardContent className="pt-6">
+                <h3 className="text-sm font-semibold text-muted-foreground mb-4">💰 Quick Save</h3>
+                <QuickSaveWidget />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </CardContent>

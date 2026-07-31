@@ -87,7 +87,6 @@ export function QuickSaveWidget() {
       return { ...goal, gapSuggestion, strategy }
     })
     .sort((a, b) => b.gapSuggestion - a.gapSuggestion)
-    .slice(0, 3)
 
   const handleQuickSave = (goal: EnrichedGoal) => {
     if (goal.linkedCategoryId) {
