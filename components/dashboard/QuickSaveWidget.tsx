@@ -98,18 +98,16 @@ export function QuickSaveWidget() {
 
   if (activeGoals.length === 0) {
     return (
-      <Card className="p-4">
-        <div className="text-center space-y-3">
-          <p className="text-sm text-muted-foreground">Belum ada goal. Mulai menabung untuk tujuan keuanganmu!</p>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => router.push('/goals')}
-          >
-            + Buat Goal Pertama
-          </Button>
-        </div>
-      </Card>
+      <div className="text-center space-y-3 py-4">
+        <p className="text-sm text-muted-foreground">Belum ada goal. Mulai menabung untuk tujuan keuanganmu!</p>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => router.push('/goals')}
+        >
+          + Buat Goal Pertama
+        </Button>
+      </div>
     )
   }
 

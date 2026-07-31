@@ -2,7 +2,6 @@
 
 import { Progress } from '@/components/ui/progress';
 import { cn, formatCurrency } from '@/lib/utils';
-import { calculateGoalStrategy } from '@/lib/finance-utils';
 import { BudgetBreakdownItem } from './DailyOperationsCard';
 import { Sparkles, ShieldCheck, CalendarClock, Flag } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -39,50 +38,106 @@ export function GoalSummary({ summary, isPrivacyMode }: Props) {
         </p>
       </div>
 
-      <div className="space-y-4">
-        {goals.map((item: BudgetBreakdownItem) => {
+      <div className="space-y-3">
+        {goals.map((item: BudgetBreakdownItem, index: number) => {
           const hasMonthlyBudget = item.limit > 0;
-          const displayTarget = hasMonthlyBudget ? item.limit : (item.targetAmount || 0);
-          const displayCurrent = hasMonthlyBudget ? item.spent : item.accumulated;
-          const percentage = displayTarget > 0 ? (displayCurrent / displayTarget) * 100 : 0;
-          const isMet = hasMonthlyBudget && displayCurrent >= displayTarget;
-          const globalTarget = item.targetAmount || 0;
-          const strategy = calculateGoalStrategy(item.accumulated, globalTarget, item.targetDate);
+          const hasOverallTarget = (item.targetAmount || 0) > 0;
+
+          const overallPercentage = hasOverallTarget
+            ? (item.accumulated / item.targetAmount) * 100
+            : 0;
+          const monthlyPercentage = hasMonthlyBudget
+            ? (item.spent / item.limit) * 100
+            : 0;
+
+          const isMonthlyMet = hasMonthlyBudget && item.spent >= item.limit;
+          const isOverallMet = hasOverallTarget && item.accumulated >= item.targetAmount;
 
           let typeIcon = Sparkles;
           let typeColor = 'text-chart-1';
-          if (item.goalType === 'investment') typeIcon = ShieldCheck;
-          else if (item.goalType === 'bill') typeIcon = CalendarClock;
+          if (item.goalType === 'investment') { typeIcon = ShieldCheck; typeColor = 'text-chart-2'; }
+          else if (item.goalType === 'bill') { typeIcon = CalendarClock; typeColor = 'text-chart-3'; }
 
           const Icon = typeIcon;
 
           return (
-            <div key={item.categoryId} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <Icon className={cn('h-3 w-3 shrink-0', typeColor)} />
-                  <span className="text-xs font-medium truncate">{item.categoryName}</span>
+            <div key={item.categoryId}>
+              <div className="space-y-2.5">
+                {/* Header: Icon + Name + Status */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Icon className={cn('h-3.5 w-3.5 shrink-0', typeColor)} />
+                    <span className="text-sm font-semibold truncate">{item.categoryName}</span>
+                  </div>
+                  {isOverallMet ? (
+                    <span className="text-[10px] bg-success/10 text-success px-1.5 py-0.5 rounded-full font-medium">
+                      Done!
+                    </span>
+                  ) : isMonthlyMet ? (
+                    <span className="text-[10px] bg-success/10 text-success px-1.5 py-0.5 rounded-full font-medium">
+                      On Track
+                    </span>
+                  ) : hasMonthlyBudget || hasOverallTarget ? (
+                    <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full font-medium">
+                      Needs Attention
+                    </span>
+                  ) : null}
                 </div>
-                <span className="text-xs font-medium tabular-nums shrink-0 ml-2">
-                  {formatCurrency(displayCurrent, { isPrivacyMode })}
-                  <span className="text-muted-foreground font-normal">
-                    /{formatCurrency(displayTarget, { isPrivacyMode })}
-                  </span>
-                </span>
+
+                {/* Overall Progress */}
+                {hasOverallTarget && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">Overall</span>
+                      <span className="text-[10px] font-medium tabular-nums">
+                        {formatCurrency(item.accumulated, { isPrivacyMode })}
+                        <span className="text-muted-foreground font-normal">
+                          /{formatCurrency(item.targetAmount, { isPrivacyMode })}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress value={Math.min(100, overallPercentage)} className="h-1.5 flex-1" />
+                      <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">
+                        {overallPercentage.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Monthly Progress */}
+                {hasMonthlyBudget && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">Bulanan</span>
+                      <span className="text-[10px] font-medium tabular-nums">
+                        {formatCurrency(item.spent, { isPrivacyMode })}
+                        <span className="text-muted-foreground font-normal">
+                          /{formatCurrency(item.limit, { isPrivacyMode })}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress value={Math.min(100, monthlyPercentage)} className="h-1.5 flex-1" />
+                      <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">
+                        {monthlyPercentage.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* No target set */}
+                {!hasOverallTarget && !hasMonthlyBudget && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatCurrency(item.accumulated, { isPrivacyMode })} terkumpul
+                  </p>
+                )}
               </div>
-              <Progress value={Math.min(100, percentage)} className="h-1.5" />
-              <div className="flex justify-between">
-                <span className="text-[10px] text-muted-foreground">
-                  {percentage.toFixed(0)}%
-                </span>
-                {isMet ? (
-                  <span className="text-[10px] text-success font-medium">Done!</span>
-                ) : strategy && strategy.monthly > 0 && !hasMonthlyBudget ? (
-                  <span className="text-[10px] text-muted-foreground">
-                    {formatCurrency(strategy.monthly, { isPrivacyMode })}/mo needed
-                  </span>
-                ) : null}
-              </div>
+
+              {/* Divider */}
+              {index < goals.length - 1 && (
+                <div className="border-b border-border/30 mt-3" />
+              )}
             </div>
           );
         })}
