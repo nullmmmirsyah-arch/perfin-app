@@ -40,9 +40,10 @@ interface GoalCardProps {
   isCompleted?: boolean
   onClick: () => void
   onEdit?: (goal: Doc<'categories'>) => void
+  onQuickSave?: (goalId: Id<"categories">, amount?: number) => void
 }
 
-export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }: GoalCardProps) {
+export default function GoalCard({ goal, isCompleted = false, onClick, onEdit, onQuickSave }: GoalCardProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const deleteGoal = useMutation(api.categories.deleteCategory)
   const globalTarget = goal.targetAmount ? parseFloat(goal.targetAmount.replace(/,/g, '')) : 0
@@ -63,6 +64,26 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }:
   const strategy = !isCompleted && globalTarget > 0 
     ? calculateGoalStrategy(globalCollected, globalTarget, goal.targetDate) 
     : null;
+
+  // Quick Save CTA Logic
+  const quickSaveGap = (() => {
+    if (isCompleted || goal.status === 'achieved') return 0
+    if (displayProgress >= 100) return 0
+    
+    if (hasMonthlyBudget) {
+      const gap = monthlyLimit - monthlyContribution
+      if (gap > 0) return Math.ceil(gap)
+      return 0
+    }
+    
+    if (strategy && strategy.monthly > 0) {
+      return Math.ceil(strategy.monthly)
+    }
+    
+    return 0
+  })()
+
+  const showQuickSaveCTA = quickSaveGap > 0 && !isCompleted && goal.status !== 'achieved'
 
   return (
     <Card 
@@ -168,6 +189,26 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit }:
             )}
         </div>
       </div>
+
+      {/* Quick Save CTA Box */}
+      {showQuickSaveCTA && onQuickSave && (
+          <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 space-y-2 relative z-10">
+              <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-primary">{formatCurrency(quickSaveGap)}</span> lagi untuk on-track bulan ini
+              </p>
+              <Button 
+                  size="sm" 
+                  className="w-full gap-2"
+                  onClick={(e) => {
+                      e.stopPropagation()
+                      onQuickSave(goal._id, quickSaveGap)
+                  }}
+              >
+                  <span>💰</span> Tabung Sekarang
+              </Button>
+          </div>
+      )}
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>

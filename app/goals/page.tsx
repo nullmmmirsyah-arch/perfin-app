@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress'
 import { Plus, ChevronDown, ChevronRight, ShieldCheck, CalendarClock, Sparkles, CheckCircle2 } from '@/components/ui/icons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { GoalWizardDrawer } from '@/components/GoalWizardDrawer'
+import { GoalActionDrawer } from '@/components/goals/GoalActionDrawer'
 import GoalCard from '@/components/GoalCard'
 import { Doc, Id } from '../../convex/_generated/dataModel'
 import { useHousehold } from '@/components/HouseholdProvider'
@@ -39,6 +40,11 @@ export default function GoalsPage() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [goalToEdit, setGoalToEdit] = useState<Doc<'categories'> | undefined>(undefined)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [actionDrawerOpen, setActionDrawerOpen] = useState(false)
+  const [actionType, setActionType] = useState<'deposit' | 'withdraw'>('deposit')
+  const [quickSaveGoal, setQuickSaveGoal] = useState<EnrichedGoal | undefined>(undefined)
+  const [quickSaveAccountId, setQuickSaveAccountId] = useState<Id<"accounts"> | undefined>(undefined)
+  const [quickSaveAmount, setQuickSaveAmount] = useState<number | undefined>(undefined)
   const { householdId, households } = useHousehold()
   const router = useRouter()
   
@@ -58,6 +64,12 @@ export default function GoalsPage() {
       month,
       year,
       householdId: householdId ?? undefined,
+  });
+
+  // 4. Fetch Accounts (for linking goals to accounts)
+  const accounts = useQuery(api.accounts.get, {
+      householdId: householdId ?? undefined,
+      showArchived: false,
   });
 
   // 3. Merge Data
@@ -94,6 +106,20 @@ export default function GoalsPage() {
       if (!open) setGoalToEdit(undefined)
   }
 
+  const handleQuickSave = (goalId: Id<"categories">, amount?: number) => {
+      const goal = enrichedGoals?.find(g => g._id === goalId)
+      if (goal && accounts) {
+          const linkedAccount = accounts.find(a => a.linkedCategoryId === goalId)
+          if (linkedAccount) {
+              setQuickSaveGoal(goal)
+              setQuickSaveAccountId(linkedAccount._id)
+              setQuickSaveAmount(amount)
+              setActionType('deposit')
+              setActionDrawerOpen(true)
+          }
+      }
+  }
+
   return (
     <div className="pb-24 p-4 md:p-8 space-y-8 max-w-5xl mx-auto">
       <div className="flex justify-between items-end gap-4">
@@ -116,7 +142,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Security & Growth" icon={ShieldCheck} count={investments.length} className="text-chart-2" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {investments.map(goal => (
-                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
+                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} onQuickSave={handleQuickSave} />
                     ))}
                     {investments.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-2/5">
@@ -131,7 +157,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Upcoming Obligations" icon={CalendarClock} count={bills.length} className="text-chart-3" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {bills.map(goal => (
-                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
+                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} onQuickSave={handleQuickSave} />
                     ))}
                     {bills.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-3/5">
@@ -146,7 +172,7 @@ export default function GoalsPage() {
                 <SectionHeader title="Wishlist" icon={Sparkles} count={purchases.length} className="text-chart-1" />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {purchases.map(goal => (
-                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} />
+                        <GoalCard key={goal._id} goal={goal} onClick={() => handleGoalClick(goal._id)} onEdit={handleEditGoal} onQuickSave={handleQuickSave} />
                     ))}
                     {purchases.length === 0 && (
                         <div className="col-span-full py-6 text-center border rounded-lg border-dashed bg-chart-1/5">
@@ -187,6 +213,19 @@ export default function GoalsPage() {
         onOpenChange={handleOpenChange}
         editGoal={goalToEdit}
       />
+
+      {/* Quick Save Drawer */}
+      {quickSaveGoal && quickSaveAccountId && (
+          <GoalActionDrawer
+              open={actionDrawerOpen}
+              onOpenChange={setActionDrawerOpen}
+              goalName={quickSaveGoal.name}
+              goalAccountId={quickSaveAccountId}
+              goalCategoryId={quickSaveGoal._id}
+              actionType={actionType}
+              suggestionAmount={quickSaveAmount}
+          />
+      )}
     </div>
   )
 }
