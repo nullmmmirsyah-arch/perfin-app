@@ -10,7 +10,7 @@ import { format, differenceInMonths, isValid } from 'date-fns'
 import { TrendingUp, History, Wallet, ChevronLeft, Calendar, CheckCircle2, Plus, ArrowRightLeft } from '@/components/ui/icons'
 import { useParams, useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { GoalActionDrawer } from '@/components/goals/GoalActionDrawer'
 import { Zap, Settings2 } from '@/components/ui/icons'
 import CategoryDrawer from '@/components/CategoryDrawer'
@@ -300,7 +300,7 @@ export default function GoalDetailPage() {
                         <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                             <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
                                 💡 Rekomendasi: Berdasarkan target{' '}
-                                <span className="font-bold">Rp {new Intl.NumberFormat().format(Math.ceil(monthlyTarget))}/bulan</span>,
+                                <span className="font-bold">{formatCurrency(Math.ceil(monthlyTarget))}/bulan</span>,
                                 set auto-save tanggal 25 tiap bulan.
                             </p>
                         </div>
@@ -326,12 +326,14 @@ export default function GoalDetailPage() {
             ) : (
                 <div className="py-2">
                     <p className="text-sm text-muted-foreground italic leading-relaxed">
-                        Auto-save is currently paused. Switch it on to resume automated saving.
+                        {automation 
+                            ? "Auto-save is currently paused. Switch it on to resume automated saving." 
+                            : "Set up automated monthly transfers to reach this goal faster."}
                     </p>
                     <Button 
                         variant="link" 
                         className="p-0 h-auto text-primary font-bold text-xs mt-2"
-                        onClick={() => setShowAutoSaveCard(true)}
+                        onClick={() => automation ? setEditDrawerOpen(true) : setShowAutoSaveCard(true)}
                     >
                         Set Up Automation &rarr;
                     </Button>
