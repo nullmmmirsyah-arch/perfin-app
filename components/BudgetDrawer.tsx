@@ -51,6 +51,7 @@ type BudgetDrawerProps = {
   onOpenChange: (open: boolean) => void;
   defaultCategory?: Doc<'categories'>;
   currentAmount?: string;
+  categoryType?: 'expense' | 'saving';
   year: number;
   month: number;
 };
@@ -62,12 +63,12 @@ const formatAmount = (value: string) => {
   return parts.length > 1 ? `${parts[0]}.${parts[1].slice(0, 2)}` : parts[0];
 };
 
-const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year, month }: BudgetDrawerProps) => {
+const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, categoryType = 'expense', year, month }: BudgetDrawerProps) => {
   const { householdId } = useHousehold();
   const upsertBudget = useMutation(api.budgets.upsertBudget);
   const updateAllowanceConfig = useMutation(api.categories.updateAllowanceConfig);
   
-  const categories = useQuery(api.categories.get, { type: 'expense', householdId: householdId ?? undefined });
+  const categories = useQuery(api.categories.get, { type: categoryType, householdId: householdId ?? undefined });
   
   const budgetStatus = useQuery(api.budgets.getBudgetStatus, {
       month,
@@ -194,7 +195,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
                       </Select>
                       {categories !== undefined && categories.length === 0 && (
                         <FormDescription>
-                          No expense categories yet.{' '}
+                          No {categoryType === 'saving' ? 'savings' : 'expense'} categories yet.{' '}
                           <button
                             type="button"
                             className="text-primary underline hover:text-primary/80"
@@ -403,7 +404,7 @@ const BudgetDrawer = ({ open, onOpenChange, defaultCategory, currentAmount, year
     <CategoryDrawer
       open={categoryDrawerOpen}
       onOpenChange={setCategoryDrawerOpen}
-      defaultType="expense"
+      defaultType={categoryType}
     />
     </>
   );

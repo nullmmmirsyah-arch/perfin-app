@@ -426,6 +426,7 @@ export default function BudgetsPage() {
         onOpenChange={setOpen}
         defaultCategory={selectedCategory}
         currentAmount={selectedAmount}
+        categoryType={selectedCategory?.type as 'expense' | 'saving' || 'expense'}
         year={fiscalYear}
         month={fiscalMonth}
       />
