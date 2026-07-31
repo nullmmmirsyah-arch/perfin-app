@@ -63,6 +63,7 @@ export function GoalActionDrawer({
 
   const goalAccount = allAccounts?.find(a => a._id === goalAccountId)
   const isAsset = goalAccount?.type === ACCOUNT_TYPES.ASSET
+  const isDeposit = actionType === 'deposit'
 
   const liquidAccounts = allAccounts?.filter(a => 
     !a.type || a.type === ACCOUNT_TYPES.CASH
@@ -165,7 +166,6 @@ export function GoalActionDrawer({
   }
 
   // Visuals
-  const isDeposit = actionType === 'deposit'
   const ActionIcon = isDeposit ? PiggyBank : ArrowRightLeft
   const themeColor = isDeposit ? "text-primary" : "text-destructive"
 
