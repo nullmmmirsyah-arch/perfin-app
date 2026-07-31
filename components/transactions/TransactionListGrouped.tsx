@@ -91,6 +91,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
   const filteredDates = Object.keys(filteredGroups);
 
   if (filteredDates.length === 0) {
+    if (!selectedCategoryId) return null;
     return (
       <div className="space-y-2">
         {selectedCategoryId && (
@@ -110,7 +111,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
             </button>
           </div>
         )}
-        <EmptyState icon={Receipt} description={selectedCategoryId ? "No transactions for this category." : "No transactions found."} />
+        <EmptyState icon={Receipt} description="No transactions for this category." />
       </div>
     );
   }
