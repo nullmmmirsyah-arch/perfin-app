@@ -46,6 +46,7 @@ This document outlines the design philosophy and user experience patterns used i
     - **State Reset:** Ensure processing states and locks are reset when the drawer/dialog opens to prevent UI from getting stuck in a loading state if a previous attempt was interrupted or failed silently.
     - **Step State Pattern:** For expense creation, the drawer uses a `step` state (`"form"` → `"success"`) instead of immediately closing. On save success, the form is replaced by `TransactionSuccessView`. `isDirty` is reset so dismiss doesn't show discard dialog. `handleDismiss` (wrapped in `useCallback`) handles auto-dismiss after 3s.
     - **Visual Feedback:** Buttons must show a "Loading/Saving..." state with a Spinner (`Loader2`) and be disabled during processing.
+    - **Submit Button Labels:** Use contextual copy — "Save Expense" / "Save Income" for create, "Save Changes" for edit. The normal form **Cancel** button stays "Cancel". **"Keep Editing"** is reserved for the discard-confirmation dialog (never on the normal Cancel button).
     - **Haptic Feedback:** Trigger a small vibration (`navigator.vibrate(10)`) on submit for tactile confirmation (Mobile).
 - **Date Handling:**
     - **Timezone Safety:** Backend now uses `getServerNow(timezone)` to compute fiscal periods in the user's local timezone (not UTC). The timezone is stored per-household (`household.timezone`) and can be set to "Device" (auto-detect) or "Manual" (user-selected) via Preferences page.
@@ -64,10 +65,21 @@ This document outlines the design philosophy and user experience patterns used i
 - **Double-Click Prevention:** Use `useRef` lock + `isProcessing` state to prevent duplicate submissions.
 
 ### 4. Feedback System
-- **Toasts:** Use `sonner` for all success/error feedback (income, transfer, edit operations).
+- **Toasts:** Use `sonner` for all success/error feedback (income, transfer, edit operations). Use neutral wording for destructive actions ("Transaction removed", not "deleted").
 - **Success View (Expense Create):** After saving a new expense, the form is replaced with `TransactionSuccessView` — a contextual success screen showing the remaining budget, category breakdown, and color-coded feedback message. Auto-dismisses after 3 seconds. Prioritizes actionable information (remaining budget, spending health) over generic confirmation.
-- **Skeletons:** Always show Skeleton loaders (`components/skeletons.tsx`) while data is fetching. Never show a blank screen.
-- **Empty States:** Provide clear "No data" states with a Call to Action (e.g., "No accounts found. Create one?").
+- **Skeletons:** Always show Skeleton loaders (`components/skeletons.tsx`) while data is fetching. Never show a blank screen. Never flash an EmptyState while data is still loading (guard on `=== undefined` first).
+- **Empty States (`EmptyState`):**
+  - Always provide a clear "No data" state with a Call to Action (e.g., "No accounts found. Create one?").
+  - `variant="illustrated"` for page-level empty states; `variant="compact"` for widgets, sections, and inside drawers/cards.
+  - Use `secondaryAction` for "or you can..." fallback options.
+- **Error States (`ErrorState`):**
+  - Every data-loading failure shows an `ErrorState` with a **required, specific `title`** + retry `action`. Errors must answer "How can I recover?".
+  - Wrap screens/widgets in `ErrorBoundary` with a context-specific fallback title.
+  - Keep errors inline to the failing widget — do not blank the whole screen for a single widget failure.
+- **Form Submit Errors (Drawers):**
+  - On submit failure (network/server error), show an **inline error banner** above the form (`bg-destructive/10` + alert icon + message + "Try Again" retry button). The form stays fully intact with all user input preserved — do NOT replace the form body with an error screen.
+  - The banner must reset when the drawer is reopened (reset in the same effect that clears other form state).
+  - Validation errors (react-hook-form) still surface via field-level `<FormMessage />` + a toast — the inline banner is only for submission/server failures.
 - **Over-Budget Warnings:** Use Red/Destructive colors immediately when a budget is exceeded (Negative Remaining).
 - **Positive Reinforcement:** Use Green colors and "Checklist" badges (e.g., "Monthly Goal Met! 🎉") when users hit their saving targets for the period.
 

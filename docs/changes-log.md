@@ -26,6 +26,10 @@ Format:
 ### Removed
 - **`hooks/use-content-state.ts`:** deleted during final review — no screen consumed it (screens use `ErrorBoundary` + ad-hoc branching). Reintroduce only if repeated branching patterns emerge.
 
+### Docs
+- **`docs/CODE_STYLE_GUIDE.md`:** added EmptyState / ErrorState / ErrorBoundary / loading-state / helper-text conventions to the Reusable Components section.
+- **`docs/PRODUCT_GUIDELINES.md`:** expanded Feedback System section with empty/error state variant rules, inline form-submit error banner pattern, and submit-button label conventions (Save Expense / Save Changes / Cancel / Keep Editing).
+
 ## 2026-07-29
 
 ### Fixed

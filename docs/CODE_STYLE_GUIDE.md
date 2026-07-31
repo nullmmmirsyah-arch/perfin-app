@@ -145,6 +145,34 @@ Certain UI patterns are standardized to ensure consistency.
       />
       ```
 
+2.  **EmptyState (`@/components/ui/empty-state`):**
+    - Use for ALL "no data" scenarios. Never render a bare empty `div` or a hardcoded empty message.
+    - Props: `icon`, `title?`, `description` (required), `action?` (`{ label, href? | onClick? }`), `secondaryAction?`, `variant?`.
+    - Variant rules:
+      - `variant="illustrated"` — large icon + generous padding. **Page-level** empty states (entire page has no data).
+      - `variant="compact"` — small padding/text. **Widgets, sections, and embedded** empty states (dashboard widgets, inside drawers, cards).
+      - `variant="default"` (or omit) — standard in-between size.
+    - The legacy `compact` boolean prop still works but is deprecated → use `variant="compact"`.
+    - Always provide a clear Call to Action (`action`) when a recovery path exists (e.g., "Add Expense" opens the transaction drawer).
+
+3.  **ErrorState (`@/components/ui/error-state`):**
+    - Use for query/data loading failures, typically as an `ErrorBoundary` fallback or inside a widget.
+    - Props: `icon?` (defaults to `AlertCircle`), `title` (**required**), `description?`, `action?` (`{ label, onClick }` for Retry), `secondaryAction?`.
+    - **`title` is required** — describe what happened in plain language. A bare `<ErrorState />` with no props is a type error.
+    - Errors must answer **"How can I recover?"** — pair the title with a retry `action` and/or a `description` explaining the likely cause.
+    - Do NOT replace the whole screen when the failure is contained to one widget — render the ErrorState inline within that widget.
+
+4.  **ErrorBoundary (`@/components/ui/error-boundary`):**
+    - Wrap every screen's content area and major widget groups: `<ErrorBoundary fallback={<ErrorState title="..." description="..." action={...} />}>`.
+    - Use a specific `title` per fallback context — avoid repeating the same generic message everywhere.
+
+5.  **Loading states:**
+    - Always show a Skeleton while query data is undefined — never a blank screen or an empty state flash.
+    - Guard order in render: `skeleton` while `=== undefined` → `EmptyState` when list is `[]` → `ErrorBoundary`/`ErrorState` on failure → content.
+
+6.  **Helper text (`FormDescription`):**
+    - Add `FormDescription` inside a `FormItem` ONLY when it provides real guidance the label alone doesn't convey (e.g., budget reset timing). Do not repeat the label.
+
 ## Backend (Convex) Best Practices
 
 1.  **Validation is Mandatory:**
