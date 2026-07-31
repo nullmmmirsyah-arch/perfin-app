@@ -44,14 +44,14 @@ export function GoalSummary({ summary, isPrivacyMode }: Props) {
           const hasOverallTarget = (item.targetAmount || 0) > 0;
 
           const overallPercentage = hasOverallTarget
-            ? (item.accumulated / item.targetAmount) * 100
+            ? (item.accumulated / (item.targetAmount || 1)) * 100
             : 0;
           const monthlyPercentage = hasMonthlyBudget
             ? (item.spent / item.limit) * 100
             : 0;
 
           const isMonthlyMet = hasMonthlyBudget && item.spent >= item.limit;
-          const isOverallMet = hasOverallTarget && item.accumulated >= item.targetAmount;
+          const isOverallMet = hasOverallTarget && item.accumulated >= (item.targetAmount || 0);
 
           let typeIcon = Sparkles;
           let typeColor = 'text-chart-1';

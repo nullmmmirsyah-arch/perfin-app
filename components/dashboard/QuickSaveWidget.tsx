@@ -91,7 +91,10 @@ export function QuickSaveWidget() {
   const handleQuickSave = (goal: EnrichedGoal) => {
     if (goal.linkedCategoryId) {
       setSelectedGoal(goal)
-      setSuggestionAmount(goal.gapSuggestion > 0 ? goal.gapSuggestion : undefined)
+      const monthlyLimit = goal.currentBudget ? parseAmount(goal.currentBudget.amount) : 0
+      const monthlyContribution = goal.thisMonthContribution || 0
+      const gapSuggestion = monthlyLimit > 0 ? Math.max(0, monthlyLimit - monthlyContribution) : 0
+      setSuggestionAmount(gapSuggestion > 0 ? gapSuggestion : undefined)
       setActionDrawerOpen(true)
     }
   }
