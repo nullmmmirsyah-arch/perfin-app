@@ -5,7 +5,7 @@ import { useMutation } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Doc } from '../convex/_generated/dataModel'
+import { Doc, Id } from '../convex/_generated/dataModel'
 import { format } from 'date-fns'
 import { cn, formatCurrency } from '@/lib/utils'
 import { calculateGoalStrategy } from '@/lib/finance-utils'
@@ -83,7 +83,7 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit, o
     return 0
   })()
 
-  const showQuickSaveCTA = quickSaveGap > 0 && !isCompleted && goal.status !== 'achieved'
+  const showQuickSaveCTA = quickSaveGap > 0
 
   return (
     <Card 
