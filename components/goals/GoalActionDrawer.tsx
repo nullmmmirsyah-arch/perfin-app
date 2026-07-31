@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/drawer'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useHousehold } from '@/components/HouseholdProvider'
-import { parseAmount, formatCurrency } from '@/lib/utils'
+import { parseAmount, formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ArrowRightLeft, PiggyBank, Wallet } from '@/components/ui/icons'
 import { ACCOUNT_TYPES, TRANSACTION_TYPES } from '@/convex/lib/constants'
@@ -52,6 +52,8 @@ export function GoalActionDrawer({
   const [selectedLiquidAccountId, setSelectedLiquidAccountId] = useState<string>('')
   const [isDisbursement, setIsDisbursement] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [sourceBalance, setSourceBalance] = useState<number>(0)
+  const [goalBalance, setGoalBalance] = useState<number>(0)
 
   // Fetch Liquid Accounts (Cash/Bank)
   const allAccounts = useQuery(api.accounts.get, { 
@@ -66,6 +68,19 @@ export function GoalActionDrawer({
     !a.type || a.type === ACCOUNT_TYPES.CASH
   ) || []
 
+  useEffect(() => {
+    if (allAccounts) {
+      const source = allAccounts.find(a => a._id === selectedLiquidAccountId)
+      if (source) {
+        setSourceBalance(parseAmount(source.balance))
+      }
+      const goal = allAccounts.find(a => a._id === goalAccountId)
+      if (goal) {
+        setGoalBalance(parseAmount(goal.balance))
+      }
+    }
+  }, [allAccounts, selectedLiquidAccountId, goalAccountId])
+
   // Set default liquid account (first one) when loaded
   useEffect(() => {
     if (open && liquidAccounts.length > 0 && !selectedLiquidAccountId) {
@@ -78,13 +93,25 @@ export function GoalActionDrawer({
         setQuantity('')
         setIsDisbursement(false)
     }
-  }, [open, liquidAccounts])
+  }, [open, liquidAccounts, selectedLiquidAccountId])
+
+  const handleQuickFill = (percentage: number) => {
+    const balance = isDeposit ? sourceBalance : goalBalance
+    const amount = Math.floor(balance * percentage)
+    setAmount(amount.toString())
+  }
+
+  const numericAmount = parseAmount(amount)
+  const afterBalance = isDeposit 
+    ? sourceBalance - numericAmount 
+    : goalBalance - numericAmount
+  const hasInsufficientBalance = amount && numericAmount > (isDeposit ? sourceBalance : goalBalance)
 
   const createTransaction = useMutation(api.transactions.create)
 
   const handleSubmit = async () => {
-    const numericAmount = parseAmount(amount)
-    if (!amount || numericAmount <= 0) {
+    const submitAmount = parseAmount(amount)
+    if (!amount || submitAmount <= 0) {
       toast.error("Please enter a valid amount")
       return
     }
@@ -122,7 +149,7 @@ export function GoalActionDrawer({
       await createTransaction({
         householdId: householdId ?? undefined,
         type: TRANSACTION_TYPES.TRANSFER,
-        amount: numericAmount.toString(),
+        amount: submitAmount.toString(),
         date: new Date().toISOString(),
         ...txData
       })
@@ -214,7 +241,7 @@ export function GoalActionDrawer({
 
             {/* Amount */}
             <div className="space-y-2">
-                <Label>Total Amount ({isDeposit ? "Value Spent" : "Value Received"})</Label>
+                <Label>{isDeposit ? "Jumlah yang ingin ditabung" : "Jumlah yang ingin ditarik"}</Label>
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">
                         Rp
@@ -236,6 +263,39 @@ export function GoalActionDrawer({
                         >
                             Suggestion: {formatCurrency(suggestionAmount)}
                         </button>
+                    </div>
+                )}
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground font-medium">Quick Fill:</span>
+                    {[0.25, 0.5, 1].map((pct) => (
+                        <button
+                            key={pct}
+                            type="button"
+                            onClick={() => handleQuickFill(pct)}
+                            className="text-[10px] bg-muted hover:bg-muted/80 px-2 py-1 rounded-full transition-colors font-medium"
+                        >
+                            {pct * 100}%
+                        </button>
+                    ))}
+                </div>
+                {amount && numericAmount > 0 && (
+                    <div className="animate-in fade-in duration-200">
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Saldo setelah:</span>
+                            <div className="text-right">
+                                <span className={cn("font-semibold", afterBalance < 0 ? "text-destructive" : "text-foreground")}>
+                                    {formatCurrency(afterBalance)}
+                                </span>
+                                <span className={cn("text-xs ml-1", afterBalance < 0 ? "text-destructive" : "text-success")}>
+                                    ({isDeposit ? "-" : "+"}{formatCurrency(numericAmount)})
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {hasInsufficientBalance && (
+                    <div className="text-destructive text-xs font-medium bg-destructive/10 p-2 rounded-md animate-in fade-in">
+                        Saldo tidak mencukupi. Kurang {formatCurrency(numericAmount - (isDeposit ? sourceBalance : goalBalance))}
                     </div>
                 )}
             </div>
@@ -280,7 +340,7 @@ export function GoalActionDrawer({
                             Spend Goal (Disbursement)
                         </Label>
                         <p className="text-[11px] text-muted-foreground leading-tight">
-                            Enable this if you are using the money for its intended purpose (e.g. buying the item). This won't mess up your saving history.
+                            Enable this if you are using the money for its intended purpose (e.g. buying the item). This won&apos;t mess up your saving history.
                         </p>
                     </div>
                 </div>
@@ -288,7 +348,7 @@ export function GoalActionDrawer({
           </div>
 
           <DrawerFooter>
-            <Button onClick={handleSubmit} disabled={isSubmitting} className={!isDeposit ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}>
+            <Button onClick={handleSubmit} disabled={isSubmitting || !!hasInsufficientBalance} className={!isDeposit ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}>
               {isSubmitting ? "Processing..." : (isDeposit ? "Confirm Deposit" : "Confirm Withdraw")}
             </Button>
             <DrawerClose asChild>
