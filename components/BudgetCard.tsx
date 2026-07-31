@@ -1,5 +1,6 @@
 'use client'
 
+import { Id } from '../convex/_generated/dataModel'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
@@ -37,6 +38,8 @@ interface BudgetCardProps {
   onEdit: (category: any, amount?: string) => void;
   onDelete: (id: any, name: string) => void;
   onClickGoal?: (id: any) => void;
+  linkedAccountId?: Id<"accounts">;
+  onQuickSave?: (goalId: Id<"categories">, goalName: string, accountId: Id<"accounts">, amount?: number) => void;
 }
 
 export default function BudgetCard({
@@ -48,7 +51,9 @@ export default function BudgetCard({
   isAdmin,
   onEdit,
   onDelete,
-  onClickGoal
+  onClickGoal,
+  linkedAccountId,
+  onQuickSave
 }: BudgetCardProps) {
   const router = useRouter()
   const { category, budget, spent, accumulated } = item;
@@ -219,6 +224,45 @@ export default function BudgetCard({
                   <span className="font-medium text-foreground">{formatCurrency(strategy.monthly)}/mo</span>
                   {' · '}{strategy.months} months to target
                 </p>
+              )}
+              {isGoal && linkedAccountId && onQuickSave && (
+                  <div className="space-y-2 pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">
+                          {monthlyTarget > spent 
+                            ? `Sisa ${formatCurrency(monthlyTarget - spent)} untuk on-track`
+                            : `Target: ${formatCurrency(monthlyTarget)}/bulan`
+                          }
+                      </p>
+                      <div className="flex gap-2">
+                          <Button 
+                              size="sm" 
+                              variant="default"
+                              className="flex-1"
+                              onClick={(e) => {
+                                  e.stopPropagation()
+                                  onQuickSave(
+                                      category._id,
+                                      category.name,
+                                      linkedAccountId,
+                                      monthlyTarget > spent ? monthlyTarget - spent : monthlyTarget
+                                  )
+                              }}
+                          >
+                              Tabung
+                          </Button>
+                          <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="flex-1"
+                              onClick={(e) => {
+                                  e.stopPropagation()
+                                  router.push(`/goals/${category._id}`)
+                              }}
+                          >
+                              Detail
+                          </Button>
+                      </div>
+                  </div>
               )}
             </>
           ) : (

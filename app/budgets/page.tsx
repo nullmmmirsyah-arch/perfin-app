@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { GoalActionDrawer } from '@/components/goals/GoalActionDrawer'
 import { motion } from 'framer-motion'
 import { fadeInUp, staggerContainer } from '@/lib/animations'
 import { useQuery, useMutation } from 'convex/react'
@@ -70,6 +71,12 @@ export default function BudgetsPage() {
   // State for deletion confirmation
   const [budgetToDelete, setBudgetToDelete] = useState<{ id: Id<'budgets'>, name: string } | undefined>(undefined)
 
+  // Quick Save State
+  const [actionDrawerOpen, setActionDrawerOpen] = useState(false)
+  const [actionType, setActionType] = useState<'deposit' | 'withdraw'>('deposit')
+  const [quickSaveGoal, setQuickSaveGoal] = useState<{ name: string, accountId: Id<"accounts">, categoryId: Id<"categories"> } | undefined>(undefined)
+  const [quickSaveAmount, setQuickSaveAmount] = useState<number | undefined>(undefined)
+
   const { householdId, households } = useHousehold()
   const memberRole = useQuery(convexApi.households.getMemberRole,
     householdId ? { householdId } : "skip"
@@ -111,6 +118,11 @@ export default function BudgetsPage() {
   const unassignedCash = budgetData?.unassignedCash ?? 0
   const breakdown = budgetData?.breakdown;
 
+  const accounts = useQuery(convexApi.accounts.get, {
+    householdId: householdId ?? undefined,
+    showArchived: false,
+  })
+
   const deleteBudget = useMutation(convexApi.budgets.deleteBudget)
   const latestSnapshot = useQuery(convexApi.monthEndSnapshots.getLatest, {
     householdId: householdId ?? undefined
@@ -135,6 +147,13 @@ export default function BudgetsPage() {
 
   const nextMonth = () => setSelectedDate(curr => addMonths(curr, 1))
   const prevMonth = () => setSelectedDate(curr => subMonths(curr, 1))
+
+  const handleQuickSave = (goalId: Id<"categories">, goalName: string, accountId: Id<"accounts">, amount?: number) => {
+    setQuickSaveGoal({ name: goalName, accountId, categoryId: goalId })
+    setQuickSaveAmount(amount)
+    setActionType('deposit')
+    setActionDrawerOpen(true)
+  }
 
   const handleRollback = async () => {
     navigator.vibrate(10)
@@ -644,6 +663,33 @@ export default function BudgetsPage() {
                             value={savingsAggregate.totalTarget > 0 ? (savingsAggregate.totalSaved / savingsAggregate.totalTarget) * 100 : (savingsAggregate.totalSaved > 0 ? 100 : 0)} 
                             className="h-2 bg-muted [&>div]:bg-success"
                         />
+                        {savings.length > 0 && (
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="mt-3 gap-2"
+                                onClick={() => {
+                                    const firstGoal = savings.find(s => {
+                                        const linkedAccount = accounts?.find(a => a.linkedCategoryId === s.category._id)
+                                        return linkedAccount
+                                    })
+                                    if (firstGoal) {
+                                        const linkedAccount = accounts?.find(a => a.linkedCategoryId === firstGoal.category._id)
+                                        if (linkedAccount) {
+                                            const budgetAmount = firstGoal.budget ? parseFloat(firstGoal.budget.amount.replace(/,/g, '') || '0') : 0
+                                            handleQuickSave(
+                                                firstGoal.category._id,
+                                                firstGoal.category.name,
+                                                linkedAccount._id,
+                                                budgetAmount > 0 ? budgetAmount : undefined
+                                            )
+                                        }
+                                    }
+                                }}
+                            >
+                                Tabung Goals Lainnya
+                            </Button>
+                        )}
                     </motion.div>
 
                     {savings.length === 0 ? (
@@ -668,6 +714,8 @@ export default function BudgetsPage() {
                                         onEdit={handleEdit}
                                         onDelete={(id, name) => setBudgetToDelete({ id, name })}
                                         onClickGoal={(id) => router.push(`/goals/${id}`)}
+                                        linkedAccountId={accounts?.find(a => a.linkedCategoryId === item.category._id)?._id}
+                                        onQuickSave={handleQuickSave}
                                     />
                                 </motion.div>
                             ))}
@@ -679,6 +727,19 @@ export default function BudgetsPage() {
         )}
       </div>
       </ErrorBoundary>
+
+      {/* Quick Save Drawer */}
+      {quickSaveGoal && (
+          <GoalActionDrawer
+              open={actionDrawerOpen}
+              onOpenChange={setActionDrawerOpen}
+              goalName={quickSaveGoal.name}
+              goalAccountId={quickSaveGoal.accountId}
+              goalCategoryId={quickSaveGoal.categoryId}
+              actionType={actionType}
+              suggestionAmount={quickSaveAmount}
+          />
+      )}
     </div>
   )
 }
