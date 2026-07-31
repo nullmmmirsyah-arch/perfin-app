@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -81,6 +82,8 @@ import { MobileDatePicker } from '@/components/ui/mobile-date-picker';
 import { TRANSACTION_TYPES, ACCOUNT_TYPES, CATEGORY_TYPES } from '../convex/lib/constants';
 import { getFiscalDateDetails } from '@/lib/finance-utils';
 import TransactionSuccessView from './TransactionSuccessView';
+import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
 
 type TransactionWithDetails = Doc<'transactions'> & {
   fromAccountName?: string;
@@ -305,6 +308,7 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
       const timer = setTimeout(() => {
         setStep("form");
         setSavedData(null);
+        setSubmitError(null);
       }, 300);
       return () => clearTimeout(timer);
     }
@@ -499,6 +503,7 @@ const TransactionForm = ({
   // Removed local splitDrawerOpen state
   const [isProcessing, setIsProcessing] = useState(false);
   const submitLock = useRef(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const editingTransactionId = useRef<string | null>(null);
   const isSettlement = !!initialData?.parentTransactionId;
 
@@ -770,7 +775,8 @@ const TransactionForm = ({
           }
     } catch (error) {
         console.error(error);
-        toast.error("Failed to save transaction");
+        const message = error instanceof Error ? error.message : "Failed to save transaction";
+        setSubmitError(message);
         setIsProcessing(false);
         submitLock.current = false;
     }
@@ -804,6 +810,26 @@ const TransactionForm = ({
 
   return (
     <Form {...form}>
+        {submitError && (
+            <div className="mx-6 mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-destructive">Couldn&apos;t save transaction</p>
+                    <p className="text-xs text-destructive/80 mt-0.5">{submitError}</p>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs shrink-0"
+                    onClick={() => {
+                        setSubmitError(null);
+                        form.handleSubmit(onSubmit)();
+                    }}
+                >
+                    Try Again
+                </Button>
+            </div>
+        )}
         <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
           console.error("Form Validation Errors:", errors);
           toast.error("Please check the form for errors");
@@ -831,6 +857,14 @@ const TransactionForm = ({
               ))}
             </TabsList>
 
+            {allCategories === undefined || accounts === undefined ? (
+                <div className="space-y-3 p-4">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full rounded-md" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full rounded-md" />
+                </div>
+            ) : (
             <div className="">
                 <TabsContent value={TRANSACTION_TYPES.EXPENSE} className="space-y-4 mt-0 outline-none">
                   <TransactionFormFields 
@@ -874,6 +908,7 @@ const TransactionForm = ({
                   />
                 </TabsContent>
             </div>
+            )}
           </Tabs>
 
            {/* Footer Rendering */}
@@ -904,7 +939,7 @@ const TransactionForm = ({
                       </>
                     ) : (
                       <>
-                        Save Transaction <ArrowRight className="ml-2 h-5 w-5" />
+                        {isEditMode ? "Save Changes" : "Save Expense"} <ArrowRight className="ml-2 h-5 w-5" />
                       </>
                     )}
                   </Button>
@@ -926,14 +961,14 @@ const TransactionForm = ({
                        if (navigator.vibrate) navigator.vibrate(10);
                      }}
                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        "Save changes"
-                      )}
+                       {isProcessing ? (
+                         <>
+                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                           Saving...
+                         </>
+                       ) : (
+                         isEditMode ? "Save Changes" : "Save Expense"
+                       )}
                    </Button>
                  </motion.div>
               </div>
@@ -1124,7 +1159,15 @@ const TransactionFormFields = ({
           {/* CARD INPUTS FOR MOBILE */}
           {isMobile ? (
              <motion.div className="space-y-3" variants={drawerFieldItem}>
-                <FormField
+                 {accounts.length === 0 ? (
+                    <EmptyState
+                        icon={Wallet}
+                        title="No accounts yet"
+                        description="Create an account to start tracking transactions."
+                        variant="compact"
+                    />
+                 ) : (
+                 <FormField
                     control={form.control}
                     name="accountId"
                     render={({ field }) => (
@@ -1155,15 +1198,27 @@ const TransactionFormFields = ({
                         </FormItem>
                     )}
                 />
+                )}
 
                 <div className="flex gap-3">
                     <div className="flex-1">
                         {!isSplit ? (
+                            categories.length === 0 && !isEditMode ? (
+                                <EmptyState
+                                    icon={Tag}
+                                    title="No categories yet"
+                                    description="Create a category first to categorize your expenses."
+                                    variant="compact"
+                                />
+                            ) : (
                             <FormField
                                 control={form.control}
                                 name="categoryId"
                                 render={({ field }) => (
                                     <FormItem>
+                                        <FormDescription className="text-[10px]">
+                                            Choose the category that best matches this expense
+                                        </FormDescription>
                                         <FormControl>
                                             <MobileSelectionDrawer
                                                 title="Select Category"
@@ -1208,6 +1263,7 @@ const TransactionFormFields = ({
                                     </FormItem>
                                 )}
                             />
+                            )
                         ) : (
                             <div 
                                 className={cn(
@@ -1407,7 +1463,15 @@ const TransactionFormFields = ({
              </motion.div>
           ) : (
              // DESKTOP LAYOUT (Standard)
-             <motion.div variants={drawerFieldItem}>
+              <motion.div variants={drawerFieldItem}>
+                {accounts.length === 0 ? (
+                    <EmptyState
+                        icon={Wallet}
+                        title="No accounts yet"
+                        description="Create an account to start tracking transactions."
+                        variant="compact"
+                    />
+                ) : (
                 <FormField
                     control={form.control}
                     name="accountId"
@@ -1436,6 +1500,7 @@ const TransactionFormFields = ({
                     </FormItem>
                     )}
                 />
+                )}
                 
                 {/* ... (Existing Desktop Fields Logic for Category, Date, etc.) ... */}
                 {/* Reusing existing logic blocks inside standard layout */}
@@ -1460,8 +1525,19 @@ const TransactionFormFields = ({
                             </Button>
                         )}
                     </div>
+                    <FormDescription className="text-[10px]">
+                        Choose the category that best matches this expense
+                    </FormDescription>
 
                     {!isSplit ? (
+                        categories.length === 0 && !isEditMode ? (
+                        <EmptyState
+                            icon={Tag}
+                            title="No categories yet"
+                            description="Create a category first to categorize your expenses."
+                            variant="compact"
+                        />
+                    ) : (
                     <FormField
                         control={form.control}
                         name="categoryId"
@@ -1523,6 +1599,7 @@ const TransactionFormFields = ({
                         </>
                         )}
                     />
+                    )
                     ) : (
                         <div 
                             className={cn(
@@ -1781,66 +1858,77 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
 
       {isMobile ? (
           <motion.div className="space-y-3" variants={drawerFieldItem}>
+              {accounts.length === 0 ? (
+                 <EmptyState
+                     icon={Wallet}
+                     title="No accounts yet"
+                     description="Create an account to start tracking transactions."
+                     variant="compact"
+                 />
+              ) : (
+              <>
+              <FormField
+                 control={form.control}
+                 name="accountId"
+                 render={({ field }) => (
+                     <FormItem>
+                         <FormControl>
+                             <MobileSelectionDrawer
+                                 title="From Account"
+                                 value={field.value}
+                                 onSelect={field.onChange}
+                                 options={accounts.map(acc => ({
+                                     value: acc._id,
+                                     label: acc.name,
+                                     subLabel: hideBalance(acc) ? undefined : `Balance: ${formatCurrency(acc.balance)}`
+                                 }))}
+                                 trigger={
+                                     <button type="button" className="w-full text-left outline-none">
+                                         <MobileInputCard 
+                                             label="From Account" 
+                                             icon={Wallet} 
+                                             valueDisplay={fromAccount?.name}
+                                             subValueDisplay={fromAccount && !hideBalance(fromAccount) ? `Balance: ${formatCurrency(fromAccount.balance)}` : undefined}
+                                         />
+                                     </button>
+                                 }
+                             />
+                         </FormControl>
+                     </FormItem>
+                 )}
+             />
              <FormField
-                control={form.control}
-                name="accountId"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormControl>
-                            <MobileSelectionDrawer
-                                title="From Account"
-                                value={field.value}
-                                onSelect={field.onChange}
-                                options={accounts.map(acc => ({
-                                    value: acc._id,
-                                    label: acc.name,
-                                    subLabel: hideBalance(acc) ? undefined : `Balance: ${formatCurrency(acc.balance)}`
-                                }))}
-                                trigger={
-                                    <button type="button" className="w-full text-left outline-none">
-                                        <MobileInputCard 
-                                            label="From Account" 
-                                            icon={Wallet} 
-                                            valueDisplay={fromAccount?.name}
-                                            subValueDisplay={fromAccount && !hideBalance(fromAccount) ? `Balance: ${formatCurrency(fromAccount.balance)}` : undefined}
-                                        />
-                                    </button>
-                                }
-                            />
-                        </FormControl>
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="toAccountId"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormControl>
-                            <MobileSelectionDrawer
-                                title="To Account"
-                                value={field.value}
-                                onSelect={field.onChange}
-                                options={accounts.map(acc => ({
-                                    value: acc._id,
-                                    label: acc.name,
-                                    subLabel: hideBalance(acc) ? undefined : `Balance: ${formatCurrency(acc.balance)}`
-                                }))}
-                                trigger={
-                                    <button type="button" className="w-full text-left outline-none">
-                                        <MobileInputCard 
-                                            label="To Account" 
-                                            icon={ArrowRight} 
-                                            valueDisplay={toAccount?.name}
-                                            subValueDisplay={toAccount && !hideBalance(toAccount) ? `Balance: ${formatCurrency(toAccount.balance)}` : undefined}
-                                        />
-                                    </button>
-                                }
-                            />
-                        </FormControl>
-                    </FormItem>
-                )}
-            />
+                 control={form.control}
+                 name="toAccountId"
+                 render={({ field }) => (
+                     <FormItem>
+                         <FormControl>
+                             <MobileSelectionDrawer
+                                 title="To Account"
+                                 value={field.value}
+                                 onSelect={field.onChange}
+                                 options={accounts.map(acc => ({
+                                     value: acc._id,
+                                     label: acc.name,
+                                     subLabel: hideBalance(acc) ? undefined : `Balance: ${formatCurrency(acc.balance)}`
+                                 }))}
+                                 trigger={
+                                     <button type="button" className="w-full text-left outline-none">
+                                         <MobileInputCard 
+                                             label="To Account" 
+                                             icon={ArrowRight} 
+                                             valueDisplay={toAccount?.name}
+                                             subValueDisplay={toAccount && !hideBalance(toAccount) ? `Balance: ${formatCurrency(toAccount.balance)}` : undefined}
+                                         />
+                                     </button>
+                                 }
+                             />
+                         </FormControl>
+                     </FormItem>
+                 )}
+             />
+             </>
+             )}
 
             <div className="grid grid-cols-2 gap-3">
                 <FormField
@@ -1860,6 +1948,14 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                 />
                 
                 {showCategory && (
+                    categories.length === 0 ? (
+                        <EmptyState
+                            icon={Tag}
+                            title="No categories yet"
+                            description="Create a category first to categorize your expenses."
+                            variant="compact"
+                        />
+                    ) : (
                     <FormField
                         control={form.control}
                         name="categoryId"
@@ -1885,6 +1981,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                             </FormItem>
                         )}
                     />
+                    )
                 )}
             </div>
 
@@ -1943,15 +2040,24 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
             />
           </motion.div>
       ) : (
-          <motion.div className="space-y-4" variants={drawerFieldItem}>
-             <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="accountId" render={({ field }) => (
-                   <FormItem><FormLabel>From</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="From" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
-                )} />
-                <FormField control={form.control} name="toAccountId" render={({ field }) => (
-                   <FormItem><FormLabel>To</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="To" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
-                )} />
-             </div>
+           <motion.div className="space-y-4" variants={drawerFieldItem}>
+              {accounts.length === 0 ? (
+                 <EmptyState
+                     icon={Wallet}
+                     title="No accounts yet"
+                     description="Create an account to start tracking transactions."
+                     variant="compact"
+                 />
+              ) : (
+              <div className="grid grid-cols-2 gap-4">
+                 <FormField control={form.control} name="accountId" render={({ field }) => (
+                    <FormItem><FormLabel>From</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="From" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                 )} />
+                 <FormField control={form.control} name="toAccountId" render={({ field }) => (
+                    <FormItem><FormLabel>To</FormLabel><Select onValueChange={field.onChange} value={field.value} key={field.value}><SelectTrigger><SelectValue placeholder="To" /></SelectTrigger><SelectContent>{accounts.map(a => <SelectItem key={a._id} value={a._id}>{a.name}</SelectItem>)}</SelectContent></Select></FormItem>
+                 )} />
+              </div>
+              )}
 
              <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -1991,6 +2097,14 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
              </div>
 
              {showCategory && (
+                categories.length === 0 ? (
+                    <EmptyState
+                        icon={Tag}
+                        title="No categories yet"
+                        description="Create a category first to categorize your expenses."
+                        variant="compact"
+                    />
+                ) : (
                 <FormField
                     control={form.control}
                     name="categoryId"
@@ -2013,6 +2127,7 @@ const TransferFormFields = ({ form, accounts, labels, categories, isMobile }: { 
                     </FormItem>
                     )}
                 />
+                )
              )}
 
              {isAssetTransaction && (
