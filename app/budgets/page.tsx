@@ -651,6 +651,7 @@ export default function BudgetsPage() {
                             title="No savings goals yet"
                             description="Set a savings goal to track your progress toward financial targets."
                             variant="illustrated"
+                            action={{ label: "Create a goal", onClick: () => router.push('/goals') }}
                         />
                     ) : (
                         <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pb-4" variants={staggerContainer} initial="hidden" animate="visible">
