@@ -58,8 +58,8 @@ export default function BudgetCard({
   const router = useRouter()
   const { category, budget, spent, accumulated } = item;
 
-  const isGoal = category.type === 'saving' && category.targetAmount;
-  const targetAmount = isGoal ? parseFloat(category.targetAmount!.replace(/,/g, '')) : 0;
+  const isGoal = category.type === 'saving';
+  const targetAmount = isGoal && category.targetAmount ? parseFloat(category.targetAmount!.replace(/,/g, '')) : 0;
 
   const limit = budget ? parseFloat(budget.amount) : 0;
   const carryover = budget?.carryoverAmount ? parseFloat(budget.carryoverAmount) : 0;
@@ -107,7 +107,7 @@ export default function BudgetCard({
       className={cn(
         "p-5 flex flex-col justify-between shadow-sm h-full min-h-[150px] min-w-0 transition-all cursor-pointer",
         "hover:shadow-md active:scale-[0.99]",
-        isOverBudget && "border-destructive/30"
+        isOverBudget && !isGoal && "border-destructive/30"
       )}
       onClick={() => {
         if (isGoal && onClickGoal) {
