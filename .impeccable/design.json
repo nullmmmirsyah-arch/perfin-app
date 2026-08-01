@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-01T00:00:00Z",
+  "title": "Design System: Perfin",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Soft Authority Blue",
+        "canonical": "oklch(0.6231 0.1880 259.8145)",
+        "tonalRamp": [
+          "oklch(0.25 0.18 260)",
+          "oklch(0.35 0.18 260)",
+          "oklch(0.45 0.18 260)",
+          "oklch(0.52 0.18 260)",
+          "oklch(0.6231 0.1880 259.8145)",
+          "oklch(0.72 0.18 260)",
+          "oklch(0.82 0.18 260)",
+          "oklch(0.92 0.18 260)"
+        ]
+      },
+      "primary-foreground": {
+        "role": "primary-foreground",
+        "displayName": "White",
+        "canonical": "oklch(1.0000 0 0)",
+        "tonalRamp": ["oklch(0.95 0 0)", "oklch(1.0000 0 0)"]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Cool Paper",
+        "canonical": "oklch(0.9670 0.0029 264.5419)",
+        "tonalRamp": [
+          "oklch(0.85 0.003 265)",
+          "oklch(0.88 0.003 265)",
+          "oklch(0.91 0.003 265)",
+          "oklch(0.94 0.003 265)",
+          "oklch(0.9670 0.0029 264.5419)",
+          "oklch(0.98 0.003 265)",
+          "oklch(0.99 0.003 265)",
+          "oklch(1.00 0.003 265)"
+        ]
+      },
+      "muted": {
+        "role": "muted",
+        "displayName": "Muted Surface",
+        "canonical": "oklch(0.9846 0.0017 247.8389)",
+        "tonalRamp": [
+          "oklch(0.88 0.002 248)",
+          "oklch(0.91 0.002 248)",
+          "oklch(0.94 0.002 248)",
+          "oklch(0.96 0.002 248)",
+          "oklch(0.9846 0.0017 247.8389)",
+          "oklch(0.99 0.002 248)",
+          "oklch(0.995 0.002 248)",
+          "oklch(1.00 0.002 248)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "muted-foreground",
+        "displayName": "Muted Text",
+        "canonical": "oklch(0.48 0.023 264.3637)",
+        "tonalRamp": [
+          "oklch(0.25 0.02 264)",
+          "oklch(0.35 0.02 264)",
+          "oklch(0.45 0.02 264)",
+          "oklch(0.48 0.023 264.3637)",
+          "oklch(0.65 0.02 264)",
+          "oklch(0.75 0.02 264)",
+          "oklch(0.85 0.02 264)",
+          "oklch(0.95 0.02 264)"
+        ]
+      },
+      "accent": {
+        "role": "accent",
+        "displayName": "Accent Blue",
+        "canonical": "oklch(0.9514 0.0250 236.8242)",
+        "tonalRamp": [
+          "oklch(0.30 0.05 237)",
+          "oklch(0.40 0.05 237)",
+          "oklch(0.50 0.05 237)",
+          "oklch(0.60 0.05 237)",
+          "oklch(0.70 0.05 237)",
+          "oklch(0.80 0.05 237)",
+          "oklch(0.90 0.05 237)",
+          "oklch(0.9514 0.0250 236.8242)"
+        ]
+      },
+      "destructive": {
+        "role": "destructive",
+        "displayName": "Destructive Red",
+        "canonical": "oklch(0.6368 0.2078 25.3313)",
+        "tonalRamp": [
+          "oklch(0.25 0.20 25)",
+          "oklch(0.35 0.20 25)",
+          "oklch(0.45 0.20 25)",
+          "oklch(0.55 0.20 25)",
+          "oklch(0.6368 0.2078 25.3313)",
+          "oklch(0.73 0.20 25)",
+          "oklch(0.83 0.20 25)",
+          "oklch(0.93 0.20 25)"
+        ]
+      },
+      "success": {
+        "role": "success",
+        "displayName": "Success Green",
+        "canonical": "oklch(0.627 0.194 149.214)",
+        "tonalRamp": [
+          "oklch(0.25 0.19 149)",
+          "oklch(0.35 0.19 149)",
+          "oklch(0.45 0.19 149)",
+          "oklch(0.55 0.19 149)",
+          "oklch(0.627 0.194 149.214)",
+          "oklch(0.72 0.19 149)",
+          "oklch(0.82 0.19 149)",
+          "oklch(0.92 0.19 149)"
+        ]
+      },
+      "warning": {
+        "role": "warning",
+        "displayName": "Warning Amber",
+        "canonical": "oklch(0.75 0.16 85)",
+        "tonalRamp": [
+          "oklch(0.30 0.16 85)",
+          "oklch(0.40 0.16 85)",
+          "oklch(0.50 0.16 85)",
+          "oklch(0.60 0.16 85)",
+          "oklch(0.70 0.16 85)",
+          "oklch(0.75 0.16 85)",
+          "oklch(0.85 0.16 85)",
+          "oklch(0.95 0.16 85)"
+        ]
+      },
+      "background": {
+        "role": "background",
+        "displayName": "Background",
+        "canonical": "oklch(1.0000 0 0)",
+        "tonalRamp": ["oklch(1.0000 0 0)"]
+      },
+      "foreground": {
+        "role": "foreground",
+        "displayName": "Deep Ink",
+        "canonical": "oklch(0.3211 0 0)",
+        "tonalRamp": ["oklch(0.3211 0 0)"]
+      },
+      "card": {
+        "role": "card",
+        "displayName": "Card Surface",
+        "canonical": "oklch(1.0000 0 0)",
+        "tonalRamp": ["oklch(1.0000 0 0)"]
+      },
+      "border": {
+        "role": "border",
+        "displayName": "Soft Border",
+        "canonical": "oklch(0.9276 0.0058 264.5313)",
+        "tonalRamp": ["oklch(0.9276 0.0058 264.5313)"]
+      }
+    },
+    "typographyMeta": {
+      "sans": {
+        "displayName": "Inter",
+        "purpose": "Primary typeface for all UI text. Clear, professional, warm."
+      },
+      "mono": {
+        "displayName": "JetBrains Mono",
+        "purpose": "Financial amounts, codes, and data where alignment matters."
+      },
+      "serif": {
+        "displayName": "Source Serif 4",
+        "purpose": "Optional display face for editorial content. Currently unused in active UI."
+      }
+    },
+    "shadows": [
+      { "name": "resting-card", "value": "0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10)", "purpose": "Subtle depth on cards at rest. Barely perceptible lift." },
+      { "name": "hover-card", "value": "0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10)", "purpose": "Slightly stronger shadow on interactive hover. Signals tappability." },
+      { "name": "fab", "value": "0 4px 6px -1px hsl(0 0% 0% / 0.10), 0 2px 4px -2px hsl(0 0% 0% / 0.10)", "purpose": "Elevated shadow for the floating action button. Distinct from cards." },
+      { "name": "dropdown", "value": "0 4px 6px -1px hsl(0 0% 0% / 0.10), 0 2px 4px -2px hsl(0 0% 0% / 0.10)", "purpose": "Shadow for floating menus and popovers." },
+      { "name": "drawer", "value": "none", "purpose": "Drawers use overlay blur, not shadow, for depth." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions (hover, focus, color changes)." },
+      { "name": "ease-out", "value": "cubic-bezier(0, 0, 0.2, 1)", "purpose": "Entrance animations (drawer slide, fade in, count-up)." },
+      { "name": "ease-in", "value": "cubic-bezier(0.4, 0, 1, 1)", "purpose": "Exit animations (drawer dismiss, fade out)." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Micro-interactions: hover state, focus ring appearance." },
+      { "name": "duration-normal", "value": "200ms", "purpose": "Standard transitions: color changes, opacity shifts." },
+      { "name": "duration-slow", "value": "300ms", "purpose": "Drawer slide-in, progress bar fill, count-up animation." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main CTA. Used for form submissions, primary actions, and the FAB.",
+      "html": "<button class=\"ds-btn-primary\">Save Expense</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; height: 2.25rem; font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; color: var(--primary-foreground); background: var(--primary); border: none; border-radius: calc(0.375rem - 2px); cursor: pointer; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space: nowrap; } .ds-btn-primary:hover { background: oklch(0.52 0.18 260); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px oklch(0.6231 0.1880 259.8145 / 0.3); } .ds-btn-primary:disabled { pointer-events: none; opacity: 0.5; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting actions that need visual presence without dominance.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; height: 2.25rem; font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; color: var(--secondary-foreground); background: var(--secondary); border: none; border-radius: calc(0.375rem - 2px); cursor: pointer; transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-secondary:hover { background: oklch(0.9670 0.0029 264.5419 / 0.8); } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px oklch(0.6231 0.1880 259.8145 / 0.3); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Icon buttons, menu triggers, and inline actions. Appears only on hover.",
+      "html": "<button class=\"ds-btn-ghost\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"8\" cy=\"3\" r=\"1\"/><circle cx=\"8\" cy=\"8\" r=\"1\"/><circle cx=\"8\" cy=\"13\" r=\"1\"/></svg></button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; height: 2.25rem; font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; color: inherit; background: transparent; border: none; border-radius: calc(0.375rem - 2px); cursor: pointer; transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-ghost:hover { background: var(--accent); color: var(--accent-foreground); } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 3px oklch(0.6231 0.1880 259.8145 / 0.3); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Content container for budgets, goals, transactions, and data groups.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><h3 class=\"ds-card-title\">Groceries</h3></div><div class=\"ds-card-content\"><p>Rp 450.000 spent</p></div></div>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem; background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: calc(0.375rem + 4px); box-shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10); transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1); } .ds-card:hover { box-shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10); } .ds-card-header { display: grid; grid-template-rows: auto auto; gap: 0.5rem; padding: 0 1.5rem; } .ds-card-title { font-size: 1rem; font-weight: 600; line-height: 1.25; } .ds-card-content { padding: 0 1.5rem; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text input for amounts, descriptions, and search fields.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Enter amount\" />",
+      "css": ".ds-input { width: 100%; height: 2.25rem; padding: 0.25rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--foreground); background: transparent; border: 1px solid var(--input); border-radius: calc(0.375rem - 2px); box-shadow: 0 1px 2px 0px hsl(0 0% 0% / 0.05); transition: border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1); outline: none; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px oklch(0.6231 0.1880 259.8145 / 0.2); } .ds-input:disabled { pointer-events: none; opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Status labels, tags, and inline indicators. Always pill-shaped.",
+      "html": "<span class=\"ds-badge\">On Track</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; justify-content: center; padding: 0.125rem 0.5rem; font-size: 0.75rem; font-weight: 500; line-height: 1rem; color: var(--primary-foreground); background: var(--primary); border: none; border-radius: 9999px; white-space: nowrap; overflow: hidden; } .ds-badge-outline { color: var(--foreground); background: transparent; border: 1px solid var(--border); } .ds-badge-destructive { color: white; background: var(--destructive); }"
+    },
+    {
+      "name": "Progress Bar",
+      "kind": "custom",
+      "refersTo": "progress",
+      "description": "Visual indicator for budget usage, goal progress, and allocation status.",
+      "html": "<div class=\"ds-progress\"><div class=\"ds-progress-fill\" style=\"width: 65%\"></div></div>",
+      "css": ".ds-progress { position: relative; width: 100%; height: 0.625rem; overflow: hidden; border-radius: 9999px; background: var(--secondary); } .ds-progress-fill { height: 100%; background: var(--primary); border-radius: 9999px; transition: width 0.3s cubic-bezier(0, 0, 0.2, 1); } .ds-progress-success .ds-progress-fill { background: var(--success); } .ds-progress-danger .ds-progress-fill { background: var(--destructive); } .ds-progress-warning .ds-progress-fill { background: oklch(0.7 0.16 85); }"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "bottom-nav",
+      "description": "Mobile primary navigation. Frosted glass bar with centered FAB.",
+      "html": "<nav class=\"ds-bottom-nav\"><a class=\"ds-nav-item active\" href=\"/dashboard\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"2\" y=\"2\" width=\"12\" height=\"12\" rx=\"2\"/></svg><span>Home</span></a><a class=\"ds-nav-item\" href=\"/transactions\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M4 8h8M8 4v8\"/></svg><span>Trans</span></a></nav>",
+      "css": ".ds-bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; display: flex; align-items: center; justify-content: space-around; height: 4rem; padding: 0 0.25rem; padding-bottom: env(safe-area-inset-bottom); background: oklch(1 0 0 / 0.8); backdrop-filter: blur(16px); border-top: 1px solid var(--border); } .ds-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.125rem; width: 100%; height: 100%; text-decoration: none; color: var(--muted-foreground); font-size: 10px; line-height: 1; transition: color 0.15s; } .ds-nav-item.active { color: var(--primary); font-weight: 500; } .ds-nav-item:hover { color: var(--foreground); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Friendly Guide",
+    "overview": "Perfin's visual identity is that of a knowledgeable, warm companion helping you navigate your finances. It never lectures or overwhelms. Every screen feels organized without being clinical, professional without being cold. The system prioritizes clarity and comprehension — financial data is presented with gentle authority, making complex information feel approachable and manageable.\n\nThe design language balances structure with warmth. Cards are gently curved, spacing is generous but purposeful, and the blue primary color acts as a quiet guide through the interface rather than shouting for attention. Motion is minimal and meaningful — count animations on budget numbers, smooth drawer transitions, subtle hover lifts. The overall impression is of a well-organized desk where everything has its place and nothing is hidden.",
+    "keyCharacteristics": [
+      "Warm, approachable typography with clear hierarchy",
+      "Soft color accents that guide without overwhelming",
+      "Generous spacing that creates breathing room for financial data",
+      "Subtle depth through shadows that appear on interaction, not at rest",
+      "Purposeful motion that reinforces comprehension"
+    ],
+    "rules": [
+      { "name": "The Guidance Rule", "body": "The primary blue is reserved for states that require user action or attention. It highlights what's interactive, not what's informational.", "section": "colors" },
+      { "name": "The Semantic Integrity Rule", "body": "Success, destructive, and warning colors never appear as decorative accents. They are reserved exclusively for financial status communication.", "section": "colors" },
+      { "name": "The Amount Visibility Rule", "body": "Financial amounts are always rendered in a weight no lighter than 500, often 600-700. The number is the hero of every transaction row, budget card, and balance display.", "section": "typography" },
+      { "name": "The Interaction Shadow Rule", "body": "Shadows are earned through interaction, not applied as decoration. A card at rest has a whisper of depth. On hover, the shadow deepens slightly.", "section": "elevation" },
+      { "name": "The Blur Boundary Rule", "body": "Backdrop blur is reserved for surfaces that float over content — the bottom navigation bar, popovers, and dropdown menus.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use the primary blue sparingly — it guides, it doesn't decorate. One primary CTA per view is usually enough.",
+      "Do show financial amounts in bold weight (500-700). The number is always the hero.",
+      "Do use semantic colors (success/destructive/warning) exclusively for financial status.",
+      "Do maintain consistent 16px internal padding within cards and containers.",
+      "Do use shadow-sm at rest and hover:shadow-md for interactive cards.",
+      "Do show skeleton loaders while data fetches. Never flash empty states during loading.",
+      "Do use dashed borders for invitations (\"Set Limit\", \"Create Account\") and solid borders for containers."
+    ],
+    "donts": [
+      "Don't use gradient text. Emphasis comes from weight and size, not color tricks.",
+      "Don't apply shadows as decoration. Shadows exist to communicate depth and interactivity.",
+      "Don't use the primary blue for non-interactive elements.",
+      "Don't exceed 1px on borders. Thicker borders compete with content for visual attention.",
+      "Don't use modal dialogs for tasks that don't require interruption or protected focus.",
+      "Don't show empty states while data is still loading. Guard with undefined checks first.",
+      "Don't use emoji as icons. Icons are drawn, from Lucide or custom SVG, in consistent stroke weight."
+    ]
+  }
+}

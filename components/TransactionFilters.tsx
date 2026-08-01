@@ -77,11 +77,11 @@ export default function TransactionFilters({
         {/* Filter Button & Popover */}
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2 relative">
+            <Button variant="outline" className="gap-2 relative transition-all duration-150 hover:shadow-sm">
               <Filter className="h-4 w-4" />
               Filter
               {activeFiltersCount > 0 && (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground absolute -top-2 -right-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[0.625rem] text-primary-foreground absolute -top-2 -right-2">
                   {activeFiltersCount}
                 </span>
               )}
@@ -179,53 +179,53 @@ export default function TransactionFilters({
 
       {/* Active Filter Badges */}
       {activeFiltersCount > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 animate-in fade-in duration-200">
           {filters.type?.map(t => (
             <Badge key={t} variant="secondary" className="gap-1 rounded-md px-2 py-1 capitalize">
               {t}
-              <button onClick={() => onFilterChange({ ...filters, type: filters.type?.filter(i => i !== t) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+              <button onClick={() => onFilterChange({ ...filters, type: filters.type?.filter(i => i !== t) })} className="ml-1 hover:text-destructive min-h-[28px] min-w-[28px] flex items-center justify-center -mr-1 rounded-md" aria-label={`Remove type filter: ${t}`}><X className="h-3 w-3" /></button>
             </Badge>
           ))}
           {filters.accountId?.map(id => (
             <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
-              Acc: {accountOptions.find(o => o.value === id)?.label || id}
-              <button onClick={() => onFilterChange({ ...filters, accountId: filters.accountId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+              {accountOptions.find(o => o.value === id)?.label || id}
+              <button onClick={() => onFilterChange({ ...filters, accountId: filters.accountId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive min-h-[28px] min-w-[28px] flex items-center justify-center -mr-1 rounded-md" aria-label={`Remove account filter: ${accountOptions.find(o => o.value === id)?.label || id}`}><X className="h-3 w-3" /></button>
             </Badge>
           ))}
           {filters.categoryId?.map(id => (
             <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
-              Cat: {categoryOptions.find(o => o.value === id)?.label || id}
-              <button onClick={() => onFilterChange({ ...filters, categoryId: filters.categoryId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+              {categoryOptions.find(o => o.value === id)?.label || id}
+              <button onClick={() => onFilterChange({ ...filters, categoryId: filters.categoryId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive min-h-[28px] min-w-[28px] flex items-center justify-center -mr-1 rounded-md" aria-label={`Remove category filter: ${categoryOptions.find(o => o.value === id)?.label || id}`}><X className="h-3 w-3" /></button>
             </Badge>
           ))}
           {filters.labelId?.map(id => {
             const opt = labelOptions.find(o => o.value === id);
             const label = labels?.find(l => l._id === id);
             return (
-              <span key={id} className="inline-flex items-center gap-1 text-[10px] bg-muted px-2 py-1 rounded-md">
+              <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
                 {label && <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />}
                 {opt?.label || id}
-                <button onClick={() => onFilterChange({ ...filters, labelId: filters.labelId?.filter(i => i !== id) })} className="ml-0.5 hover:text-destructive">×</button>
-              </span>
+                <button onClick={() => onFilterChange({ ...filters, labelId: filters.labelId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive min-h-[28px] min-w-[28px] flex items-center justify-center -mr-1 rounded-md" aria-label={`Remove label filter: ${opt?.label || id}`}><X className="h-3 w-3" /></button>
+              </Badge>
             );
           })}
           {filters.merchantId?.map(id => (
             <Badge key={id} variant="secondary" className="gap-1 rounded-md px-2 py-1">
-              Merchant: {merchantOptions.find(o => o.value === id)?.label || id}
-              <button onClick={() => onFilterChange({ ...filters, merchantId: filters.merchantId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+              {merchantOptions.find(o => o.value === id)?.label || id}
+              <button onClick={() => onFilterChange({ ...filters, merchantId: filters.merchantId?.filter(i => i !== id) })} className="ml-1 hover:text-destructive min-h-[28px] min-w-[28px] flex items-center justify-center -mr-1 rounded-md" aria-label={`Remove merchant filter: ${merchantOptions.find(o => o.value === id)?.label || id}`}><X className="h-3 w-3" /></button>
             </Badge>
           ))}
           {filters.dateRange?.from && (
             <Badge variant="secondary" className="gap-1 rounded-md px-2 py-1">
-              Date: {filters.dateRange.from.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-              {filters.dateRange.to ? ` – ${filters.dateRange.to.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}` : ''}
-              <button onClick={() => onFilterChange({ ...filters, dateRange: undefined })} className="ml-1 hover:text-destructive"><X className="h-3 w-3" /></button>
+              {filters.dateRange.from.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+              {filters.dateRange.to ? ` – ${filters.dateRange.to.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}` : ''}
+              <button onClick={() => onFilterChange({ ...filters, dateRange: undefined })} className="ml-1 hover:text-destructive min-h-[28px] min-w-[28px] flex items-center justify-center -mr-1 rounded-md" aria-label="Remove date range filter"><X className="h-3 w-3" /></button>
             </Badge>
           )}
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-6 text-xs text-muted-foreground hover:text-destructive"
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
             onClick={resetAll}
           >
             Clear all

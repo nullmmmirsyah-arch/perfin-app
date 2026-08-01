@@ -325,6 +325,36 @@ useEffect(() => { if (displayAmount) triggerPulse() }, [displayAmount])
 - **Variants:** Selalu import dari `lib/animations.ts`, jangan define inline.
 - **Spring params:** `type: "spring"`, stiffness 400-500, damping 15 untuk press feedback. Stiffness 300, damping 20 untuk field entrance.
 
+## Accessibility Patterns
+
+### prefers-reduced-motion
+All CSS animations must respect the user's motion preference. Use Tailwind variants:
+```tsx
+// ✅ Correct — animation disabled for motion-sensitive users
+<div className="motion-safe:animate-in motion-reduce:animate-none fade-in duration-300">
+
+// ❌ Wrong — always animates regardless of user preference
+<div className="animate-in fade-in duration-300">
+```
+
+### Touch Targets
+Interactive elements must meet minimum touch target size (28×28px for inline controls, 44×44px for primary actions):
+```tsx
+// ✅ Filter badge X button — compact but touchable
+<button className="min-h-[28px] min-w-[28px] flex items-center justify-center -mr-1 rounded-md">
+
+// ✅ Primary action button — generous touch area
+<button className="min-h-11 min-w-11 flex items-center justify-center">
+```
+
+### ARIA Labels
+- Search inputs: `aria-label="Search transactions"` (placeholder is not a programmatic label)
+- Expandable regions: `role="region" aria-label="Transaction details"`
+- Toggle buttons: `aria-expanded={isOpen}`
+
+### Heading Hierarchy
+Never skip heading levels. The document outline should follow H1 → H2 → H3 without gaps.
+
 ## Frontend Logic
 
 1.  **State Management:**

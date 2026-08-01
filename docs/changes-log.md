@@ -33,6 +33,30 @@ Format:
 ## 2026-08-01
 
 ### Added
+- **Accessibility hardening for Transactions page:** Comprehensive a11y improvements across page, filters, list, and item components.
+  - `prefers-reduced-motion` support: all animations wrapped with `motion-safe:animate-in motion-reduce:animate-none` variants
+  - Touch targets: filter badge X buttons (`min-h-[28px] min-w-[28px]`), clear search button, expand chevron, "Clear filter" buttons all meet minimum touch target guidelines
+  - ARIA: `aria-label="Search transactions"` on search input, `role="region" aria-label="Transaction details"` on expandable container, `aria-expanded` on expand toggle
+  - Heading hierarchy: date group headings changed from `<h3>` to `<h2>` to fix H1→H3 skip
+  - Font sizes: `text-[0.5rem]` → `text-[0.625rem]` to match DESIGN.md Micro type ramp
+  - Design token: `muted-foreground` darkened from `oklch(0.5510)` to `oklch(0.48)` for better contrast (~4.8:1 → ~6:1) across `globals.css`, `DESIGN.md`, and `.impeccable/design.json`
+- **Load More loading state:** "Load More" and "Load all transactions" buttons now show "Loading..." text and disable during fetch to prevent duplicate requests
+- **Analytics data completeness framing:** Analytics tab "Load all" message clarified to "Showing X of more transactions. Load all for a complete analytics picture."
+
+### Changed
+- **`components/TransactionFilters.tsx`:** Filter badge X buttons use clean `min-h-[28px] min-w-[28px] -mr-1` touch targets (replaced broken `-m-3` negative margin hack); date format `id-ID` → `en-US`; "Clear all" button `h-6` → `h-8`; filter trigger gets `hover:shadow-sm` transition
+- **`components/TransactionItem.tsx`:** Expand button `min-h-11 min-w-11` → `h-8 w-8` (appropriate for inline list control); card gets `hover:shadow-md` for interaction affordance
+- **`components/transactions/TransactionListGrouped.tsx`:** Sticky date headers `py-3` → `py-2`, `font-bold` → `font-semibold`; "Clear filter" buttons get `min-h-8 px-2` touch targets
+- **`app/transactions/page.tsx`:** Page padding `p-8` → `p-6`; analytics section spacing `space-y-2` → `space-y-3`
+
+### Fixed
+- **Mixed-language tooltip:** `TransactionItem.tsx` split transaction tooltip changed from Indonesian "Transaksi ini di-split" to English "This transaction is split across multiple categories"
+
+### Docs
+- **`docs/PRODUCT_GUIDELINES.md`:** Updated Split Indicator tooltip text to English
+- **`docs/CODE_STYLE_GUIDE.md`:** Added Accessibility Patterns section with `prefers-reduced-motion` and touch target guidelines
+
+### Added
 - **Dashboard GoalsProgressCard:** New dedicated card between Budget per Category and Balance tabs showing all savings goals with dual progress bars (Overall + Monthly) and "Tabung" quick-save buttons. Replaces inline QuickSaveWidget in Goals tab.
   - `components/dashboard/GoalsProgressCard.tsx` — new component with GoalActionDrawer integration
   - Shows total funds, per-goal progress (accumulated/targetAmount + spent/limit), status badges (Done!, On Track, Needs Attention)

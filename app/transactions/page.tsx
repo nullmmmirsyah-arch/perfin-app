@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { fadeInUp } from '@/lib/animations'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { usePaginatedQuery, useQuery, useMutation } from 'convex/react'
 import { api as convexApi } from '../../convex/_generated/api'
 import TransactionDrawer from '@/components/TransactionDrawer'
@@ -29,30 +27,21 @@ import { startOfMonth, endOfMonth } from 'date-fns'
 import { getFiscalMonthRange, getFiscalDateDetails } from '@/lib/finance-utils'
 import { ExportTransactionDialog } from '@/components/transactions/ExportTransactionDialog'
 
-import { 
-  type CarouselApi, 
-  Carousel, 
-  CarouselContent, 
-  CarouselItem 
-} from "@/components/ui/carousel"
-
 export default function TransactionsPage() {
   const [open, setOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] =
     useState<TransactionWithDetails | undefined>(undefined)
   const [transactionToDelete, setTransactionToDelete] = useState<TransactionWithDetails | undefined>(undefined)
 
-  // Carousel & Tab State
-  const [api, setApi] = useState<CarouselApi>()
   const [activeTab, setActiveTab] = useState("list")
   const [search, setSearch] = useState("")
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const debouncedSearch = useDebounce(search, 300)
 
   const { householdId, households } = useHousehold()
   const activeHousehold = households.find(h => h._id === householdId)
   const budgetStartDay = activeHousehold?.budgetStartDay || 1;
 
-  // Initialize filters with fiscal range if customized
   const [filters, setFilters] = useState<{
     type: string[] | undefined
     accountId: string[] | undefined
@@ -61,8 +50,6 @@ export default function TransactionsPage() {
     merchantId: string[] | undefined
     dateRange: DateRange | undefined
   }>(() => {
-      // Lazy init to use correct start day if available immediately, 
-      // but household might be loading. We'll use useEffect to correct it.
       return {
         type: undefined,
         accountId: undefined,
@@ -76,8 +63,6 @@ export default function TransactionsPage() {
       }
   })
 
-  // Sync Date Range with Fiscal Settings
-  // Only update on initial load/change of settings to avoid overwriting user manual selection
   useEffect(() => {
       if (budgetStartDay > 1) {
           const { year, month } = getFiscalDateDetails(new Date().toISOString(), budgetStartDay);
@@ -91,6 +76,18 @@ export default function TransactionsPage() {
 
   const isSearching = debouncedSearch.trim().length > 0
 
+  const dateRangeParams = useMemo(() => {
+    if (!filters.dateRange) return undefined;
+    return {
+      start: filters.dateRange.from?.toISOString(),
+      end: filters.dateRange.to ? (() => {
+          const d = new Date(filters.dateRange.to);
+          d.setHours(23, 59, 59, 999);
+          return d.toISOString();
+      })() : undefined,
+    };
+  }, [filters.dateRange])
+
   const { results: transactions, status, loadMore } = usePaginatedQuery(
     convexApi.transactions.get,
     {
@@ -100,23 +97,14 @@ export default function TransactionsPage() {
       categoryId: filters.categoryId,
       labelId: filters.labelId,
       merchantId: filters.merchantId,
-      dateRange: filters.dateRange
-        ? {
-            start: filters.dateRange.from?.toISOString(),
-            end: filters.dateRange.to ? (() => {
-                const d = new Date(filters.dateRange.to);
-                d.setHours(23, 59, 59, 999);
-                return d.toISOString();
-            })() : undefined,
-          }
-        : undefined,
+      dateRange: dateRangeParams,
     },
     { initialNumItems: 20 }
   )
 
   const searchResults = useQuery(
     convexApi.transactions.searchTransactions,
-    {
+    isSearching ? {
       householdId: householdId ?? undefined,
       search: debouncedSearch,
       type: filters.type,
@@ -124,67 +112,38 @@ export default function TransactionsPage() {
       categoryId: filters.categoryId,
       labelId: filters.labelId,
       merchantId: filters.merchantId,
-      dateRange: filters.dateRange
-        ? {
-            start: filters.dateRange.from?.toISOString(),
-            end: filters.dateRange.to ? (() => {
-                const d = new Date(filters.dateRange.to);
-                d.setHours(23, 59, 59, 999);
-                return d.toISOString();
-            })() : undefined,
-          }
-        : undefined,
-    }
+      dateRange: dateRangeParams,
+    } : "skip"
   )
 
   const displayTransactions = isSearching ? (searchResults ?? undefined) : transactions
   
   const deleteTransaction = useMutation(convexApi.transactions.deleteTransaction)
 
-  // Sync Carousel -> Tab
-  useEffect(() => {
-    if (!api) return
-    
-    api.on("select", () => {
-      setActiveTab(api.selectedScrollSnap() === 0 ? "list" : "analytics")
-    })
-  }, [api])
-
-  // Sync Tab -> Carousel
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    if (api) {
-        api.scrollTo(value === "list" ? 0 : 1)
-    }
-  }
-
-  const handleEdit = (transaction: TransactionWithDetails) => {
+  const handleEdit = useCallback((transaction: TransactionWithDetails) => {
     setSelectedTransaction(transaction)
     setOpen(true)
-  }
+  }, [])
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (transactionToDelete) {
         await deleteTransaction({ id: transactionToDelete._id });
         toast.success("Transaction removed");
         setTransactionToDelete(undefined);
     }
-  }
+  }, [transactionToDelete, deleteTransaction])
 
   return (
-    <div className="p-8">
-      <motion.div variants={fadeInUp} initial="hidden" animate="visible">
-        <PageHeader 
-          title="Transactions" 
-          description="Review, search, and manage all your transactions." 
-        />
-      </motion.div>
+    <div className="p-6">
+      <PageHeader 
+        title="Transactions" 
+        description="Review, search, and manage all your transactions." 
+      />
 
       <div className="space-y-4">
-        {/* Tabs */}
         <Tabs 
             value={activeTab} 
-            onValueChange={handleTabChange} 
+            onValueChange={setActiveTab} 
             className="w-full"
         >
             <TabsList className="w-full md:w-auto grid grid-cols-2 h-10">
@@ -199,13 +158,12 @@ export default function TransactionsPage() {
             </TabsList>
         </Tabs>
 
-        {/* Controls Toolbar */}
-        <motion.div className="flex flex-wrap items-center gap-2" variants={fadeInUp} initial="hidden" animate="visible">
-            {/* Search Bar */}
-            <div className="relative w-full sm:w-auto sm:min-w-[200px] md:w-48">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search transactions..."
+                aria-label="Search transactions"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 pr-10"
@@ -213,7 +171,8 @@ export default function TransactionsPage() {
               {search && (
                 <button
                   onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground min-h-11 min-w-11 flex items-center justify-center rounded-md transition-all duration-150 hover:scale-105"
+                  aria-label="Clear search"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -227,7 +186,7 @@ export default function TransactionsPage() {
                     <ExportTransactionDialog currentFilters={filters} />
                 }
             />
-        </motion.div>
+        </div>
 
         <TransactionDrawer
             open={open}
@@ -248,28 +207,28 @@ export default function TransactionsPage() {
             <TransactionsListSkeleton />
         ) : (
             <ErrorBoundary fallback={<ErrorState title="Something went wrong" description="We couldn't load your transactions. Please try again." />}>
-            <Carousel setApi={setApi} opts={{ duration: 30 }}>
-                <CarouselContent>
-                    {/* LIST VIEW */}
-                    <CarouselItem className="basis-full">
-                         <motion.div className="space-y-4" variants={fadeInUp} initial="hidden" animate="visible">
+                <div className="space-y-4">
+                    {activeTab === "list" ? (
+                        <>
                             {(displayTransactions ?? []).length === 0 && (
-                                isSearching ? (
-                                    <EmptyState
-                                        icon={Search}
-                                        title="No matching transactions"
-                                        description="Try adjusting your search or filters."
-                                        variant="compact"
-                                    />
-                                ) : (
-                                    <EmptyState
-                                        icon={Receipt}
-                                        title="No transactions yet"
-                                        description="Start tracking your spending by adding your first expense."
-                                        action={{ label: "Add Expense", onClick: () => setOpen(true) }}
-                                        variant="illustrated"
-                                    />
-                                )
+                                <div className="motion-safe:animate-in motion-reduce:animate-none fade-in duration-300">
+                                    {isSearching ? (
+                                        <EmptyState
+                                            icon={Search}
+                                            title="No matching transactions"
+                                            description="Try adjusting your search or filters."
+                                            variant="compact"
+                                        />
+                                    ) : (
+                                        <EmptyState
+                                            icon={Receipt}
+                                            title="No transactions yet"
+                                            description="Start tracking your finances by adding your first transaction."
+                                            action={{ label: "Add Transaction", onClick: () => setOpen(true) }}
+                                            variant="illustrated"
+                                        />
+                                    )}
+                                </div>
                             )}
                             
                             <TransactionListGrouped 
@@ -281,46 +240,44 @@ export default function TransactionsPage() {
                             />
 
                             {!isSearching && status === "CanLoadMore" && (
-                                <div className="mt-8 flex justify-center">
+                                <div className="mt-8 flex justify-center motion-safe:animate-in motion-reduce:animate-none fade-in duration-300">
                                     <Button 
                                         variant="outline" 
-                                        onClick={() => loadMore(20)}
-                                        className="w-full md:w-auto min-w-[200px]"
+                                        onClick={() => { setIsLoadingMore(true); loadMore(20); }}
+                                        disabled={isLoadingMore}
+                                        className="w-full md:w-auto min-w-[200px] transition-all duration-150 hover:shadow-md"
                                     >
-                                        Load More
+                                        {isLoadingMore ? "Loading..." : "Load More"}
                                     </Button>
                                 </div>
                             )}
-                        </motion.div>
-                    </CarouselItem>
-                    
-                    {/* ANALYTICS VIEW */}
-                    <CarouselItem className="basis-full">
-                         <motion.div className="space-y-4 px-1" variants={fadeInUp} initial="hidden" animate="visible">
-                              {activeTab === "analytics" && (
-                              <TransactionAnalytics 
-                                 transactions={(displayTransactions ?? []) as TransactionWithDetails[]} 
+                        </>
+                    ) : (
+                        <div className="space-y-4 px-1">
+                            <TransactionAnalytics 
+                                transactions={(displayTransactions ?? []) as TransactionWithDetails[]} 
                                 filters={filters}
-                             />
-                              )}
-                             {!isSearching && status === "CanLoadMore" && (
-                                <div className="mt-8 flex justify-center">
-                                    <p className="text-xs text-muted-foreground">
-                                        * Analytics currently showing only loaded transactions. 
+                            />
+                            {!isSearching && status === "CanLoadMore" && (
+                                <div className="mt-8 flex justify-center motion-safe:animate-in motion-reduce:animate-none fade-in duration-300">
+                                    <div className="text-center space-y-3">
+                                        <p className="text-xs text-muted-foreground">
+                                            Showing {displayTransactions?.length || 0} of more transactions. Load all for a complete analytics picture.
+                                        </p>
                                         <Button 
-                                            variant="link" 
-                                            onClick={() => loadMore(50)}
-                                            className="h-auto p-0 ml-1"
+                                            variant="outline" 
+                                            onClick={() => { setIsLoadingMore(true); loadMore(50); }}
+                                            disabled={isLoadingMore}
+                                            className="h-9 text-xs transition-all duration-150 hover:shadow-md"
                                         >
-                                            Load more data
+                                            {isLoadingMore ? "Loading..." : "Load all transactions"}
                                         </Button>
-                                    </p>
+                                    </div>
                                 </div>
                             )}
-                        </motion.div>
-                    </CarouselItem>
-                </CarouselContent>
-            </Carousel>
+                        </div>
+                    )}
+                </div>
             </ErrorBoundary>
         )}
       </div>

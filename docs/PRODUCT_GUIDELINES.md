@@ -119,7 +119,7 @@ This document outlines the design philosophy and user experience patterns used i
   - **URL icons:** Rendered as `<img>` with fallback.
   - **Letter avatars:** Colored circles with first letter.
   - **Emojis:** Rendered as text.
-- **Split Indicator:** Split transactions show a `GitBranch` icon with a Radix `Tooltip` ("Transaksi ini di-split") that works on both cursor (hover) and touchscreen (long-press).
+- **Split Indicator:** Split transactions show a `GitBranch` icon with a Radix `Tooltip` ("This transaction is split across multiple categories") that works on both cursor (hover) and touchscreen (long-press).
 - **Merchant Filter:** The Transactions page filter popover includes a Merchant multi-select filter, allowing users to filter by specific merchants. The filter uses server-side `.filter()` for performance.
 - **Delete Guard:** UI prevents deletion of merchants that are referenced by transactions (shows error).
 - **Haptic Feedback:** `navigator.vibrate(10)` on merchant create/edit/delete operations.

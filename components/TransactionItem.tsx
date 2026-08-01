@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo, useEffect, useRef } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
@@ -16,13 +16,14 @@ import {
 
 import { TransactionWithDetails } from './transactions/types'
 
-export function TransactionItem({ 
+export const TransactionItem = memo(function TransactionItem({ 
   transaction, 
   onEdit, 
   onDelete,
   highlightLabelId,
   highlightCategoryId,
   isPrivacyMode,
+  index = 0,
 }: { 
   transaction: TransactionWithDetails, 
   onEdit?: () => void, 
@@ -30,9 +31,19 @@ export function TransactionItem({
   highlightLabelId?: string[],
   highlightCategoryId?: string[],
   isPrivacyMode?: boolean,
+  index?: number,
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
   const { user } = useUser();
+  const itemRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true)
+    }, index * 30)
+    return () => clearTimeout(timer)
+  }, [index])
 
   // Calculate effective amount based on filters
   let displayAmountVal = parseFloat(transaction.amount.replace(/,/g, '') || '0');
@@ -62,14 +73,21 @@ export function TransactionItem({
       }).format(displayAmountVal);
 
   return (
-    <Card className="overflow-hidden shadow-sm border-muted/60">
-      <div className="flex justify-between items-center hover:bg-muted/30 transition-colors p-3.5">
+    <Card 
+      ref={itemRef}
+      className={cn(
+        "overflow-hidden shadow-sm border-muted/60 transition-all duration-300 ease-out hover:shadow-md",
+        isVisible ? "motion-safe:opacity-100 motion-safe:translate-y-0" : "motion-safe:opacity-0 motion-safe:translate-y-2"
+      )}
+    >
+      <div className="flex justify-between items-center hover:bg-muted/30 transition-colors p-4">
         <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
             size="sm" 
-            className="p-0 h-6 w-6 shrink-0"
+            className="h-8 w-8 shrink-0 flex items-center justify-center"
             onClick={() => setIsOpen(!isOpen)}
+            aria-expanded={isOpen}
           >
             <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")} />
             <span className="sr-only">Toggle Details</span>
@@ -93,7 +111,7 @@ export function TransactionItem({
                     transaction.merchant.icon.startsWith('http') ? (
                       <img src={transaction.merchant.icon} alt="" className="w-4 h-4 rounded-full shrink-0 object-cover" />
                     ) : transaction.merchant.icon.length === 1 && transaction.merchant.icon.match(/[a-zA-Z0-9]/) ? (
-                      <div className="w-4 h-4 rounded-full shrink-0 bg-primary/10 flex items-center justify-center text-[8px] font-bold text-primary">
+                      <div className="w-4 h-4 rounded-full shrink-0 bg-primary/10 flex items-center justify-center text-[0.625rem] font-bold text-primary">
                         {transaction.merchant.icon}
                       </div>
                     ) : (
@@ -108,7 +126,7 @@ export function TransactionItem({
                       <TooltipTrigger asChild>
                         <GitBranch className="h-3 w-3 text-muted-foreground shrink-0" />
                       </TooltipTrigger>
-                      <TooltipContent>Transaksi ini di-split</TooltipContent>
+                      <TooltipContent>This transaction is split across multiple categories</TooltipContent>
                     </Tooltip>
                   )}
                 </div>
@@ -116,7 +134,7 @@ export function TransactionItem({
                   <span className="font-medium text-muted-foreground/80">{transaction.fromAccountName}</span>
                   {transaction.categoryName && (
                     <>
-                      <span className="text-[10px] opacity-30">•</span>
+                      <span className="text-[0.625rem] opacity-30">•</span>
                       <span>{transaction.categoryName}</span>
                     </>
                   )}
@@ -142,7 +160,7 @@ export function TransactionItem({
               return (
                 <span
                   key={label._id}
-                  className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded-md"
+                  className="inline-flex items-center gap-1 text-[0.625rem] bg-muted px-1.5 py-0.5 rounded-md"
                   title={label.name}
                 >
                   <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
@@ -181,7 +199,7 @@ export function TransactionItem({
       </div>
       
       {isOpen && (
-        <div className="border-t bg-muted/10 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div role="region" aria-label="Transaction details" className="border-t bg-muted/10 p-4 motion-safe:animate-in motion-reduce:animate-none fade-in slide-in-from-top-1 duration-200">
           <div className="mb-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Account</p>
             <p className="text-sm">
@@ -215,7 +233,7 @@ export function TransactionItem({
                         return (
                           <span
                             key={i}
-                            className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+                            className="inline-flex items-center gap-1 text-[0.625rem] text-muted-foreground"
                           >
                             <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                             {split.labelNames?.[i]}
@@ -249,4 +267,4 @@ export function TransactionItem({
       )}
     </Card>
   )
-}
+})
