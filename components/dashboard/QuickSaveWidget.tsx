@@ -134,7 +134,7 @@ export function QuickSaveWidget() {
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold text-sm truncate">{goal.name}</h4>
                     {isMonthlyMet && (
-                      <span className="text-[9px] bg-success/10 text-success px-1.5 py-0.5 rounded-full font-medium">
+                      <span className="text-[10px] bg-success/10 text-success px-1.5 py-0.5 rounded-full font-medium">
                         On Track
                       </span>
                     )}

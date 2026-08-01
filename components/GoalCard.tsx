@@ -162,7 +162,7 @@ export default function GoalCard({ goal, isCompleted = false, onClick, onEdit, o
           {/* SMART PLACEMENT: Required /mo suggestion in the middle */}
           {!isCompleted && !isMonthlyMet && strategy && strategy.monthly > 0 && (
               <div className="flex flex-col items-center px-2 py-1 rounded-lg bg-primary/5 border border-primary/10 animate-in fade-in zoom-in-95 duration-500">
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-tighter">Required</span>
+                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Required</span>
                   <span className="text-[10px] font-black text-primary leading-none">
                       +{formatCurrency(Math.ceil(strategy.monthly), { notation: "compact" })}/mo
                   </span>

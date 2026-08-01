@@ -23,6 +23,12 @@
 # misc
 .DS_Store
 *.pem
+.opencode
+.codex
+.agents
+.impeccable
+.superpowers
+.agents
 
 # debug
 npm-debug.log*

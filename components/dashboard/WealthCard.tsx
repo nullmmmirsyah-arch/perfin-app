@@ -108,13 +108,13 @@ export function WealthCard({ summary, isPrivacyMode }: Props) {
                       >
                         <div className="flex justify-between items-center text-sm mb-1.5">
                           <div className="flex items-center gap-2">
-                              <Badge variant="outline" className={`px-1 py-0 h-4 text-[9px] border gap-1 font-semibold ${typeColor}`}>
+                              <Badge variant="outline" className={`px-1 py-0 h-4 text-[10px] border gap-1 font-semibold ${typeColor}`}>
                                   <Icon className="h-2 w-2" />
                                   {typeLabel}
                               </Badge>
                               <span className="text-muted-foreground font-medium truncate max-w-[120px] group-hover:text-foreground transition-colors">{item.categoryName}</span>
                               {isMet && (
-                                  <Badge variant="default" className="px-1 py-0 h-4 text-[9px] bg-success hover:bg-success/90 text-success-foreground border-0 gap-1">
+                                  <Badge variant="default" className="px-1 py-0 h-4 text-[10px] bg-success hover:bg-success/90 text-success-foreground border-0 gap-1">
                                       Met
                                   </Badge>
                               )}

@@ -146,8 +146,10 @@ The palette is restrained and functional. The primary blue carries guidance; sem
 - **Card Title** (600 weight, 1rem, line-height 1.25): Category names, goal names, section headers inside cards. The primary identifier in any container.
 - **Body** (400 weight, 0.875rem, line-height 1.5): Transaction descriptions, labels, helper text. Optimized for scannability.
 - **Label** (500 weight, 0.75rem, letter-spacing 0.01em): Form labels, field names, metadata. Slightly elevated to distinguish from content.
-- **Micro** (400 weight, 0.625rem, line-height 1.4): Inline badges, label dots, compact metadata. Used where space is extremely constrained.
+- **Micro** (400 weight, 0.625rem, line-height 1.4): Inline badges, status labels, compact metadata. Used where space is extremely constrained.
 - **Mono** (400 weight, 0.875rem): Amounts, codes, data values where alignment matters. Used in budget calculations and financial summaries.
+
+All type sizes must use these documented values. Do not use arbitrary pixel or rem values outside this ramp.
 
 ### Named Rules
 

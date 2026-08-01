@@ -45,6 +45,9 @@ Confidence-driven personal finance tracking. Unlike traditional budgeting apps t
 - Receivables/debt tracking with partial settlements
 - Funds reconciliation (virtual allocations)
 
+**Planned but unimplemented:**
+- Period transition page (`/period-transition/[id]`) — route directory exists but no page component
+
 **Technical constraints:**
 - Real-time sync via Convex (WebSocket, no REST)
 - Auth via Clerk (JWT)

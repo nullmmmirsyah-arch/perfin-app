@@ -339,7 +339,7 @@ export function GoalActionDrawer({
                         <Label htmlFor="disburse" className="text-sm font-semibold cursor-pointer">
                             Spend Goal (Disbursement)
                         </Label>
-                        <p className="text-[11px] text-muted-foreground leading-tight">
+                        <p className="text-xs text-muted-foreground leading-tight">
                             Enable this if you are using the money for its intended purpose (e.g. buying the item). This won&apos;t mess up your saving history.
                         </p>
                     </div>
