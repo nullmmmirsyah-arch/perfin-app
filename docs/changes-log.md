@@ -32,6 +32,9 @@ Format:
 
 ## 2026-08-01
 
+### Changed
+- **AllocationProgressCard — "Move Funds" button always visible:** Tombol "Move Funds" sekarang selalu tampil meskipun semua budget sudah teralokasi penuh (unassigned = 0). Saat fully allocated, tombol berubah menjadi "Rebalance Budgets" (outline variant) agar user bisa memindahkan dana antar kategori.
+
 ### Added
 - **Accessibility hardening for Transactions page:** Comprehensive a11y improvements across page, filters, list, and item components.
   - `prefers-reduced-motion` support: all animations wrapped with `motion-safe:animate-in motion-reduce:animate-none` variants

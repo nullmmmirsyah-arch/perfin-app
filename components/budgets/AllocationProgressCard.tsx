@@ -141,17 +141,15 @@ export default function AllocationProgressCard({
           {nudge.message}
         </p>
 
-        {!isComplete && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onMoveFunds}
-            className="w-full h-9 text-xs"
-          >
-            Move Funds
-            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-          </Button>
-        )}
+        <Button
+          variant={isComplete ? "outline" : "default"}
+          size="sm"
+          onClick={onMoveFunds}
+          className="w-full h-9 text-xs"
+        >
+          {isComplete ? "Rebalance Budgets" : "Move Funds"}
+          <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+        </Button>
       </div>
     </motion.div>
   )

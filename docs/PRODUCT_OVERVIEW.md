@@ -173,7 +173,7 @@
 ### 5. Budgeting (Zero-Based Budgeting)
 - **Monthly Budgets:** Set limits per category per month.
 - **Swipeable Views:** Separate sections for "Monthly Expenses" and "Savings & Goals" navigable via swipe.
-- **Allocation Progress Hero Card:** Komponen prominent di atas budget page yang menunjukkan berapa % income sudah di-assign. Progress bar besar dengan percentage, stats row (Income/Budgeted/Unassigned), contextual nudge messages, dan confetti celebration saat mencapai 100%. Tombol "Move Funds" langsung di card jika masih ada unassigned cash.
+- **Allocation Progress Hero Card:** Komponen prominent di atas budget page yang menunjukkan berapa % income sudah di-assign. Progress bar besar dengan percentage, stats row (Income/Budgeted/Unassigned), contextual nudge messages, dan confetti celebration saat mencapai 100%. Tombol "Move Funds" (atau "Rebalance Budgets" saat fully allocated) selalu tampil di card untuk memungkinkan reallocation antar kategori kapan saja.
 - **Move Money (Rule 3):**
     - Users can easily move funds from **Unassigned Cash** or **Other Categories** to cover overspending or assign funds.
     - **Smart Drawer:** Budget drawer features "Set Limit" with quick-adjust preset buttons and real-time preview of remaining balance. **Move Funds** has its own dedicated drawer accessible via the "Move Funds" button in the Allocation Progress Card, supporting transfers between categories and Unassigned Cash with real-time preview of remaining budgets.
