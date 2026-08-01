@@ -138,12 +138,13 @@
   - **Cycle Tracking:** For Bills, accumulation is calculated only for transactions *after* the last reset date.
   - **History:** Completed cycles are stored in `goalHistory` for audit trails.
   - **Fund Management:**
-  - **Add Funds (Deposit):** Dedicated wizard to transfer money from a Liquid Account (Wallet) to a Goal/Asset. For Assets, it prompts for quantity bought.
+  - **Add Funds (Deposit):** Dedicated wizard with quick-fill buttons (25%/50%/100% of available balance), real-time balance preview (before/after), and insufficient balance warning.
   - **Withdraw Funds:** Wizard to transfer money back to Liquid.
     - **Smart Disbursement:** Includes a toggle to flag withdrawal as "Spending the Goal" (Disbursement). This prevents the withdrawal from being counted as negative spending (reversal), preserving your saving history while freeing up the cash.
   - **⚡ Auto-Save (Scheduled Transfers):**
     - **Concept:** "Set and Forget" funding for goals. Users can enable automatic monthly transfers from a Liquid Account to a Goal.
     - **Goal-Centric Control:** Managed directly within the Goal Creation wizard or the Goal Detail page (via a dedicated status card).
+    - **Smart Recommendation:** Goal Detail page shows a recommendation card with suggested monthly amount and optimal payment date.
     - **Safety Mechanisms:** System checks for sufficient funds in the source account before execution. If funds are insufficient, the run is skipped, flagged as "Failed", and the user is notified via **System Notification**.
     - **Lifecycle:** Archiving or Deleting a goal automatically pauses or removes the associated schedule.
 
@@ -179,6 +180,7 @@
 - **Real-time Tracking:** Visual progress bars synced with Dashboard.
     - **Expense Budget:** Tracks `Spent / Limit` with days remaining and daily burn rate.
     - **Savings/Goals Budget:** Tracks `Monthly Contribution / Monthly Target`. Shows a **"Monthly Goal Met"** celebration badge when the monthly saving target is reached.
+    - **Savings Goal Display:** All savings goals (including those without `targetAmount`) are rendered with goal-style UI showing saved/target, progress bar, and strategy info. Goals never show "over budget" red styling even when accumulated exceeds monthly target.
 - **Zero-Based Logic:** Tracks **Unassigned Cash** (Total Income - Total Budgeted).
     - **Visual Motivation:** Allocation Progress Card menggunakan Goal Gradient Effect dan Completion Bias untuk mendorong user mencapai 0 unassigned.
     - **Settlement Integrity:** Income categorized into an expense category (reimbursements/settlements) acts as **Negative Spending**, accurately increasing the available budget for that category.
@@ -279,6 +281,14 @@
     - **Daily Operations Card:** Users can click on individual budget rows to navigate directly to the category's detail page for performance analysis and history.
     - **Visual Cues:** Both cards use consistent hover effects and chevron icons to indicate interactivity.
 - **Quick Access:** A "View All" link in the card headers provides a shortcut to the main Goals or Transactions lists.
+- **GoalsProgressCard:** A dedicated card between Budget per Category and Balance tabs showing all savings goals with:
+    - **Dual Progress Bars:** Each goal displays two progress indicators:
+        - **Overall:** accumulated savings vs final target amount
+        - **Monthly:** current month contribution vs monthly budget target
+    - **Status Badges:** "Done!" (green), "On Track" (green), "Needs Attention" (yellow)
+    - **Quick Save:** "Tabung" button opens GoalActionDrawer pre-filled with suggested amount (gap between monthly target and current contribution)
+    - **Smart Visibility:** Card hidden entirely when no active goals exist; "Tabung" button hidden for achieved goals
+    - **Goal Type Icons:** Sparkles (savings), ShieldCheck (investment), CalendarClock (bill/sinking fund)
 
 ### 13. Receivables & Debt Tracking (Lent)
 - **Concept:** Track money lent to others (friends, office reimbursements) without losing sight of personal budget integrity.

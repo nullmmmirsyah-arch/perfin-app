@@ -30,6 +30,43 @@ Format:
 - **`docs/CODE_STYLE_GUIDE.md`:** added EmptyState / ErrorState / ErrorBoundary / loading-state / helper-text conventions to the Reusable Components section.
 - **`docs/PRODUCT_GUIDELINES.md`:** expanded Feedback System section with empty/error state variant rules, inline form-submit error banner pattern, and submit-button label conventions (Save Expense / Save Changes / Cancel / Keep Editing).
 
+## 2026-08-01
+
+### Added
+- **Dashboard GoalsProgressCard:** New dedicated card between Budget per Category and Balance tabs showing all savings goals with dual progress bars (Overall + Monthly) and "Tabung" quick-save buttons. Replaces inline QuickSaveWidget in Goals tab.
+  - `components/dashboard/GoalsProgressCard.tsx` — new component with GoalActionDrawer integration
+  - Shows total funds, per-goal progress (accumulated/targetAmount + spent/limit), status badges (Done!, On Track, Needs Attention)
+  - "Tabung" button hidden for achieved goals
+  - Empty state: card hidden entirely when no active goals
+- **GoalActionDrawer enhancements:** Quick-fill buttons (25%/50%/100%), balance preview (before/after), insufficient balance warning, fixed label from "Value Spent" to Indonesian
+  - `components/goals/GoalActionDrawer.tsx` — added sourceBalance/goalBalance state, handleQuickFill, balance calculations
+- **GoalCard Quick Save CTA:** Added "Tabung Sekarang" button to GoalCard when gap between monthly target and contribution exists
+  - `components/GoalCard.tsx` — new onQuickSave prop, quickSaveGap calculation, CTA box
+- **Auto-Save recommendation CTA on Goal Detail:** Enhanced auto-save card with recommendation card, "Nanti saja" dismiss, GoalWizardDrawer integration
+  - `app/goals/[id]/page.tsx` — recommendation card, context-appropriate collapsed state message
+- **Budgets Savings Tab CTAs:** Added "Tabung" and "Detail" buttons to savings BudgetCards in budgets page
+  - `app/budgets/page.tsx` — GoalActionDrawer integration, quick save handler
+  - `components/BudgetCard.tsx` — new linkedAccountId and onQuickSave props
+
+### Changed
+- **GoalSummary redesigned (Option B layout):** Each goal now shows two progress bars — Overall (accumulated/targetAmount) and Monthly (spent/limit) — with status badges and dividers between goals
+  - `components/dashboard/GoalSummary.tsx` — complete rewrite with dual progress, icons, badges
+- **QuickSaveWidget shows all goals:** Removed `.slice(0, 3)` limit — all active goals now displayed sorted by urgency
+  - `components/dashboard/QuickSaveWidget.tsx` — removed top-3 limit, empty state uses plain div instead of Card
+- **MobileDashboardTabs Goals tab:** Simplified to show only GoalSummary (QuickSaveWidget moved to GoalsProgressCard)
+  - `components/dashboard/MobileDashboardTabs.tsx` — removed QuickSaveWidget import and Card wrapper from Goals tab
+
+### Fixed
+- **Tax goal status not achieved:** Tax goal was fully withdrawn (balance=0) with `isGoalDisbursement: true` transaction but status remained "active" — `markAsAchieved` was never called. Fixed by setting status to "achieved" via Convex mutation.
+- **BudgetCard treating savings goals as expense:** Savings goals with empty `targetAmount` (e.g., Emas investment) were rendered with expense-style budget view showing "over budget" red styling. Fix: `isGoal` now checks `category.type === 'saving'` regardless of `targetAmount`. `isOverBudget` border only applies to non-goal categories.
+- **GoalActionDrawer isDeposit reference error:** `Cannot access 'isDeposit' before initialization` — variable was declared at line 168 but used at lines 99/105/108. Fix: moved declaration to line 66 (after `isAsset`).
+- **TypeScript build errors:** `item.targetAmount` possibly undefined in GoalSummary, `goal.gapSuggestion` not on EnrichedGoal type in QuickSaveWidget. Fixed with fallback values and inline recalculation.
+
+### Docs
+- **`docs/PRODUCT_OVERVIEW.md`:** Updated Goals section with GoalsProgressCard, dual progress bars, and auto-save recommendation CTA
+- **`docs/PRODUCT_GUIDELINES.md`:** Added Goals Dashboard Pattern section
+- **`docs/DATABASE_AND_RELATIONSHIPS.md`:** Updated BudgetCard section with savings goal behavior
+
 ## 2026-07-29
 
 ### Fixed
