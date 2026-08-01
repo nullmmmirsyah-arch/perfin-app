@@ -29,6 +29,9 @@
 .impeccable
 .superpowers
 .agents
+AGENTS.md
+DESIGN.md
+PRODUCT.md
 
 # debug
 npm-debug.log*
