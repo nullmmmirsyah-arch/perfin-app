@@ -189,9 +189,55 @@ Certain UI patterns are standardized to ensure consistency.
 3.  **Authorization:**
     - **Do NOT write manual DB checks** for household membership.
     - **ALWAYS import auth helpers** from `convex/lib/auth.ts`.
-        - `await ensureHouseholdAccess(ctx, householdId, userId)` (Throws Error)
-        - `await checkHouseholdAccess(ctx, householdId, userId)` (Returns Boolean)
+        - `await ensureHouseholdAccess(ctx, householdId, userId)` — Throws if not a household member.
+        - `await checkHouseholdAccess(ctx, householdId, userId)` — Returns boolean.
+        - `await ensureAdminAccess(ctx, householdId, userId)` — Throws if not a household admin.
+        - `await checkAdminAccess(ctx, householdId, userId)` — Returns boolean.
     - **Internal Mutations:** For Cron jobs or background tasks that run without a user session, use `internalMutation`.
+
+    **Role Definitions:**
+    | Role | Description |
+    |---|---|
+    | **Admin** | Can manage household settings, members, and create/delete shared entities (accounts, categories, labels). |
+    | **Member** | Can view data, create/edit transactions, budgets, and merchants. |
+
+    **Authorization Matrix:**
+
+    | Module | Operation | Access Required |
+    |---|---|---|
+    | **Accounts** | `create` | Admin |
+    | | `update` (general) | Member |
+    | | `update` (change `visibility`) | Admin |
+    | | `deleteAccount`, `archiveAccount` | Member |
+    | | `get`, `getLiquidAccountComposition` | Member |
+    | **Categories** | `create` | Admin |
+    | | `update`, `deleteCategory`, `archiveCategory`, `unarchiveCategory` | Member |
+    | | `markAsAchieved`, `resetGoal`, `updateAllowanceConfig` | Member |
+    | | `get`, `getCategoryDetails`, `getGoalDetails` | Member |
+    | **Labels** | `create` | Admin |
+    | | `update`, `deleteLabel` | Member |
+    | | `get` | Member |
+    | **Merchants** | `create`, `update` | Member |
+    | | `deleteMerchant` | Admin |
+    | | `get` | Member |
+    | **Transactions** | `create`, `update`, `deleteTransaction`, `forgiveReceivable` | Member |
+    | | `get`, `getExpensesTrend`, `exportTransactions`, `searchTransactions` | Member |
+    | **Budgets** | `upsertBudget`, `deleteBudget`, `moveBudgetFunds` | Member |
+    | | `sweepBudgets`, `rolloverBudgets`, `processMonthEnd` | Member |
+    | | `get`, `getBudgetStatus`, `getBudgetReport` | Member |
+    | **Dashboard** | `getTotals`, `getSpendingByCategory`, `getDashboardSummary`, `getMonthlyTrends` | Member |
+    | **Households** | `create`, `getOrCreateDefault`, `list`, `get` | Authenticated user |
+    | | `getMembers`, `getMemberRole` | Member |
+    | | `createInvite`, `getPendingInvites`, `removeMember` | Admin |
+    | | `rename`, `updateSettings` | Admin |
+    | | `acceptInvite` | Anyone with valid invite code |
+    | **Notifications** | `get`, `getUnreadCount`, `markAsRead`, `markAllAsRead`, `deleteAll` | Member |
+    | | `saveSubscription`, `deleteSubscription` | Document owner |
+    | **Automations** | `getScheduleByGoal`, `upsertSchedule` | Member |
+    | | `toggleSchedule` | Document owner |
+    | | `processDueSchedules` | System/cron only (internal) |
+
+    **Note:** `budgets.ts` and `dashboard.ts` define a LOCAL `ensureHouseholdAccess` that returns a boolean (does NOT throw), unlike the `lib/auth.ts` version. Queries return empty/default data on failure.
 
 4.  **Constants & Types:**
     - **Do NOT use magic strings** like `'expense'`, `'saving'`, `'ASSET'`.

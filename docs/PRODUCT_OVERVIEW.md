@@ -226,8 +226,8 @@
 ### 6. Households & Collaboration
 - **Multi-User:** Support for shared financial tracking (e.g., couples, families).
 - **Roles:**
-  - **Admin:** Can manage members and settings.
-  - **Member:** Can view and add transactions.
+  - **Admin:** Can manage members, settings, and create/delete shared entities (accounts, categories, labels, merchants).
+  - **Member:** Can view data, create/edit transactions, budgets, and merchants.
 - **Invites:** Invite system via email/code with expiration.
 - **Context Switching:** Users can switch between "Personal" view and "Household" view. Data is siloed by `householdId`.
 

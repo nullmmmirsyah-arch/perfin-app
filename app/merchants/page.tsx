@@ -33,11 +33,7 @@ export default function MerchantsPage() {
   const [merchantToDelete, setMerchantToDelete] = useState<Doc<'merchants'> | undefined>(undefined)
 
   const { householdId } = useHousehold()
-  const memberRole = useQuery(api.households.getMemberRole,
-    householdId ? { householdId } : "skip"
-  )
-  const isAdmin = memberRole === "admin"
-  const canCreate = !householdId || isAdmin
+  const canCreate = true
 
   const merchants = useQuery(api.merchants.get, { householdId: householdId ?? undefined })
   const deleteMerchant = useMutation(api.merchants.deleteMerchant)

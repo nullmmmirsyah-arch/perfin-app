@@ -28,7 +28,6 @@ export const create = mutation({
     if (!identity) throw new Error("Not authenticated");
     
     await ensureHouseholdAccess(ctx, args.householdId, identity.subject);
-    await ensureAdminAccess(ctx, args.householdId, identity.subject);
 
     // Check for duplicate name within household
     const existingMerchant = await ctx.db.query("merchants")

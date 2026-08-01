@@ -81,7 +81,7 @@
         - **Critical:** All backend code MUST use `getServerNow(timezone)` instead of `new Date()` whenever creating or comparing dates that represent "now" for a user. This includes fiscal period queries, Initial Balance transactions, goal completion/reset dates, recurring expense overdue logic, and cron auto-save timestamps. Period transitions happen at midnight in the user's local timezone, not midnight UTC.
         - **Timezone Source:** The timezone comes from `household.timezone` (IANA string, e.g. "Asia/Jakarta"). The `timezoneMode` field determines whether it's auto-detected from the device or manually set.
         - **DST Note:** For cron auto-save (`processDueSchedules`), the timezone offset is computed at `schedule.nextRunAt` (not `Date.now()`) to prevent date shifts across DST transitions.
-    - **`convex/lib/auth.ts`:** Centralized authorization checks (`ensureHouseholdAccess`).
+    - **`convex/lib/auth.ts`:** Centralized authorization checks — `ensureHouseholdAccess` (throws if not member), `ensureAdminAccess` (throws if not admin), and their `check*` boolean variants. See `CODE_STYLE_GUIDE.md` for the full authorization matrix.
     - **`convex/lib/constants.ts`:** Constants for Transaction Types, Category Types, Account Types, etc. **NEVER** use string literals (e.g., "expense") directly; import from constants.
     - **`lib/utils.ts` (Frontend):**
         - `formatCurrency`: Centralizes currency formatting and **Privacy Mode** logic. Handles standard bullet masking (`••••`).
