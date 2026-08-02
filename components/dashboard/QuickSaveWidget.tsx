@@ -102,13 +102,13 @@ export function QuickSaveWidget() {
   if (activeGoals.length === 0) {
     return (
       <div className="text-center space-y-3 py-4">
-        <p className="text-sm text-muted-foreground">Belum ada goal. Mulai menabung untuk tujuan keuanganmu!</p>
+        <p className="text-sm text-muted-foreground">No goals yet. Start saving for your financial goals!</p>
         <Button 
           variant="outline" 
           size="sm"
           onClick={() => router.push('/goals')}
         >
-          + Buat Goal Pertama
+          + Create First Goal
         </Button>
       </div>
     )
@@ -134,17 +134,17 @@ export function QuickSaveWidget() {
                   <div className="flex items-center gap-2">
                     <h4 className="font-semibold text-sm truncate">{goal.name}</h4>
                     {isMonthlyMet && (
-                      <span className="text-[10px] bg-success/10 text-success px-1.5 py-0.5 rounded-full font-medium">
+                      <span className="text-xs bg-success/10 text-success px-1.5 py-0.5 rounded-full font-medium">
                         On Track
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {goal.gapSuggestion > 0
-                      ? `Sisa: ${formatCurrency(goal.gapSuggestion)} untuk on-track`
+                      ? `Remaining: ${formatCurrency(goal.gapSuggestion)} to stay on track`
                       : goal.strategy && goal.strategy.monthly > 0
-                        ? `Target: ${formatCurrency(Math.ceil(goal.strategy.monthly))}/bulan`
-                        : `${Math.round(progress)}% tercapai`
+                        ? `Target: ${formatCurrency(Math.ceil(goal.strategy.monthly))}/month`
+                        : `${Math.round(progress)}% reached`
                     }
                   </p>
                 </div>
@@ -159,7 +159,7 @@ export function QuickSaveWidget() {
                       handleQuickSave(goal)
                     }}
                   >
-                    Tabung
+                    Save
                   </Button>
                 </div>
               </div>
@@ -173,7 +173,7 @@ export function QuickSaveWidget() {
           className="w-full text-xs"
           onClick={() => router.push('/goals')}
         >
-          Lihat Semua Goals →
+          View All Goals →
         </Button>
       </div>
 

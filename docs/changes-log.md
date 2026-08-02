@@ -10,6 +10,16 @@ Format:
 ### Docs
 -->
 
+## 2026-08-02
+
+### Fixed
+- **Goal wizard/action drawer text sizes:** Standardized `text-[10px]` to `text-xs` (12px) across GoalActionDrawer, QuickSaveWidget, and AutoSaveFields for consistency with DESIGN.md type ramp
+- **Goal wizard success animation:** Replaced dated `animate-bounce` with `animate-in fade-in zoom-in-95` on success overlay in GoalWizardDrawer
+- **GoalActionDrawer loading state:** Added Skeleton loader when accounts data is loading to prevent empty state flash
+
+### Changed
+- **GoalActionDrawer subtitle styling:** Restored `uppercase tracking-wider` on Auto-Save subtitle for visual consistency
+
 ## 2026-07-31
 
 ### Added

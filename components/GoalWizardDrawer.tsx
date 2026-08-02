@@ -281,7 +281,7 @@ export function GoalWizardDrawer({ open, onOpenChange, editGoal }: GoalWizardDra
             <DrawerTitle>Goal Created!</DrawerTitle>
           </DrawerHeader>
           <div className="flex flex-col items-center justify-center py-16 px-4 space-y-6">
-            <div className="h-20 w-20 rounded-full bg-success/10 flex items-center justify-center animate-bounce">
+            <div className="h-20 w-20 rounded-full bg-success/10 flex items-center justify-center animate-in fade-in zoom-in-95">
               <PartyPopper className="h-10 w-10 text-success" />
             </div>
             <div className="text-center space-y-2">

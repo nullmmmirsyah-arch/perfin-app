@@ -17,6 +17,7 @@ import {
   DrawerClose,
 } from '@/components/ui/drawer'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useHousehold } from '@/components/HouseholdProvider'
 import { parseAmount, formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -68,6 +69,8 @@ export function GoalActionDrawer({
   const liquidAccounts = allAccounts?.filter(a => 
     !a.type || a.type === ACCOUNT_TYPES.CASH
   ) || []
+
+  const isLoading = allAccounts === undefined
 
   useEffect(() => {
     if (allAccounts) {
@@ -183,10 +186,19 @@ export function GoalActionDrawer({
           </DrawerHeader>
           
           <div className="p-4 space-y-6">
-            {/* Visual Flow */}
-            <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg border border-dashed">
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : (
+              <>
+                {/* Visual Flow */}
+                <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg border border-dashed">
                 <div className="flex flex-col items-center gap-1 w-1/3">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground">From</span>
+                    <span className="text-xs uppercase font-bold text-muted-foreground">From</span>
                     <div className="flex items-center gap-1 font-medium text-sm text-center">
                         {isDeposit ? (
                             <>
@@ -205,7 +217,7 @@ export function GoalActionDrawer({
                 <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
 
                 <div className="flex flex-col items-center gap-1 w-1/3">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground">To</span>
+                    <span className="text-xs uppercase font-bold text-muted-foreground">To</span>
                     <div className="flex items-center gap-1 font-medium text-sm text-center">
                         {isDeposit ? (
                             <>
@@ -241,7 +253,7 @@ export function GoalActionDrawer({
 
             {/* Amount */}
             <div className="space-y-2">
-                <Label>{isDeposit ? "Jumlah yang ingin ditabung" : "Jumlah yang ingin ditarik"}</Label>
+                <Label>{isDeposit ? "Amount to save" : "Amount to withdraw"}</Label>
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">
                         Rp
@@ -259,20 +271,20 @@ export function GoalActionDrawer({
                     <div className="flex justify-end">
                         <button 
                             onClick={() => setAmount(suggestionAmount.toString())}
-                            className="text-[10px] bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded-full transition-colors font-medium"
+                            className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded-full transition-colors font-medium"
                         >
                             Suggestion: {formatCurrency(suggestionAmount)}
                         </button>
                     </div>
                 )}
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground font-medium">Quick Fill:</span>
+                    <span className="text-xs text-muted-foreground font-medium">Quick Fill:</span>
                     {[0.25, 0.5, 1].map((pct) => (
                         <button
                             key={pct}
                             type="button"
                             onClick={() => handleQuickFill(pct)}
-                            className="text-[10px] bg-muted hover:bg-muted/80 px-2 py-1 rounded-full transition-colors font-medium"
+                            className="text-xs bg-muted hover:bg-muted/80 px-2 py-1 rounded-full transition-colors font-medium"
                         >
                             {pct * 100}%
                         </button>
@@ -281,7 +293,7 @@ export function GoalActionDrawer({
                 {amount && numericAmount > 0 && (
                     <div className="animate-in fade-in duration-200">
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Saldo setelah:</span>
+                            <span className="text-muted-foreground">Balance after:</span>
                             <div className="text-right">
                                 <span className={cn("font-semibold", afterBalance < 0 ? "text-destructive" : "text-foreground")}>
                                     {formatCurrency(afterBalance)}
@@ -295,7 +307,7 @@ export function GoalActionDrawer({
                 )}
                 {hasInsufficientBalance && (
                     <div className="text-destructive text-xs font-medium bg-destructive/10 p-2 rounded-md animate-in fade-in">
-                        Saldo tidak mencukupi. Kurang {formatCurrency(numericAmount - (isDeposit ? sourceBalance : goalBalance))}
+                        Insufficient balance. Short by {formatCurrency(numericAmount - (isDeposit ? sourceBalance : goalBalance))}
                     </div>
                 )}
             </div>
@@ -318,7 +330,7 @@ export function GoalActionDrawer({
                             {goalAccount?.unit || 'units'}
                         </span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground italic">
+                    <p className="text-xs text-muted-foreground italic">
                         {isDeposit 
                             ? `How many ${goalAccount?.unit || 'units'} did you buy?` 
                             : `How many ${goalAccount?.unit || 'units'} did you sell?`}
@@ -344,6 +356,8 @@ export function GoalActionDrawer({
                         </p>
                     </div>
                 </div>
+            )}
+              </>
             )}
           </div>
 

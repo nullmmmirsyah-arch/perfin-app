@@ -38,7 +38,7 @@ export const AutoSaveFields = ({ form, liquidAccounts, formatNumber }: AutoSaveF
                             <FormLabel className="text-sm font-bold flex items-center gap-2">
                                 ⚡ Enable Auto-Save
                             </FormLabel>
-                            <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            <div className="text-xs text-muted-foreground uppercase tracking-wider">
                                 Automated monthly transfers
                             </div>
                         </div>
