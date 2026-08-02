@@ -95,7 +95,7 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
             </div>
             
             <SidebarInset className="pb-20 md:pb-0">
-            <header className="sticky top-0 z-10 bg-background flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[[collapsible=icon]]/sidebar-wrapper:h-12 px-4">
+            <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center gap-2 border-b shadow-sm transition-[width,height] ease-linear group-has-data-[[collapsible=icon]]/sidebar-wrapper:h-12 px-4">
                <div className="hidden md:flex items-center gap-2">
                    <SidebarTrigger className="-ml-1" />
                    <Separator orientation="vertical" className="mr-2 h-4" />
@@ -114,15 +114,15 @@ export default function LayoutWrapper({ children }: { children: ReactNode }) {
                  >
                    <Plus className="h-4 w-4" /> Add Transaction
                  </Button>
-                 <Button
-                   variant="ghost"
-                   size="icon"
-                   className="h-8 w-8 text-muted-foreground hover:text-foreground md:hidden"
-                   onClick={() => setSettingsOpen(true)}
-                   title="Settings"
-                 >
-                   <Settings className="h-4 w-4" />
-                 </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 text-muted-foreground hover:text-foreground md:hidden"
+                    onClick={() => setSettingsOpen(true)}
+                    aria-label="Settings"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
                  <NotificationBell />
                  <UserButton />
                </div>

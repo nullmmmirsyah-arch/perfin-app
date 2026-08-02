@@ -11,7 +11,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 z-50">
+      <header className="border-b px-6 py-4 flex items-center justify-between sticky top-0 bg-background z-50 shadow-sm">
         <div className="flex items-center gap-2 font-bold text-xl text-primary">
           <Logo className="h-8 w-8" />
           <span>Perfin</span>

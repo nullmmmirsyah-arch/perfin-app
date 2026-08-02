@@ -185,7 +185,7 @@ export function TransactionListGrouped({ transactions, onEdit, onDelete, isPriva
         
         return (
           <div key={date} className="space-y-3 motion-safe:animate-in motion-reduce:animate-none fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${dateIndex * 50}ms` }}>
-            <div className="sticky top-0 bg-background/98 backdrop-blur-md py-2 z-10 flex justify-between items-center border-b border-border/50 mb-2">
+            <div className="sticky top-16 bg-background py-2 z-20 flex justify-between items-center border-b border-border mb-2 shadow-sm">
               <h2 className="text-xs font-semibold text-foreground uppercase tracking-widest">
                   {date}
               </h2>
