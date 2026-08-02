@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   PiggyBank,
-  Target,
+  FileBarChart,
   Plus,
 } from '@/components/ui/icons'
 import TransactionDrawer from '@/components/TransactionDrawer'
@@ -21,7 +21,7 @@ export function BottomNav() {
     { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
     { href: '/transactions', label: 'Trans', icon: ArrowLeftRight },
     { href: '/budgets', label: 'Budgets', icon: PiggyBank },
-    { href: '/goals', label: 'Goals', icon: Target },
+    { href: '/report', label: 'Reports', icon: FileBarChart },
   ]
 
   return (
