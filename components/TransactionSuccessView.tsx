@@ -11,10 +11,16 @@ import { calculateAllowance } from "@/lib/allowance-calculator";
 import { getFiscalMonthRange } from "@/lib/finance-utils";
 import { getGuidance, GuidanceCard } from "@/lib/contextual-guidance";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Id, Doc } from "@/convex/_generated/dataModel";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { GoalActionDrawer } from "@/components/goals/GoalActionDrawer";
 import ContextualGuidanceCard from "@/components/ContextualGuidanceCard";
+
+export type SavingGoal = Doc<"categories"> & {
+  currentAmount: number;
+  currentBudget: Doc<"budgets"> | undefined;
+  thisMonthContribution: number;
+};
 
 export type TransactionSuccessViewProps = {
   amount: number;
@@ -61,7 +67,7 @@ export default function TransactionSuccessView({
     householdId: queryHouseholdId,
     type: "saving",
     showArchived: false,
-  });
+  }) as SavingGoal[] | undefined;
   const accounts = useQuery(api.accounts.get, {
     householdId: queryHouseholdId,
     showArchived: false,
