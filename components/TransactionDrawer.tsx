@@ -414,7 +414,7 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
             
             {/* Visual Handle for Mobile */}
             <div className="pt-2 px-4 flex justify-center">
-                <div className="w-12 h-1.5 bg-muted rounded-full mb-4" />
+                <div className="w-12 h-1.5 bg-foreground/30 rounded-full mb-4" />
             </div>
             
             {Content}
