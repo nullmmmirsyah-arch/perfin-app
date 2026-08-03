@@ -86,7 +86,7 @@ This document outlines the design philosophy and user experience patterns used i
   - **One card, one CTA:** the card returns a single decision per save — at most one card and at most one call to action. Priority: Budget Warning → Goal Opportunity → Safe To Save → Positive Reinforcement.
   - **Names (household name or user first name) appear only** in Goal Opportunity / Safe To Save / Positive Reinforcement copy. Budget Warning never includes a name.
   - **Evaluation scope:** runs on the affected (largest-split) category's fiscal-period data (`getBudgetStatus` + saving categories query), right after commit, not before.
-  - **Auto-dismiss pauses:** while a guidance card is shown, the 5s auto-dismiss timer is suspended so the user has time to act on the CTA (e.g., Quick Save opens `GoalActionDrawer`).
+  - **Auto-dismiss is fixed:** the 5s auto-dismiss applies whether or not a guidance card is shown — the card disappears after 5s if the user doesn't act on the CTA (e.g., Quick Save opens `GoalActionDrawer`).
 
 ### 5. Categorization & Grouping
 - **Separation of Concerns:**

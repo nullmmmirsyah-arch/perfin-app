@@ -183,10 +183,9 @@ export default function TransactionSuccessView({
   }, [overallRemaining]);
 
   useEffect(() => {
-    if (guidance) return;
     const timer = setTimeout(onDismiss, 5000);
     return () => clearTimeout(timer);
-  }, [onDismiss, guidance]);
+  }, [onDismiss]);
 
   return (
     <motion.div
