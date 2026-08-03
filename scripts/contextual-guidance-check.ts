@@ -2,7 +2,7 @@
 // Run: npx tsx scripts/contextual-guidance-check.ts
 import { getGuidance, GuidanceInput } from "../lib/contextual-guidance";
 
-const base = (over: Partial<GuidanceInput["affectedCategory"]>): GuidanceInput["affectedCategory"] => ({
+const base = (over: Partial<GuidanceInput["affectedCategory"]> = {}): GuidanceInput["affectedCategory"] => ({
   categoryName: "Food",
   hasBudget: true,
   budgetLimit: 1000,
