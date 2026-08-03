@@ -85,8 +85,10 @@ This document outlines the design philosophy and user experience patterns used i
 - **Contextual Guidance Card (Expense Success):** After recording an expense, `TransactionSuccessView` evaluates post-commit financial data via `getGuidance()` (`lib/contextual-guidance.ts`) and may show at most one `ContextualGuidanceCard` (or none).
   - **One card, one CTA:** the card returns a single decision per save — at most one card and at most one call to action. Priority: Budget Warning → Goal Opportunity → Safe To Save → Positive Reinforcement.
   - **Names (household name or user first name) appear only** in Goal Opportunity / Safe To Save / Positive Reinforcement copy. Budget Warning never includes a name.
+  - **Budget Warning progress bar:** the Budget Warning card shows specific used percentage (e.g., "Your Eating out budget is 62% used.") with a mini progress bar below the description. Bar color: red (`destructive`) when ≥ 90%, orange otherwise.
   - **Evaluation scope:** runs on the affected (largest-split) category's fiscal-period data (`getBudgetStatus` + saving categories query), right after commit, not before.
   - **Auto-dismiss is fixed:** the 5s auto-dismiss applies whether or not a guidance card is shown — the card disappears after 5s if the user doesn't act on the CTA (e.g., Quick Save opens `GoalActionDrawer`).
+  - **No duplicate feedback:** the `budgetStatus` feedback text (e.g., "Keep an eye on your spending.") is hidden when a guidance card is displayed, since the guidance card provides more specific information.
 
 ### 5. Categorization & Grouping
 - **Separation of Concerns:**

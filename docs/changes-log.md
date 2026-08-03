@@ -15,9 +15,9 @@ Format:
 ### Added
 - **Sprint 3 — Contextual Guidance:** one timely, trustworthy guidance card on the Expense Success View after an expense is recorded, choosing among Budget Warning / Goal Opportunity / Safe To Save / Positive Reinforcement (or none). Pure decision logic, no Convex/schema changes.
   - **`lib/contextual-guidance.ts`:** pure decision-tree helper — `getGuidance(input)` returns at most one `GuidanceCard` or `null`. Priority: Budget Warning (remaining ratio < 20% or exhausted) → Goal Opportunity (nearest goal at ≥ 80% progress) → Safe To Save (on track + active goal with gap) → Positive Reinforcement (on track, no goals). Constants `BUDGET_WARNING_THRESHOLD = 0.2` / `GOAL_NEAR_COMPLETE = 0.8`; `formatGuidanceAmount()` renders whole-rupiah copy.
-  - **`components/ContextualGuidanceCard.tsx`:** presentational card with per-scenario icon/color styling and one CTA (View Budget / Quick Save / Continue).
-  - **`components/TransactionSuccessView.tsx`:** post-commit evaluation — fetches `getBudgetStatus` + saving categories, derives the affected category and fiscal month/year, runs `getGuidance`, and renders the card (Quick Save opens `GoalActionDrawer`). Auto-dismiss stays fixed at 5s whether or not a guidance card is shown.
-  - **`components/TransactionDrawer.tsx`:** `savedData` extended with `affectedCategoryId` (largest split for split expenses), `householdId`, `month`, `year`, `displayName` (household name or user first name) — passed to both mobile and desktop success-view mounts.
+  - **`components/ContextualGuidanceCard.tsx`:** presentational card with per-scenario icon/color styling and one CTA (View Budget / Quick Save / Continue). Budget Warning shows a mini progress bar with used percentage.
+  - **`components/TransactionSuccessView.tsx`:** post-commit evaluation — fetches `getBudgetStatus` + saving categories, derives the affected category and fiscal month/year, runs `getGuidance`, and renders the card (Quick Save opens `GoalActionDrawer`). Auto-dismiss stays fixed at 5s whether or not a guidance card is shown. `budgetStatus` feedback text is hidden when a guidance card is displayed to avoid redundancy.
+  - **`components/TransactionDrawer.tsx`:** `savedData` extended with `affectedCategoryId` (largest split for split expenses), `householdId`, `month`, `year`, `displayName` (household name or user first name) — passed to both mobile and desktop success-view mounts. Mobile drawer drag handle uses `bg-foreground/30` for better visibility.
 
 ## 2026-08-02
 
