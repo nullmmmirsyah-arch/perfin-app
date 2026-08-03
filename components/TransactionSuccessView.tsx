@@ -228,7 +228,7 @@ export default function TransactionSuccessView({
         </p>
       )}
 
-      {budgetStatus && (
+      {budgetStatus && !guidance && (
         <p
           className={cn(
             "text-sm font-medium",
