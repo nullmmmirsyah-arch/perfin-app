@@ -82,6 +82,11 @@ This document outlines the design philosophy and user experience patterns used i
   - Validation errors (react-hook-form) still surface via field-level `<FormMessage />` + a toast — the inline banner is only for submission/server failures.
 - **Over-Budget Warnings:** Use Red/Destructive colors immediately when a budget is exceeded (Negative Remaining).
 - **Positive Reinforcement:** Use Green colors and "Checklist" badges (e.g., "Monthly Goal Met! 🎉") when users hit their saving targets for the period.
+- **Contextual Guidance Card (Expense Success):** After recording an expense, `TransactionSuccessView` evaluates post-commit financial data via `getGuidance()` (`lib/contextual-guidance.ts`) and may show at most one `ContextualGuidanceCard` (or none).
+  - **One card, one CTA:** the card returns a single decision per save — at most one card and at most one call to action. Priority: Budget Warning → Goal Opportunity → Safe To Save → Positive Reinforcement.
+  - **Names (household name or user first name) appear only** in Goal Opportunity / Safe To Save / Positive Reinforcement copy. Budget Warning never includes a name.
+  - **Evaluation scope:** runs on the affected (largest-split) category's fiscal-period data (`getBudgetStatus` + saving categories query), right after commit, not before.
+  - **Auto-dismiss pauses:** while a guidance card is shown, the 5s auto-dismiss timer is suspended so the user has time to act on the CTA (e.g., Quick Save opens `GoalActionDrawer`).
 
 ### 5. Categorization & Grouping
 - **Separation of Concerns:**
