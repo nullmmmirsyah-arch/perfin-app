@@ -15,6 +15,7 @@ export type GuidanceCard = {
   action: "view-budget" | "quick-save" | "dismiss";
   goalCategoryId?: string;
   goalAccountId?: string;
+  usedPercentage?: number; // 0..100, only for budget_warning
 };
 
 export type GuidanceInput = {
@@ -66,13 +67,14 @@ export function getGuidance(input: GuidanceInput): GuidanceCard | null {
 
   // 1. Budget Warning (never uses name)
   if (c.hasBudget && c.budgetLimit && underBudget) {
-    const period = c.isWeekly ? "this week" : "this period";
+    const used = c.budgetLimit > 0 ? Math.round((c.spent / c.budgetLimit) * 100) : 0;
     return {
       scenario: "budget_warning",
       title: "Budget Alert",
-      description: `Your ${c.categoryName} budget is almost fully used ${period}.`,
+      description: `Your ${c.categoryName} budget is ${used}% used.`,
       ctaLabel: "View Budget",
       action: "view-budget",
+      usedPercentage: used,
     };
   }
 

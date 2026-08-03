@@ -10,6 +10,7 @@ import {
   Target,
 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 type Props = { card: GuidanceCard; onCta: () => void };
 
@@ -62,6 +63,13 @@ export default function ContextualGuidanceCard({ card, onCta }: Props) {
         <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
           {card.description}
         </p>
+        {card.usedPercentage != null && (
+          <Progress
+            value={card.usedPercentage}
+            className="mt-3 h-1.5"
+            indicatorColor={card.usedPercentage >= 90 ? "var(--color-destructive)" : "var(--color-orange-500)"}
+          />
+        )}
         <Button size="lg" className="mt-4 w-full rounded-full font-semibold" onClick={onCta}>
           {card.ctaLabel}
         </Button>

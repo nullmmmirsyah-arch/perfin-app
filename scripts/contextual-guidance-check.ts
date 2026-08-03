@@ -38,7 +38,8 @@ function expect(cond: boolean, name: string) {
 }
 
 // Budget warning (weekly under 20%)
-expect(getGuidance(mk(base()))?.scenario === "budget_warning", "budget_warning weekly");
+const bw = getGuidance(mk(base()));
+expect(bw?.scenario === "budget_warning" && bw?.usedPercentage === 90, "budget_warning weekly with usedPercentage");
 
 // Budget warning (budget_period, exhausted)
 expect(
