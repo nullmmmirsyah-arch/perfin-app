@@ -301,6 +301,11 @@ const TransactionDrawer = (props: TransactionDrawerProps) => {
     overallRemaining: number | null;
     categoryRemaining: number | null;
     categoryBudgetTotal: number | null;
+    affectedCategoryId: string;
+    householdId: string | null;
+    month: number;
+    year: number;
+    displayName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -493,9 +498,10 @@ const TransactionForm = ({
     splitDrawerOpen: boolean,
     setSplitDrawerOpen: (open: boolean) => void,
     onDirtyChange: (isDirty: boolean) => void,
-    onSaveSuccess: (data: { amount: number; categoryName: string; overallRemaining: number | null; categoryRemaining: number | null; categoryBudgetTotal: number | null }) => void,
+    onSaveSuccess: (data: { amount: number; categoryName: string; overallRemaining: number | null; categoryRemaining: number | null; categoryBudgetTotal: number | null; affectedCategoryId: string; householdId: string | null; month: number; year: number; displayName: string }) => void,
 }) => {
   const { householdId, households } = useHousehold();
+  const { user } = useUser();
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
   
@@ -547,6 +553,7 @@ const TransactionForm = ({
   
   // Dynamic Month/Year for Budget Status (Fiscal-aware, consistent with Dashboard)
   const activeHousehold = households?.find(h => h._id === householdId);
+  const displayName = activeHousehold?.name ?? user?.firstName ?? "";
   const budgetStartDay = activeHousehold?.budgetStartDay || 1;
   const dateStr = transactionDate ? transactionDate.toISOString() : new Date().toISOString();
   const { month: selectedMonth, year: selectedYear } = getFiscalDateDetails(dateStr, budgetStartDay);
@@ -767,6 +774,13 @@ const TransactionForm = ({
                 overallRemaining: newOverallRemaining,
                 categoryRemaining: catRemaining,
                 categoryBudgetTotal: catBudgetTotal,
+                affectedCategoryId: data.isSplit
+                  ? (finalSplits?.sort((a, b) => parseAmount(b.amount) - parseAmount(a.amount))[0]?.categoryId ?? "")
+                  : (data.categoryId ?? ""),
+                householdId,
+                month: selectedMonth,
+                year: selectedYear,
+                displayName,
               });
 
               setIsProcessing(false);
